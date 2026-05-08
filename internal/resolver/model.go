@@ -15,6 +15,9 @@ type Request struct {
 	Width          int
 	Format         string
 	RangeRequested bool
+
+	PreferredEncodings *cxlist.List[string]
+	PreferredFormats   *cxlist.List[string]
 }
 
 type Result struct {

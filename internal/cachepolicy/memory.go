@@ -68,6 +68,8 @@ type StaticMemoryPolicy struct {
 	priorityTTL   time.Duration
 	variantTTL    time.Duration
 	genericTTL    time.Duration
+	smallFileSize int64
+	largeFileSize int64
 	priorityPaths *cxset.OrderedSet[string]
 }
 
@@ -84,6 +86,8 @@ func NewMemoryPolicy(cfg *config.Config) MemoryPolicy {
 		priorityTTL:   clampMemoryTTL(baseTTL*2, baseTTL, 30*time.Minute),
 		variantTTL:    clampMemoryTTL(baseTTL+baseTTL/2, baseTTL, 20*time.Minute),
 		genericTTL:    clampMemoryTTL(baseTTL/2, time.Minute, baseTTL),
+		smallFileSize: memorySmallFileSize(cfg.HTTP.MemoryCache.MaxFileSize),
+		largeFileSize: memoryLargeFileSize(cfg.HTTP.MemoryCache.MaxFileSize),
 		priorityPaths: memoryPriorityPaths(cfg),
 	}
 }
@@ -105,7 +109,13 @@ func (p StaticMemoryPolicy) ShouldWarm(request MemoryRequest) bool {
 	if request.UseCase == MemoryUseCaseEvent {
 		return p.isVariant(request)
 	}
-	return p.isVariant(request) || isTextLikeRequest(request)
+	if p.isVariant(request) {
+		return request.Size <= p.largeFileSize
+	}
+	if !isTextLikeRequest(request) {
+		return false
+	}
+	return request.Size <= p.smallFileSize || request.Size <= 0
 }
 
 func (p StaticMemoryPolicy) TTL(request MemoryRequest) time.Duration {
@@ -118,7 +128,7 @@ func (p StaticMemoryPolicy) TTL(request MemoryRequest) time.Duration {
 	case p.isVariant(request):
 		return p.variantTTL
 	case isTextLikeRequest(request):
-		return p.baseTTL
+		return p.adjustTTLForSize(p.baseTTL, request.Size)
 	default:
 		return p.genericTTL
 	}
@@ -160,6 +170,48 @@ func isTextLikeRequest(request MemoryRequest) bool {
 
 	ext := strings.ToLower(filepath.Ext(memorySubjectPath(request)))
 	return textLikeFileExtensions.Contains(ext)
+}
+
+func (p StaticMemoryPolicy) adjustTTLForSize(ttl time.Duration, size int64) time.Duration {
+	if ttl <= 0 {
+		return ttl
+	}
+	if size <= 0 {
+		return ttl
+	}
+	if size >= p.largeFileSize {
+		return ttl / 2
+	}
+	if size <= p.smallFileSize {
+		return ttl + ttl/4
+	}
+	return ttl
+}
+
+func memorySmallFileSize(maxFileSize int64) int64 {
+	if maxFileSize <= 0 {
+		return 0
+	}
+	candidate := max(1, maxFileSize/4)
+	return clampMemorySize(candidate, 1024, maxFileSize)
+}
+
+func memoryLargeFileSize(maxFileSize int64) int64 {
+	if maxFileSize <= 0 {
+		return 0
+	}
+	candidate := max(1, (maxFileSize*3)/4)
+	return min(candidate, maxFileSize)
+}
+
+func clampMemorySize(value, minValue, maxValue int64) int64 {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
 }
 
 func clampMemoryTTL(value, minTTL, maxTTL time.Duration) time.Duration {

@@ -181,6 +181,23 @@ func TestResolverIgnoresUnsupportedModernFormatsFromAccept(t *testing.T) {
 	}
 }
 
+func TestResolverUsesPrefilledPreferredEncodings(t *testing.T) {
+	_, _, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
+	result, err := assetResolver.Resolve(context.Background(), resolver.Request{
+		Path:               "index.html",
+		PreferredEncodings: cxlist.NewList[string]("br", "gzip"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.PreferredEncodings == nil {
+		t.Fatal("expected preferred encodings to be filled from request")
+	}
+	if values := result.PreferredEncodings.Values(); !slices.Equal(values, []string{"br", "gzip"}) {
+		t.Fatalf("unexpected preferred encodings: %#v", values)
+	}
+}
+
 func baseAssetsConfig() *config.Assets {
 	return &config.Assets{Entry: "index.html"}
 }

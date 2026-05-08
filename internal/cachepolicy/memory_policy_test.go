@@ -94,3 +94,66 @@ func TestMemoryPolicyRejectsRangeRequests(t *testing.T) {
 		t.Fatal("expected range request to bypass memory cache")
 	}
 }
+
+func TestMemoryPolicyPrioritizesSmallTextFilesForWarmup(t *testing.T) {
+	policy := cachepolicy.NewMemoryPolicy(new(config.DefaultConfigForTest()))
+
+	request := cachepolicy.MemoryRequest{
+		Path:      "app.js",
+		AssetPath: "app.js",
+		Size:      2048,
+		MediaType: "text/plain",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseWarm,
+	}
+
+	if !policy.ShouldWarm(request) {
+		t.Fatal("expected small text asset to be warmable")
+	}
+}
+
+func TestMemoryPolicySkipsLargeTextFilesForWarmup(t *testing.T) {
+	policy := cachepolicy.NewMemoryPolicy(new(config.DefaultConfigForTest()))
+
+	request := cachepolicy.MemoryRequest{
+		Path:      "docs/guide.html",
+		AssetPath: "docs/guide.html",
+		Size:      50000,
+		MediaType: "text/html; charset=utf-8",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseWarm,
+	}
+
+	if policy.ShouldWarm(request) {
+		t.Fatal("expected large text asset to stay out of warmup")
+	}
+}
+
+func TestMemoryPolicyScalesTTLByAssetSize(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	baseTTL := cfg.HTTP.MemoryCache.ParsedTTL()
+	policy := cachepolicy.NewMemoryPolicy(&cfg)
+
+	small := policy.TTL(cachepolicy.MemoryRequest{
+		Path:      "small.txt",
+		AssetPath: "small.txt",
+		Size:      2048,
+		MediaType: "text/plain",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseServe,
+	})
+	large := policy.TTL(cachepolicy.MemoryRequest{
+		Path:      "large.txt",
+		AssetPath: "large.txt",
+		Size:      50000,
+		MediaType: "text/plain",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseServe,
+	})
+	if small <= baseTTL {
+		t.Fatalf("expected small text asset ttl to increase over base, got %s <= %s", small, baseTTL)
+	}
+	if large >= baseTTL {
+		t.Fatalf("expected large text asset ttl to scale down under base, got %s >= %s", large, baseTTL)
+	}
+}

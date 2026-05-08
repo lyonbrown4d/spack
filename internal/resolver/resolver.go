@@ -70,17 +70,20 @@ func (r *Resolver) Resolve(ctx context.Context, request Request) (*Result, error
 		return nil, ErrNotFound
 	}
 
-	encodings := parseAcceptEncoding(request.AcceptEncoding, r.supportedEncodings)
 	requestedFormat := media.NormalizeImageFormat(request.Format)
-	preferredImageFormats := preferredImageFormats(request.Accept, requestedFormat, asset.MediaType)
+	request.Format = requestedFormat
+
+	requestedImageFormats := request.PreferredFormats
+	if requestedImageFormats == nil {
+		requestedImageFormats = preferredImageFormats(request.Accept, requestedFormat, asset.MediaType)
+	}
 	if result, ok, err := r.resolvePreferredVariant(
 		ctx,
 		startedAt,
 		asset,
 		fallbackUsed,
-		request,
-		encodings,
-		preferredImageFormats,
+		&request,
+		requestedImageFormats,
 	); err != nil || ok {
 		return result, err
 	}
@@ -90,9 +93,9 @@ func (r *Resolver) Resolve(ctx context.Context, request Request) (*Result, error
 		FilePath:           asset.FullPath,
 		MediaType:          asset.MediaType,
 		ETag:               asset.ETag,
-		PreferredEncodings: encodings,
+		PreferredEncodings: request.PreferredEncodings,
 		PreferredWidths:    preferredWidths(request.Width),
-		PreferredFormats:   preferredImageFormats,
+		PreferredFormats:   requestedImageFormats,
 		FallbackUsed:       fallbackUsed,
 	}
 	r.recordMetrics(ctx, startedAt, result, nil)
@@ -104,8 +107,7 @@ func (r *Resolver) resolvePreferredVariant(
 	startedAt time.Time,
 	asset *catalog.Asset,
 	fallbackUsed bool,
-	request Request,
-	encodings *cxlist.List[string],
+	request *Request,
 	preferredImageFormats *cxlist.List[string],
 ) (*Result, bool, error) {
 	if request.Width > 0 || preferredImageFormats.Len() > 0 {
@@ -114,9 +116,14 @@ func (r *Resolver) resolvePreferredVariant(
 			return result, ok, err
 		}
 	}
+	encodings := request.PreferredEncodings
+	if encodings == nil {
+		encodings = parseAcceptEncoding(request.AcceptEncoding, r.supportedEncodings)
+	}
 	if request.RangeRequested || encodings.Len() == 0 {
 		return nil, false, nil
 	}
+	request.PreferredEncodings = encodings
 	return r.resolveEncodingVariant(ctx, startedAt, asset, fallbackUsed, encodings)
 }
 

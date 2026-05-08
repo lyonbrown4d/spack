@@ -51,7 +51,7 @@ func registerRobotsRoute(
 		if asset, ok := staticRobotsAsset(cfg.Robots, cat); ok {
 			_, err := deliveryRuntime.sendResolvedAsset(
 				c,
-				resolver.Request{RangeRequested: strings.TrimSpace(c.Get(fiber.HeaderRange)) != ""},
+				resolver.Request{RangeRequested: requestRangeRequested(c)},
 				&resolver.Result{
 					Asset:     asset,
 					FilePath:  asset.FullPath,

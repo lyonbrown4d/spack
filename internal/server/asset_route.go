@@ -158,14 +158,21 @@ func asMissingResolvedVariantError(err error) *missingResolvedVariantError {
 
 func buildResolverRequest(c fiber.Ctx, mountPath, requestedFormat string) resolver.Request {
 	cleanedPath := requestpath.CleanMounted(c.Path(), mountPath)
+	acceptHeader := strings.TrimSpace(c.Get(fiber.HeaderAccept))
+	acceptEncodingHeader := strings.TrimSpace(c.Get(fiber.HeaderAcceptEncoding))
+
 	return resolver.Request{
 		Path:           cleanedPath.Value,
-		Accept:         c.Get(fiber.HeaderAccept),
-		AcceptEncoding: c.Get(fiber.HeaderAcceptEncoding),
+		Accept:         acceptHeader,
+		AcceptEncoding: acceptEncodingHeader,
 		Width:          parsePositiveInt(c.Query("w")),
 		Format:         requestedFormat,
-		RangeRequested: strings.TrimSpace(c.Get(fiber.HeaderRange)) != "",
+		RangeRequested: requestRangeRequested(c),
 	}
+}
+
+func requestRangeRequested(c fiber.Ctx) bool {
+	return strings.TrimSpace(c.Get(fiber.HeaderRange)) != ""
 }
 
 func (r *assetDeliveryRuntime) enqueuePipelineResult(result *resolver.Result) {
