@@ -3,17 +3,19 @@ package logger
 
 import (
 	"context"
+	"fmt"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/logx"
 	"github.com/daiyuang/spack/internal/config"
+	"github.com/samber/oops"
 	"log/slog"
 )
 
 var Module = dix.NewModule("logger",
 	dix.WithModuleProviders(
-		dix.Provider1(Build),
+		dix.ProviderErr1(Build),
 	),
 	dix.WithModuleHooks(
 		dix.OnStop(func(ctx context.Context, logger *slog.Logger) error {
@@ -22,7 +24,7 @@ var Module = dix.NewModule("logger",
 	),
 )
 
-func Build(cfg *config.Config) *slog.Logger {
+func Build(cfg *config.Config) (*slog.Logger, error) {
 	opts := cxlist.NewListWithCapacity[logx.Option](5,
 		logx.WithLevelString(cfg.Logger.Level),
 		logx.WithConsole(cfg.Logger.Console.Enabled),
@@ -39,11 +41,9 @@ func Build(cfg *config.Config) *slog.Logger {
 
 	logger, err := logx.New(opts.Values()...)
 	if err != nil {
-		fallback := slog.Default()
-		fallback.Error("logger bootstrap failed, fallback to slog default", slog.String("err", err.Error()))
-		return fallback
+		return nil, oops.In("logger").Owner("config").Wrap(fmt.Errorf("build logger: %w", err))
 	}
 
 	logx.SetDefault(logger)
-	return logger
+	return logger, nil
 }
