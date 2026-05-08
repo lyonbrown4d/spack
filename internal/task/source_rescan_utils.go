@@ -21,6 +21,26 @@ func sortedMapKeys[T any](values *cxmapping.Map[string, T]) *cxlist.List[string]
 	return cxlist.NewList[string](values.Keys()...).Sort(cmp.Compare[string])
 }
 
+type sortedMapEntry[T any] struct {
+	key   string
+	value T
+}
+
+func sortedMapEntries[T any](values *cxmapping.Map[string, T]) *cxlist.List[sortedMapEntry[T]] {
+	if values == nil {
+		return cxlist.NewList[sortedMapEntry[T]]()
+	}
+
+	entries := cxlist.NewList[sortedMapEntry[T]]()
+	values.Range(func(key string, value T) bool {
+		entries.Add(sortedMapEntry[T]{key: key, value: value})
+		return true
+	})
+	return entries.Sort(func(left, right sortedMapEntry[T]) int {
+		return cmp.Compare(left.key, right.key)
+	})
+}
+
 func totalAssetBytes(assets *cxlist.List[*catalog.Asset]) int64 {
 	var total int64
 	assets.Range(func(_ int, asset *catalog.Asset) bool {

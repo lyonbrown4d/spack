@@ -1,7 +1,6 @@
 package task
 
 import (
-	"cmp"
 	"path/filepath"
 	"strings"
 
@@ -79,38 +78,38 @@ func (changes *sourceRescanChangeSet) changedAssetMatchPath(match sourcecatalog.
 }
 
 func (r *sourceRescanRun) processDeletedAssets(deletedAssets *cxset.Set[string]) error {
-	for _, assetPath := range deletedAssets.Values() {
+	cxlist.NewList(deletedAssets.Values()...).Range(func(_ int, assetPath string) bool {
 		existing, ok := r.cat.FindAsset(assetPath)
 		if !ok {
-			continue
+			return true
 		}
 		r.report.Removed++
 		r.invalidateAssetAndVariants(existing.FullPath, r.cat.DeleteAsset(assetPath))
-	}
+		return true
+	})
 	return nil
 }
 
 func (r *sourceRescanRun) processDeletedSourceSidecars(deletedSourceSidecars *cxmapping.Map[string, sourceRescanDeletedSidecar]) {
-	for _, sidecarPath := range deletedSourceSidecars.Keys() {
-		change, ok := deletedSourceSidecars.Get(sidecarPath)
-		if !ok {
-			continue
-		}
+	deletedSourceSidecars.Range(func(_ string, change sourceRescanDeletedSidecar) bool {
 		r.removeSidecarVariants(change.match)
-	}
+		return true
+	})
 }
 
 func (r *sourceRescanRun) processChangedAssets(changedAssets *cxmapping.Map[string, source.File]) error {
-	for _, path := range sortedChangedPaths(changedAssets).Values() {
-		file, ok := changedAssets.Get(path)
-		if !ok || file.Path == "" {
-			continue
+	var processErr error
+	sortedMapEntries(changedAssets).Range(func(_ int, asset sortedMapEntry[source.File]) bool {
+		if asset.value.Path == "" {
+			return true
 		}
-		if err := r.upsertAssetAndSidecars(path, file); err != nil {
-			return oops.In("task").Owner("source rescan").With("asset_path", path).Wrap(err)
+		if err := r.upsertAssetAndSidecars(asset.key, asset.value); err != nil {
+			processErr = oops.In("task").Owner("source rescan").With("asset_path", asset.key).Wrap(err)
+			return false
 		}
-	}
-	return nil
+		return true
+	})
+	return processErr
 }
 
 func (r *sourceRescanRun) upsertAssetAndSidecars(assetPath string, file source.File) error {
@@ -180,16 +179,15 @@ func (r *sourceRescanRun) buildSidecarVariant(
 }
 
 func (r *sourceRescanRun) processChangedSourceSidecars(changedSidecars *cxmapping.Map[string, sourceRescanSidecarChange]) error {
-	for _, sidecarPath := range sortedChangedPaths(changedSidecars).Values() {
-		change, ok := changedSidecars.Get(sidecarPath)
-		if !ok {
-			continue
+	var processErr error
+	sortedMapEntries(changedSidecars).Range(func(_ int, sidecar sortedMapEntry[sourceRescanSidecarChange]) bool {
+		if err := r.upsertSidecarVariant(sidecar.value); err != nil {
+			processErr = oops.In("task").Owner("source rescan").With("asset_path", sidecar.value.match.AssetPath).Wrap(err)
+			return false
 		}
-		if err := r.upsertSidecarVariant(change); err != nil {
-			return oops.In("task").Owner("source rescan").With("asset_path", change.match.AssetPath).Wrap(err)
-		}
-	}
-	return nil
+		return true
+	})
+	return processErr
 }
 
 func (r *sourceRescanRun) upsertSidecarVariant(change sourceRescanSidecarChange) error {
@@ -203,10 +201,6 @@ func (r *sourceRescanRun) upsertSidecarVariant(change sourceRescanSidecarChange)
 		return oops.In("task").Owner("source rescan").With("asset_path", change.match.AssetPath).Wrap(buildErr)
 	}
 	return oops.In("task").Owner("source rescan").With("asset_path", asset.Path).Wrap(r.cat.UpsertVariant(variant))
-}
-
-func sortedChangedPaths[K any](values *cxmapping.Map[string, K]) *cxlist.List[string] {
-	return cxlist.NewList[string](values.Keys()...).Sort(cmp.Compare[string])
 }
 
 func normalizeChangePath(rawPath string) string {

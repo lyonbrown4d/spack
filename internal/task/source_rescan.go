@@ -1,7 +1,6 @@
 package task
 
 import (
-	"cmp"
 	"context"
 	"errors"
 
@@ -183,9 +182,8 @@ func (r *sourceRescanRun) reconcileScannedAssets(
 	existingByPath *cxmapping.Map[string, *catalog.Asset],
 ) error {
 	var syncErr error
-	sortedMapKeys[*catalog.Asset](scannedAssets).Range(func(_ int, assetPath string) bool {
-		asset, _ := scannedAssets.Get(assetPath)
-		if err := r.syncScannedAsset(assetPath, asset, existingByPath); err != nil {
+	sortedMapEntries[*catalog.Asset](scannedAssets).Range(func(_ int, asset sortedMapEntry[*catalog.Asset]) bool {
+		if err := r.syncScannedAsset(asset.key, asset.value, existingByPath); err != nil {
 			syncErr = err
 			return false
 		}
@@ -223,11 +221,9 @@ func (r *sourceRescanRun) syncScannedAsset(
 func (r *sourceRescanRun) reconcileRemovedAssets(
 	existingByPath *cxmapping.Map[string, *catalog.Asset],
 ) {
-	cxlist.NewList[*catalog.Asset](existingByPath.Values()...).Sort(func(left, right *catalog.Asset) int {
-		return cmp.Compare(left.Path, right.Path)
-	}).Range(func(_ int, asset *catalog.Asset) bool {
+	sortedMapEntries[*catalog.Asset](existingByPath).Range(func(_ int, asset sortedMapEntry[*catalog.Asset]) bool {
 		r.report.Removed++
-		r.invalidateAssetAndVariants(asset.FullPath, r.cat.DeleteAsset(asset.Path))
+		r.invalidateAssetAndVariants(asset.value.FullPath, r.cat.DeleteAsset(asset.key))
 		return true
 	})
 }

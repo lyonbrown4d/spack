@@ -3,16 +3,23 @@ package task
 import (
 	"strings"
 
+	"github.com/daiyuang/spack/internal/source"
 	"github.com/samber/oops"
 )
 
 func (r *sourceRescanRun) buildIncrementalChangeSet() (*sourceRescanChangeSet, error) {
 	changeSet := newSourceRescanChangeSet()
 
-	for _, change := range r.changes.Values() {
+	var buildErr error
+	r.changes.Range(func(_ int, change source.ChangeEvent) bool {
 		if err := r.addChangeToIncrementalSet(changeSet, strings.TrimSpace(change.Path), change.Op); err != nil {
-			return nil, err
+			buildErr = err
+			return false
 		}
+		return true
+	})
+	if buildErr != nil {
+		return nil, buildErr
 	}
 
 	changeSet.normalizeIncrementalTargets()
