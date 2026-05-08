@@ -2,6 +2,7 @@ package resolver
 
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
+	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/daiyuang/spack/internal/catalog"
 	"github.com/daiyuang/spack/internal/media"
 	"github.com/samber/lo"
@@ -94,10 +95,12 @@ func wrapCatalogReadErr(err error) error {
 	return oops.In("resolver").Owner("catalog").Wrap(err)
 }
 
-type variantUsabilityCache map[string]bool
+type variantUsabilityCache struct {
+	values *cxmapping.Map[string, bool]
+}
 
 func newVariantUsabilityCache() variantUsabilityCache {
-	return make(variantUsabilityCache, 4)
+	return variantUsabilityCache{values: cxmapping.NewMap[string, bool]()}
 }
 
 func (cache variantUsabilityCache) IsUsable(variant *catalog.Variant, assetSourceHash string) bool {
@@ -109,12 +112,17 @@ func (cache variantUsabilityCache) IsUsable(variant *catalog.Variant, assetSourc
 	if key == "" {
 		key = variant.ArtifactPath
 	}
-	if usable, ok := cache[key]; ok {
+
+	if cache.values == nil {
+		return isUsableVariant(variant, assetSourceHash)
+	}
+
+	if usable, ok := cache.values.Get(key); ok {
 		return usable
 	}
 
 	usable := isUsableVariant(variant, assetSourceHash)
-	cache[key] = usable
+	cache.values.Set(key, usable)
 	return usable
 }
 

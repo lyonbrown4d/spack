@@ -3,7 +3,7 @@ package event
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"reflect"
 
@@ -31,10 +31,10 @@ func newBus(
 	obs observabilityx.Observability,
 ) (eventx.BusRuntime, error) {
 	if settings == nil || settings.Size <= 0 {
-		return nil, oops.In("event").Wrap(fmt.Errorf("invalid async worker settings"))
+		return nil, oops.In("event").Wrap(errors.New("invalid async worker settings"))
 	}
 	if logger == nil {
-		return nil, oops.In("event").Owner("logger").Wrap(fmt.Errorf("logger is required"))
+		return nil, oops.In("event").Owner("logger").Wrap(errors.New("logger is required"))
 	}
 	return eventx.New(
 		eventx.WithParallelDispatch(true),

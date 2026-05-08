@@ -16,6 +16,8 @@ import (
 
 const SourceSidecarStage = "source_sidecar"
 
+var errSourceCatalogLookupComplete = errors.New("sourcecatalog lookup complete")
+
 type Snapshot struct {
 	Assets     *cxmapping.Map[string, *catalog.Asset]
 	Variants   *cxmapping.Map[string, *catalog.Variant]
@@ -151,36 +153,44 @@ func (s Scanner) collectSourceFiles(ctx context.Context) (*cxmapping.Map[string,
 
 func (s Scanner) findFileByPath(path string) (source.File, bool, error) {
 	normalized := normalizeSourcePath(path)
-	if finder, ok := s.src.(source.FileFinder); ok {
-		file, found, err := finder.FindFile(normalized)
-		if err != nil {
-			return source.File{}, false, err
-		}
-		if found {
-			return file, true, nil
-		}
-	}
-
 	if normalized == "" {
 		return source.File{}, false, nil
 	}
 
-	lookupErr := errors.New("sourcecatalog lookup complete")
-	var foundFile source.File
-	var found bool
-	normalizedFull := filepath.Clean(path)
-
-	if err := s.src.Walk(func(file source.File) error {
-		if file.Path == normalized || file.FullPath == normalizedFull {
-			foundFile = file
-			found = true
-			return lookupErr
+	if fileFinder, ok := s.src.(source.FileFinder); ok {
+		if file, found, err := fileFinder.FindFile(normalized); err != nil {
+			return source.File{}, false, oops.In("sourcecatalog").Owner("source lookup").Wrap(err)
+		} else if found {
+			return file, true, nil
 		}
-		return nil
-	}); err != nil && !errors.Is(err, lookupErr) {
+	}
+
+	found, file, err := s.findFileByWalk(filepath.Clean(path), normalized)
+	if err != nil {
 		return source.File{}, false, oops.In("sourcecatalog").Owner("source lookup").Wrap(err)
 	}
-	return foundFile, found, nil
+	return file, found, nil
+}
+
+func (s Scanner) findFileByWalk(normalizedFull, normalized string) (bool, source.File, error) {
+	var foundFile source.File
+	var found bool
+
+	if err := s.src.Walk(func(file source.File) error {
+		if !isFilePathMatch(file, normalized, normalizedFull) {
+			return nil
+		}
+		foundFile = file
+		found = true
+		return errSourceCatalogLookupComplete
+	}); err != nil && !errors.Is(err, errSourceCatalogLookupComplete) {
+		return false, source.File{}, oops.In("sourcecatalog").Owner("source lookup").Wrap(err)
+	}
+	return found, foundFile, nil
+}
+
+func isFilePathMatch(file source.File, normalized, normalizedFull string) bool {
+	return file.Path == normalized || file.FullPath == normalizedFull
 }
 
 func normalizeSourcePath(path string) string {
