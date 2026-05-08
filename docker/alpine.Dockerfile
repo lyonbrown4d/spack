@@ -1,11 +1,13 @@
 FROM alpine:latest AS alpine
 
+ARG TARGETPLATFORM
+
 RUN apk upgrade --no-cache \
     && apk add --no-cache ca-certificates curl dumb-init \
     && adduser -D -g '' appuser
 
 WORKDIR /opt
-COPY --from=builder /app/spack /opt/spack
+COPY ${TARGETPLATFORM}/spack /opt/spack
 
 RUN chmod +x /opt/spack
 

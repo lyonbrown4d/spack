@@ -79,7 +79,7 @@ dockers_v2:
       - spack-linux
     dockerfile: docker/alpine.Dockerfile
     images:
-      - daiyuang/spack
+      - ghcr.io/daiyuang/spack
     tags:
       - "{{ .Version }}"
       - latest
@@ -91,7 +91,7 @@ dockers_v2:
       - spack-linux
     dockerfile: docker/debian.Dockerfile
     images:
-      - daiyuang/spack
+      - ghcr.io/daiyuang/spack
     tags:
       - debian
       - debian-{{ .Version }}

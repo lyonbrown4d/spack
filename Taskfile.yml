@@ -8,7 +8,7 @@ vars:
   # 默认平台
   DEFAULT_GOOS: linux
   DEFAULT_GOARCH: amd64
-  DOCKERHUB_REPO: daiyuang/{{.BIN_NAME}}
+  CONTAINER_REPO: ghcr.io/daiyuang/{{.BIN_NAME}}
   CONTAINER_PLATFORM_ALL: linux/amd64,linux/arm64
   CONTAINER_PLATFORM: '{{default .CONTAINER_PLATFORM_ALL .PLATFORMS}}'
 tasks:
@@ -76,11 +76,11 @@ tasks:
         docker buildx build \
           --target alpine \
           --platform {{.CONTAINER_PLATFORM}} \
-          -t {{.DOCKERHUB_REPO}}:alpine \
-          -t {{.DOCKERHUB_REPO}}:latest \
-          -t {{.DOCKERHUB_REPO}}:{{.RELEASE_VERSION}} \
-          -t {{.DOCKERHUB_REPO}}:alpine-{{.RELEASE_VERSION}} \
-          -t {{.DOCKERHUB_REPO}}:alpine-{{.GIT_COMMIT}} \
+          -t {{.CONTAINER_REPO}}:alpine \
+          -t {{.CONTAINER_REPO}}:latest \
+          -t {{.CONTAINER_REPO}}:{{.RELEASE_VERSION}} \
+          -t {{.CONTAINER_REPO}}:alpine-{{.RELEASE_VERSION}} \
+          -t {{.CONTAINER_REPO}}:alpine-{{.GIT_COMMIT}} \
           --push \
           .
     vars:
@@ -97,9 +97,9 @@ tasks:
         docker buildx build \
           --target debian \
           --platform {{.CONTAINER_PLATFORM}} \
-          -t {{.DOCKERHUB_REPO}}:debian \
-          -t {{.DOCKERHUB_REPO}}:debian-{{.RELEASE_VERSION}} \
-          -t {{.DOCKERHUB_REPO}}:debian-{{.GIT_COMMIT}} \
+          -t {{.CONTAINER_REPO}}:debian \
+          -t {{.CONTAINER_REPO}}:debian-{{.RELEASE_VERSION}} \
+          -t {{.CONTAINER_REPO}}:debian-{{.GIT_COMMIT}} \
           --push \
           .
     vars:

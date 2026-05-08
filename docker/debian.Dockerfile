@@ -1,8 +1,10 @@
 FROM debian:stable-slim AS debian
 
+ARG TARGETPLATFORM
+
 WORKDIR /opt
 
-COPY --from=builder /app/spack /opt/spack
+COPY ${TARGETPLATFORM}/spack /opt/spack
 
 RUN apt-get update \
     && apt-get upgrade -y \

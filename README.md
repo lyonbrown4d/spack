@@ -154,7 +154,7 @@ Hot paths that are intentionally optimized:
 ## Quick Start
 
 ```dockerfile
-FROM daiyuang/spack:latest
+FROM ghcr.io/daiyuang/spack:latest
 
 COPY ./dist /app
 
@@ -193,7 +193,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM daiyuang/spack:latest
+FROM ghcr.io/daiyuang/spack:latest
 
 COPY --from=build /workspace/dist /app
 
@@ -212,7 +212,7 @@ EXPOSE 80 8080
 Use SPACK as a reusable runtime base in your own image family:
 
 ```dockerfile
-FROM daiyuang/spack:latest AS spack-runtime
+FROM ghcr.io/daiyuang/spack:latest AS spack-runtime
 
 ENV SPACK_ASSETS_ROOT=/srv/www
 ENV SPACK_ASSETS_PATH=/
@@ -231,7 +231,7 @@ EXPOSE 80 8080
 Use a custom config file instead of many environment variables:
 
 ```dockerfile
-FROM daiyuang/spack:latest
+FROM ghcr.io/daiyuang/spack:latest
 
 COPY ./dist /app
 COPY ./deploy/spack.yaml /etc/spack/spack.yaml
@@ -244,7 +244,7 @@ CMD ["spack", "--config", "/etc/spack/spack.yaml"]
 Use SPACK only as the runtime layer while keeping your own build pipeline:
 
 ```dockerfile
-FROM daiyuang/spack:latest
+FROM ghcr.io/daiyuang/spack:latest
 
 COPY ./packages/web/dist /opt/assets
 
