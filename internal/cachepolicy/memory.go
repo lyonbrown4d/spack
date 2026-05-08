@@ -146,7 +146,7 @@ func isTextLikeMediaType(mediaType string) bool {
 }
 
 func isTextLikeRequest(request MemoryRequest) bool {
-	if isTextLikeMediaType(request.MediaType) {
+	if media.IsTextLikeMediaType(request.MediaType) {
 		return true
 	}
 

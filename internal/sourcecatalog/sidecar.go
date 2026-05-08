@@ -197,31 +197,44 @@ func canReuseSidecarVariant(variant *catalog.Variant, sidecar sidecarFile, asset
 }
 
 func buildSidecarVariant(sidecar sidecarFile, asset *catalog.Asset) (*catalog.Variant, error) {
-	hash, err := pkg.HashFile(sidecar.FullPath)
-	if err != nil {
-		return nil, oops.In("sourcecatalog").Owner("variant").With("artifact_path", sidecar.FullPath).Wrap(err)
-	}
-
-	return &catalog.Variant{
-		ID:           asset.Path + sidecar.suffix,
-		AssetPath:    asset.Path,
-		ArtifactPath: sidecar.FullPath,
-		Size:         sidecar.Size,
-		MediaType:    asset.MediaType,
-		SourceHash:   asset.SourceHash,
-		ETag:         fmt.Sprintf("%q", hash),
-		Encoding:     sidecar.encoding,
-		Metadata:     sidecarMetadata(sidecar),
-	}, nil
+	return BuildSourceSidecarVariant(sidecar.File, SidecarMatch{
+		AssetPath: sidecar.assetPath,
+		Encoding:  sidecar.encoding,
+		Suffix:    sidecar.suffix,
+	}, asset)
 }
 
 func normalizedAssetPath(path, suffix string) string {
 	return strings.TrimSpace(strings.TrimSuffix(path, suffix))
 }
 
-func sidecarMetadata(sidecar sidecarFile) *cxmapping.Map[string, string] {
+// BuildSourceSidecarVariant builds a source-sidecar variant from source and match data.
+func BuildSourceSidecarVariant(
+	sidecar source.File,
+	match SidecarMatch,
+	asset *catalog.Asset,
+) (*catalog.Variant, error) {
+	hash, err := pkg.HashFile(sidecar.FullPath)
+	if err != nil {
+		return nil, oops.In("sourcecatalog").Owner("variant").With("artifact_path", sidecar.FullPath).Wrap(err)
+	}
+
+	return &catalog.Variant{
+		ID:           match.AssetPath + match.Suffix,
+		AssetPath:    match.AssetPath,
+		ArtifactPath: sidecar.FullPath,
+		Size:         sidecar.Size,
+		MediaType:    asset.MediaType,
+		SourceHash:   asset.SourceHash,
+		ETag:         fmt.Sprintf("%q", hash),
+		Encoding:     match.Encoding,
+		Metadata:     sidecarMetadata(sidecar, match.AssetPath),
+	}, nil
+}
+
+func sidecarMetadata(sidecar source.File, sourcePath string) *cxmapping.Map[string, string] {
 	return catalog.MetadataWithModTime(cxmapping.NewMapFrom(map[string]string{
 		"stage":  SourceSidecarStage,
-		"source": filepath.ToSlash(sidecar.Path),
+		"source": filepath.ToSlash(sourcePath),
 	}), sidecar.ModTime)
 }

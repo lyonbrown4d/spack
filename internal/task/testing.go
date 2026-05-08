@@ -20,6 +20,7 @@ func SyncSourceCatalogForTest(
 	src source.Source,
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
+	changes ...source.ChangeEvent,
 ) (SourceRescanReport, error) {
 	cfg := config.DefaultConfigForTest()
 	scanner := sourcecatalog.NewScanner(src, contentcoding.NewRegistry(contentcoding.Options{
@@ -27,7 +28,7 @@ func SyncSourceCatalogForTest(
 		GzipLevel:     cfg.Compression.GzipLevel,
 		ZstdLevel:     cfg.Compression.ZstdLevel,
 	}, cfg.Compression.NormalizedEncodings()))
-	return syncSourceCatalog(ctx, scanner, cat, bodyCache)
+	return syncSourceCatalog(ctx, scanner, cat, bodyCache, changes...)
 }
 
 // SyncArtifactCatalogForTest exposes artifact/catalog reconciliation for black-box tests.

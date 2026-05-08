@@ -19,6 +19,16 @@ func TestParseAcceptEncodingPriority(t *testing.T) {
 	}
 }
 
+func TestParseAcceptEncodingParameterOrderingAndWhitespace(t *testing.T) {
+	got := resolver.ParseAcceptEncodingWithSupportedForTest(
+		"gzip;level=9;q=0.4 ;x=1, br;Q=0.9;foo=bar, zstd;foo=bar;q=0.5",
+		stringToList("gzip,br,zstd"),
+	)
+	if !slices.Equal(got.Values(), []string{"br", "zstd", "gzip"}) {
+		t.Fatalf("unexpected encodings: %#v", got)
+	}
+}
+
 func TestParseAcceptEncodingWildcard(t *testing.T) {
 	got := resolver.ParseAcceptEncodingForTest("gzip;q=0, *;q=0.5")
 	if !slices.Equal(got.Values(), []string{"br", "zstd"}) {

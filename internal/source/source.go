@@ -20,6 +20,10 @@ type Source interface {
 	Walk(func(File) error) error
 }
 
+type FileFinder interface {
+	FindFile(path string) (File, bool, error)
+}
+
 type ChangeEvent struct {
 	Path     string
 	FullPath string

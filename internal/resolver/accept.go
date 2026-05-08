@@ -53,8 +53,9 @@ func parseAcceptQuality(params string) float64 {
 	for {
 		paramRaw, rest, found := strings.Cut(remaining, ";")
 		param := strings.TrimSpace(paramRaw)
-		if len(param) >= 2 && (param[0] == 'q' || param[0] == 'Q') && param[1] == '=' {
-			quality = clampAcceptQuality(strings.TrimSpace(param[2:]))
+		key, raw, foundEquals := strings.Cut(param, "=")
+		if foundEquals && strings.EqualFold(strings.TrimSpace(key), "q") {
+			quality = clampAcceptQuality(strings.TrimSpace(raw))
 		}
 		if !found {
 			return quality

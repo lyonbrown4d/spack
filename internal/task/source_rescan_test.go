@@ -169,7 +169,7 @@ func TestSyncSourceCatalogKeepsSourceSidecarFileOnAssetRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	originalVariant := singleVariantForTest(t, cat.ListVariants("app.js"))
-	writeFileForTest(t, assetPath, []byte("console.log('new');"))
+	writeFileForTest(t, assetPath, []byte("console.log('new-content');"))
 
 	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
 	if err != nil {
@@ -192,6 +192,92 @@ func TestSyncSourceCatalogKeepsSourceSidecarFileOnAssetRefresh(t *testing.T) {
 	refreshedVariant := singleVariantForTest(t, variants)
 	if refreshedVariant.SourceHash == originalVariant.SourceHash {
 		t.Fatal("expected source sidecar variant to refresh with new asset source hash")
+	}
+}
+
+func TestSyncSourceCatalogIncrementallyUpdatesAssetAndRebuildsSidecars(t *testing.T) {
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "app.js")
+	writeFileForTest(t, assetPath, []byte("console.log('old');"))
+
+	src := newLocalSourceForTest(t, root)
+	cat := catalog.NewInMemoryCatalog()
+
+	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	writeFileForTest(t, assetPath, []byte("console.log('new-content');"))
+	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil, source.ChangeEvent{
+		Path: "app.js",
+		Op:   "WRITE",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Updated != 1 {
+		t.Fatalf("expected 1 updated asset, got %d", report.Updated)
+	}
+	if report.Scanned != 1 {
+		t.Fatalf("expected scanned count 1, got %d", report.Scanned)
+	}
+}
+
+func TestSyncSourceCatalogIncrementallyRemovesSidecarVariant(t *testing.T) {
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "app.js")
+	sidecarPath := filepath.Join(root, "app.js.br")
+	writeFileForTest(t, assetPath, []byte("console.log('old');"))
+	writeFileForTest(t, sidecarPath, []byte("compressed"))
+
+	src := newLocalSourceForTest(t, root)
+	cat := catalog.NewInMemoryCatalog()
+
+	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(sidecarPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(sidecarPath); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil, source.ChangeEvent{
+		Path: "app.js.br",
+		Op:   "REMOVE",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.RemovedVariants != 1 {
+		t.Fatalf("expected 1 removed variant, got %d", report.RemovedVariants)
+	}
+	if cat.ListVariants("app.js").Len() != 0 {
+		t.Fatalf("expected no variants after removing sidecar, got %#v", cat.ListVariants("app.js"))
+	}
+}
+
+func TestSyncSourceCatalogIncrementallyFallsBackToFullOnRename(t *testing.T) {
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "app.js")
+	writeFileForTest(t, assetPath, []byte("console.log('old');"))
+
+	src := newLocalSourceForTest(t, root)
+	cat := catalog.NewInMemoryCatalog()
+
+	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+		t.Fatal(err)
+	}
+	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil, source.ChangeEvent{
+		Path: "app.js",
+		Op:   "RENAME",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Scanned != 1 {
+		t.Fatalf("expected fallback full scan with scanned count 1, got %d", report.Scanned)
 	}
 }
 

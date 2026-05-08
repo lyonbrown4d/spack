@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/daiyuang/spack/internal/source"
 )
 
@@ -42,7 +43,7 @@ func (w *sourceRescanWatcher) watchSourceChanges(ctx context.Context, changes <-
 	timer := time.NewTimer(sourceRescanDebounce)
 	stopTimer(timer)
 	defer timer.Stop()
-	pending := false
+	pending := cxlist.NewList[source.ChangeEvent]()
 
 	for {
 		select {
@@ -56,13 +57,15 @@ func (w *sourceRescanWatcher) watchSourceChanges(ctx context.Context, changes <-
 				slog.String("path", change.Path),
 				slog.String("op", change.Op),
 			)
-			pending = true
+			pending.Add(change)
 			resetTimer(timer, sourceRescanDebounce)
 		case <-timer.C:
-			if pending {
-				pending = false
-				runSourceRescan(ctx, w.runtime)
+			if pending.IsEmpty() {
+				continue
 			}
+			events := pending.Values()
+			pending = cxlist.NewList[source.ChangeEvent]()
+			runSourceRescan(ctx, w.runtime, events...)
 		}
 	}
 }

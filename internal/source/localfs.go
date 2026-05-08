@@ -56,6 +56,43 @@ func (s *localFS) Walk(walkFn func(File) error) error {
 	return nil
 }
 
+func (s *localFS) FindFile(path string) (File, bool, error) {
+	trimmedPath := strings.TrimSpace(filepath.Clean(path))
+	if trimmedPath == "" {
+		return File{}, false, nil
+	}
+
+	fullPath := trimmedPath
+	if !filepath.IsAbs(trimmedPath) {
+		fullPath = filepath.Join(s.root, filepath.FromSlash(trimmedPath))
+	}
+
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return File{}, false, nil
+		}
+		return File{}, false, oops.Wrap(err)
+	}
+
+	relativePath, relErr := filepath.Rel(s.root, fullPath)
+	if relErr != nil {
+		return File{}, false, oops.Wrap(relErr)
+	}
+	relativePath = filepath.ToSlash(relativePath)
+	if strings.HasPrefix(relativePath, "..") || relativePath == "." {
+		return File{}, false, nil
+	}
+
+	return File{
+		Path:     relativePath,
+		FullPath: fullPath,
+		Size:     info.Size(),
+		IsDir:    info.IsDir(),
+		ModTime:  info.ModTime(),
+	}, true, nil
+}
+
 func buildWalkFile(root, fullPath string, entry fs.DirEntry, walkErr error) (File, error) {
 	if walkErr != nil {
 		return File{}, oops.Wrap(walkErr)
