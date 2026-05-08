@@ -2,12 +2,11 @@
 package cachepolicy
 
 import (
-	"path/filepath"
+	cxset "github.com/arcgolabs/collectionx/set"
 	"strings"
 	"time"
 
 	cxinterval "github.com/arcgolabs/collectionx/interval"
-	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/daiyuang/spack/internal/config"
 	"github.com/daiyuang/spack/internal/media"
 )
@@ -28,18 +27,6 @@ const (
 	MemoryUseCaseWarm   MemoryUseCase = "warm"
 	MemoryUseCaseEvent  MemoryUseCase = "event"
 	MemoryUseCaseDirect MemoryUseCase = "direct"
-)
-
-var textLikeFileExtensions = cxset.NewOrderedSet(
-	".html",
-	".css",
-	".js",
-	".mjs",
-	".json",
-	".xml",
-	".txt",
-	".svg",
-	".webmanifest",
 )
 
 type MemoryRequest struct {
@@ -171,8 +158,7 @@ func isTextLikeRequest(request MemoryRequest) bool {
 		return true
 	}
 
-	ext := strings.ToLower(filepath.Ext(memorySubjectPath(request)))
-	return textLikeFileExtensions.Contains(ext)
+	return media.IsTextLikeFileExtension(memorySubjectPath(request))
 }
 
 func (p StaticMemoryPolicy) adjustTTLForSize(ttl time.Duration, size int64) time.Duration {

@@ -26,6 +26,28 @@ func TestIsTextLikeMediaType(t *testing.T) {
 	}
 }
 
+func TestIsTextLikeFileExtension(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{path: "app.js", want: true},
+		{path: "/assets/app.js", want: true},
+		{path: "styles.css", want: true},
+		{path: "docs/data.json", want: true},
+		{path: "fonts/logo.woff2", want: false},
+		{path: "image.png", want: false},
+		{path: "", want: false},
+		{path: "weird", want: false},
+	}
+
+	for _, tt := range tests {
+		if got := media.IsTextLikeFileExtension(tt.path); got != tt.want {
+			t.Fatalf("IsTextLikeFileExtension(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
+
 func TestIsCompressibleMediaType(t *testing.T) {
 	tests := []struct {
 		mediaType string

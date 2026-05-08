@@ -1,6 +1,7 @@
 package media
 
 import (
+	"path/filepath"
 	"strings"
 
 	cxset "github.com/arcgolabs/collectionx/set"
@@ -21,6 +22,18 @@ var compressibleNonTextMediaTypes = cxset.NewOrderedSet[string](
 	string(constant.Wasm),
 )
 
+var textLikeFileExtensions = cxset.NewOrderedSet[string](
+	".html",
+	".css",
+	".js",
+	".mjs",
+	".json",
+	".xml",
+	".txt",
+	".svg",
+	".webmanifest",
+)
+
 func NormalizeMediaType(mediaType string) string {
 	return strings.ToLower(strings.TrimSpace(mediaType))
 }
@@ -35,6 +48,11 @@ func IsTextLikeMediaType(mediaType string) bool {
 	default:
 		return !IsImageMediaType(normalized) && strings.Contains(normalized, "json")
 	}
+}
+
+func IsTextLikeFileExtension(pathOrExt string) bool {
+	ext := strings.ToLower(strings.TrimSpace(filepath.Ext(pathOrExt)))
+	return textLikeFileExtensions.Contains(ext)
 }
 
 func IsNonCompressibleMediaType(mediaType string) bool {
