@@ -52,7 +52,10 @@ func buildAssets(
 		return assets, nil
 	}
 
-	results := make([]assetBuildResult, candidates.Len())
+	results := cxlist.NewListWithCapacity[assetBuildResult](candidates.Len())
+	for range candidates.Len() {
+		results.Add(assetBuildResult{})
+	}
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(sourceScanBuildParallelism(candidates.Len()))
 	candidates.Range(func(index int, candidate assetBuildCandidate) bool {
@@ -64,7 +67,7 @@ func buildAssets(
 			if err != nil {
 				return err
 			}
-			results[index] = assetBuildResult{path: candidate.path, asset: asset}
+			results.Set(index, assetBuildResult{path: candidate.path, asset: asset})
 			return nil
 		})
 		return true
@@ -73,9 +76,10 @@ func buildAssets(
 		return nil, oops.In("sourcecatalog").Owner("asset build").Wrap(err)
 	}
 
-	for _, result := range results {
+	results.Range(func(_ int, result assetBuildResult) bool {
 		assets.Set(result.path, result.asset)
-	}
+		return true
+	})
 	return assets, nil
 }
 

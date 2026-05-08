@@ -140,17 +140,24 @@ func (r *sourceRescanRun) rebuildSourceSidecarsForAsset(asset *catalog.Asset) er
 		return nil
 	}
 
-	for _, matcher := range r.scanner.SidecarMatchers().Values() {
+	var rebuildErr error
+	r.scanner.SidecarMatchers().Range(func(_ int, matcher sourcecatalog.SidecarMatcher) bool {
 		variant, err := r.buildSidecarVariant(asset, matcher)
 		if err != nil {
-			return err
+			rebuildErr = oops.In("task").Owner("source rescan").With("asset_path", asset.Path).Wrap(err)
+			return false
 		}
 		if variant == nil {
-			continue
+			return true
 		}
 		if err := r.cat.UpsertVariant(variant); err != nil {
-			return oops.In("task").Owner("source rescan").With("asset_path", asset.Path).Wrap(err)
+			rebuildErr = oops.In("task").Owner("source rescan").With("asset_path", asset.Path).Wrap(err)
+			return false
 		}
+		return true
+	})
+	if rebuildErr != nil {
+		return rebuildErr
 	}
 	return nil
 }

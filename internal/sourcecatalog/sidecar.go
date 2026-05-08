@@ -108,7 +108,10 @@ func buildSidecarVariants(
 		return variants, nil
 	}
 
-	results := make([]*catalog.Variant, candidates.Len())
+	results := cxlist.NewListWithCapacity[*catalog.Variant](candidates.Len())
+	for range candidates.Len() {
+		results.Add(nil)
+	}
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(sourceScanBuildParallelism(candidates.Len()))
 	candidates.Range(func(index int, candidate sidecarVariantBuildCandidate) bool {
@@ -120,7 +123,7 @@ func buildSidecarVariants(
 			if err != nil {
 				return err
 			}
-			results[index] = variant
+			results.Set(index, variant)
 			return nil
 		})
 		return true
@@ -129,9 +132,13 @@ func buildSidecarVariants(
 		return nil, oops.In("sourcecatalog").Owner("sidecar build").Wrap(err)
 	}
 
-	for _, variant := range results {
+	results.Range(func(_ int, variant *catalog.Variant) bool {
+		if variant == nil {
+			return true
+		}
 		variants.Set(variant.ID, variant)
-	}
+		return true
+	})
 	return variants, nil
 }
 

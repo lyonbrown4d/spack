@@ -112,10 +112,16 @@ func (c *MemDBCatalog) DeleteVariantByArtifactPath(artifactPath string) bool {
 func collectPendingVariantDeletes(txn *memdb.Txn, record *variantRecord) (*cxmapping.Map[string, *variantRecord], error) {
 	pendingDeletes := cxmapping.NewMapWithCapacity[string, *variantRecord](4)
 	lookups := variantDeleteLookups(record)
-	for _, lookup := range lookups {
+	var collectErr error
+	cxlist.NewList(lookups...).Range(func(_ int, lookup variantDeleteLookup) bool {
 		if err := collectVariantDelete(txn, pendingDeletes, lookup.index, lookup.args...); err != nil {
-			return nil, err
+			collectErr = err
+			return false
 		}
+		return true
+	})
+	if collectErr != nil {
+		return nil, collectErr
 	}
 	return pendingDeletes, nil
 }
