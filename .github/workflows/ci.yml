@@ -1,4 +1,4 @@
-name: Quality CI
+name: CI
 
 on:
   push:
@@ -48,12 +48,8 @@ jobs:
       - name: Run check
         run: task check
 
-      - name: Run task build
-        run: task build
-
-      - name: Validate GoReleaser config
-        if: runner.os == 'Linux'
-        run: task release:goreleaser:check
-
       - name: Run tests
-        run: go test -v ./...
+        run: task test
+
+      - name: Run build
+        run: task build

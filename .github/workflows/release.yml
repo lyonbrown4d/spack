@@ -10,8 +10,8 @@ permissions:
   packages: write
 
 jobs:
-  goreleaser:
-    name: Release Go binaries and Docker images
+  release:
+    name: Release Binaries and Images
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
