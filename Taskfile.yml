@@ -175,14 +175,12 @@ tasks:
       vars: [ VERSION ]
     vars:
       TAG: '{{if hasPrefix .VERSION "v"}}{{.VERSION}}{{else}}v{{.VERSION}}{{end}}'
-      VERSION_NO_V: '{{trimPrefix "v" .TAG}}'
-      RELEASE_BRANCH: release/{{.VERSION_NO_V}}
     cmds:
       - task: release:goreleaser:check
       - task: release:tag
         vars:
           VERSION: '{{.VERSION}}'
-      - git push --atomic origin {{.TAG}} HEAD:refs/heads/{{.RELEASE_BRANCH}}
+      - git push origin {{.TAG}}
 
   release:bump:major:
     desc: "自动递增 major 并发布（用法: task release:bump:major）"
