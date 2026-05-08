@@ -8,86 +8,122 @@ import (
 
 func defaultConfig() Config {
 	return Config{
-		HTTP: HTTP{
-			Port:      80,
-			LowMemory: true,
-			Prefork:   false,
-			MemoryCache: MemoryCache{
-				Enable:      true,
-				Warmup:      true,
-				MaxEntries:  1024,
-				MaxBytes:    64 * 1024 * 1024,
-				MaxFileSize: 64 * 1024,
-				TTL:         "5m",
-			},
-			RequestLogDetail: false,
-		},
-		Assets: Assets{
-			Backend:  SourceBackendLocal,
-			Path:     "/",
-			Entry:    "index.html",
-			Fallback: Fallback{On: FallbackOnNotFound, Target: "index.html"},
-		},
-		Async: Async{
-			Workers: max(runtime.NumCPU(), 1),
-		},
-		Logger: Logger{
-			Level: "debug",
-			Console: Console{
-				Enabled: true,
-			},
-			File: File{Enabled: false},
-		},
-		Metrics: Metrics{Prefix: "/prometheus"},
-		Robots: Robots{
-			Enable:    true,
-			Override:  false,
-			UserAgent: "*",
-			Allow:     "/",
-		},
-		Debug: Debug{
+		HTTP:        defaultHTTPConfig(),
+		Assets:      defaultAssetsConfig(),
+		Async:       defaultAsyncConfig(),
+		Logger:      defaultLoggerConfig(),
+		Metrics:     Metrics{Prefix: "/prometheus"},
+		Robots:      defaultRobotsConfig(),
+		Debug:       defaultDebugConfig(),
+		Image:       defaultImageConfig(),
+		Frontend:    defaultFrontendConfig(),
+		Compression: defaultCompressionConfig(),
+	}
+}
+
+func defaultHTTPConfig() HTTP {
+	return HTTP{
+		Port:      80,
+		LowMemory: true,
+		Prefork:   false,
+		MemoryCache: MemoryCache{
 			Enable:      true,
-			PprofPrefix: "/pprof",
-			LivePort:    8080,
-			Address:     "0.0.0.0",
+			Warmup:      true,
+			MaxEntries:  1024,
+			MaxBytes:    64 * 1024 * 1024,
+			MaxFileSize: 64 * 1024,
+			TTL:         "5m",
 		},
-		Image: Image{
-			Enable:      true,
-			Widths:      "640,1280,1920",
-			Formats:     "",
-			JPEGQuality: 78,
+		RequestLogDetail: false,
+	}
+}
+
+func defaultAssetsConfig() Assets {
+	return Assets{
+		Backend:  SourceBackendLocal,
+		Path:     "/",
+		Entry:    "index.html",
+		Fallback: Fallback{On: FallbackOnNotFound, Target: "index.html"},
+	}
+}
+
+func defaultAsyncConfig() Async {
+	return Async{
+		Workers: max(runtime.NumCPU(), 1),
+	}
+}
+
+func defaultLoggerConfig() Logger {
+	return Logger{
+		Level: "debug",
+		Console: Console{
+			Enabled: true,
 		},
-		Frontend: Frontend{
-			ResourceHints: ResourceHints{
-				Enable:         true,
-				EarlyHints:     false,
-				MaxLinks:       16,
-				MaxHeaderBytes: 4096,
-			},
-			ImmutableCache: ImmutableCache{
-				Enable: true,
-				MaxAge: "8760h",
-			},
+		File: File{Enabled: false},
+	}
+}
+
+func defaultRobotsConfig() Robots {
+	return Robots{
+		Enable:    true,
+		Override:  false,
+		UserAgent: "*",
+		Allow:     "/",
+	}
+}
+
+func defaultDebugConfig() Debug {
+	return Debug{
+		Enable:      true,
+		PprofPrefix: "/pprof",
+		LivePort:    8080,
+		Address:     "0.0.0.0",
+	}
+}
+
+func defaultImageConfig() Image {
+	return Image{
+		Enable:      true,
+		Widths:      "640,1280,1920",
+		Formats:     "",
+		JPEGQuality: 78,
+	}
+}
+
+func defaultFrontendConfig() Frontend {
+	return Frontend{
+		ResourceHints: ResourceHints{
+			Enable:         true,
+			EarlyHints:     false,
+			MaxLinks:       16,
+			MaxHeaderBytes: 4096,
 		},
-		Compression: Compression{
-			Mode:                  CompressionModeLazy,
-			Enable:                true,
-			CacheDir:              filepath.Join(os.TempDir(), "spack-cache"),
-			MinSize:               1024,
-			Workers:               2,
-			QueueSize:             128,
-			Encodings:             "br,zstd,gzip",
-			CleanupEvery:          "5m",
-			MaxAge:                "168h",
-			ImageMaxAge:           "336h",
-			EncodingMaxAge:        "168h",
-			MaxCacheBytes:         1073741824,
-			EncodingMaxCacheBytes: 0,
-			ImageMaxCacheBytes:    0,
-			BrotliQuality:         5,
-			ZstdLevel:             3,
-			GzipLevel:             5,
+		ImmutableCache: ImmutableCache{
+			Enable: true,
+			MaxAge: "8760h",
 		},
+	}
+}
+
+func defaultCompressionConfig() Compression {
+	return Compression{
+		Mode:                  CompressionModeLazy,
+		Enable:                true,
+		CacheDir:              filepath.Join(os.TempDir(), "spack-cache"),
+		MinSize:               1024,
+		Workers:               2,
+		QueueSize:             128,
+		Encodings:             "br,zstd,gzip",
+		CleanupEvery:          "5m",
+		MaxAge:                "168h",
+		ImageMaxAge:           "336h",
+		EncodingMaxAge:        "168h",
+		MaxCacheBytes:         1073741824,
+		EncodingMaxCacheBytes: 0,
+		ImageMaxCacheBytes:    0,
+		BrotliQuality:         5,
+		ZstdLevel:             3,
+		GzipLevel:             5,
 	}
 }
 

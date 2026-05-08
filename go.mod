@@ -5,8 +5,8 @@ go 1.26.2
 require (
 	github.com/andybalholm/brotli v1.2.1
 	github.com/anthonynsimon/bild v0.15.0
-	github.com/arcgolabs/collectionx/list v0.8.0
 	github.com/arcgolabs/collectionx/interval v0.8.0
+	github.com/arcgolabs/collectionx/list v0.8.0
 	github.com/arcgolabs/collectionx/mapping v0.8.0
 	github.com/arcgolabs/collectionx/prefix v0.8.0
 	github.com/arcgolabs/collectionx/set v0.8.0

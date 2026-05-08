@@ -164,16 +164,10 @@ func TestMemoryPolicyUsesDistinctTTLBands(t *testing.T) {
 
 	baseTTL := cfg.HTTP.MemoryCache.ParsedTTL()
 	smallThreshold := cfg.HTTP.MemoryCache.MaxFileSize / 4
-	if smallThreshold < 1024 {
-		smallThreshold = 1024
-	}
-	if smallThreshold > cfg.HTTP.MemoryCache.MaxFileSize {
-		smallThreshold = cfg.HTTP.MemoryCache.MaxFileSize
-	}
+	smallThreshold = max(1024, smallThreshold)
+	smallThreshold = min(cfg.HTTP.MemoryCache.MaxFileSize, smallThreshold)
 	large := cfg.HTTP.MemoryCache.MaxFileSize * 3 / 4
-	if large > cfg.HTTP.MemoryCache.MaxFileSize {
-		large = cfg.HTTP.MemoryCache.MaxFileSize
-	}
+	large = min(cfg.HTTP.MemoryCache.MaxFileSize, large)
 	if large <= 0 {
 		t.Fatal("expected positive large threshold for ttl band assertions")
 	}

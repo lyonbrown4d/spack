@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -205,10 +206,23 @@ func pruneEmptyArtifactDirs(root string) int {
 		return 0
 	}
 
+	entries, directories := buildArtifactDirEntries(cleanRoot)
+	if len(entries) <= 1 || directories == nil {
+		return 0
+	}
+
+	artifactTree, treeErr := cxtree.Build(entries)
+	if treeErr != nil {
+		return sortAndRemoveDirectories(directories)
+	}
+
+	return removeArtifactDirsByTree(artifactTree, cleanRoot)
+}
+
+func buildArtifactDirEntries(cleanRoot string) ([]cxtree.Entry[string, struct{}], *cxlist.List[string]) {
 	directories := cxlist.NewList[string]()
 	entries := []cxtree.Entry[string, struct{}]{cxtree.RootEntry(cleanRoot, struct{}{})}
-
-	if err := filepath.WalkDir(cleanRoot, func(path string, entry os.DirEntry, err error) error {
+	if walkErr := filepath.WalkDir(cleanRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -222,33 +236,24 @@ func pruneEmptyArtifactDirs(root string) int {
 		}
 		entries = append(entries, cxtree.ChildEntry(cleanPath, filepath.Clean(filepath.Dir(cleanPath)), struct{}{}))
 		return nil
-	}); err != nil {
-		return 0
+	}); walkErr != nil {
+		return nil, nil
 	}
-	if len(entries) == 1 {
-		return 0
-	}
+	return entries, directories
+}
 
-	artifactTree, treeErr := cxtree.Build(entries)
-	if treeErr != nil {
-		return sortAndRemoveDirectories(directories)
-	}
-
-	nodes := artifactTree.Descendants(cleanRoot)
+func removeArtifactDirsByTree(artifactTree *cxtree.Tree[string, struct{}], root string) int {
+	nodes := artifactTree.Descendants(root)
 	if len(nodes) == 0 {
 		return 0
 	}
 
 	removed := 0
-	for i := len(nodes) - 1; i >= 0; i-- {
-		node := nodes[i]
-		if node == nil {
+	for _, node := range slices.Backward(nodes) {
+		if node == nil || node.ID() == root {
 			continue
 		}
-		if node.ID() == cleanRoot {
-			continue
-		}
-		if err := os.Remove(node.ID()); err == nil {
+		if os.Remove(node.ID()) == nil {
 			removed++
 		}
 	}
