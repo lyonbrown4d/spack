@@ -152,6 +152,103 @@ func TestCleanupArtifactsEnforcesMaxCacheBytes(t *testing.T) {
 	}
 }
 
+func TestCleanupArtifactsEnforcesNamespaceMaxCacheBytes(t *testing.T) {
+	root := t.TempDir()
+	cat := catalog.NewInMemoryCatalog()
+	addAsset(t, cat, "bundle.js", "application/javascript", "hash-6")
+	addAsset(t, cat, "hero.png", "image/png", "hash-7")
+
+	oldEncoding := filepath.Join(root, "encoding", "hash-6", "bundle.js.br")
+	newEncoding := filepath.Join(root, "encoding", "hash-6", "bundle.js.gz")
+	oldImage := filepath.Join(root, "image", "hash-7", "hero.png.jpeg")
+	newImage := filepath.Join(root, "image", "hash-7", "hero.png.png")
+
+	writeArtifact(t, oldEncoding, []byte("0123456789abcdef"))
+	writeArtifact(t, newEncoding, []byte("0123456789abcdef"))
+	writeArtifact(t, oldImage, []byte("0123456789abcdef"))
+	writeArtifact(t, newImage, []byte("0123456789abcdef"))
+
+	now := time.Now()
+	setMTime(t, oldEncoding, now.Add(-4*time.Hour))
+	setMTime(t, newEncoding, now.Add(-3*time.Hour))
+	setMTime(t, oldImage, now.Add(-2*time.Hour))
+	setMTime(t, newImage, now.Add(-1*time.Hour))
+
+	if err := cat.UpsertVariant(&catalog.Variant{
+		ID:           "bundle.js|encoding=br",
+		AssetPath:    "bundle.js",
+		ArtifactPath: oldEncoding,
+		MediaType:    "application/javascript",
+		SourceHash:   "hash-6",
+		ETag:         "\"hash-6-br\"",
+		Encoding:     "br",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cat.UpsertVariant(&catalog.Variant{
+		ID:           "bundle.js|encoding=gzip",
+		AssetPath:    "bundle.js",
+		ArtifactPath: newEncoding,
+		MediaType:    "application/javascript",
+		SourceHash:   "hash-6",
+		ETag:         "\"hash-6-gzip\"",
+		Encoding:     "gzip",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cat.UpsertVariant(&catalog.Variant{
+		ID:           "hero.png|format=jpeg",
+		AssetPath:    "hero.png",
+		ArtifactPath: oldImage,
+		MediaType:    "image/jpeg",
+		SourceHash:   "hash-7",
+		ETag:         "\"hash-7-jpeg\"",
+		Format:       "jpeg",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cat.UpsertVariant(&catalog.Variant{
+		ID:           "hero.png|format=png",
+		AssetPath:    "hero.png",
+		ArtifactPath: newImage,
+		MediaType:    "image/png",
+		SourceHash:   "hash-7",
+		ETag:         "\"hash-7-png\"",
+		Format:       "png",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := pipeline.NewServiceForTest(&config.Compression{
+		CacheDir:              root,
+		MaxCacheBytes:         0,
+		EncodingMaxCacheBytes: 16,
+		ImageMaxCacheBytes:    16,
+	}, slog.New(slog.DiscardHandler), cat, 1)
+
+	if removed := pipeline.CleanupRemovedForTest(svc, time.Now()); removed != 2 {
+		t.Fatalf("expected two removed files, got %d", removed)
+	}
+	if _, err := os.Stat(oldEncoding); !os.IsNotExist(err) {
+		t.Fatalf("expected oldest encoding file removed, err=%v", err)
+	}
+	if _, err := os.Stat(newEncoding); err != nil {
+		t.Fatalf("expected newest encoding file retained, err=%v", err)
+	}
+	if _, err := os.Stat(oldImage); !os.IsNotExist(err) {
+		t.Fatalf("expected oldest image file removed, err=%v", err)
+	}
+	if _, err := os.Stat(newImage); err != nil {
+		t.Fatalf("expected newest image file retained, err=%v", err)
+	}
+	if variants := cat.ListVariants("bundle.js"); variants.Len() != 1 {
+		t.Fatalf("expected one encoding variant retained, got %#v", variants)
+	}
+	if variants := cat.ListVariants("hero.png"); variants.Len() != 1 {
+		t.Fatalf("expected one image variant retained, got %#v", variants)
+	}
+}
+
 func TestCleanupArtifactsUsesNamespaceMaxAge(t *testing.T) {
 	root := t.TempDir()
 	cat := catalog.NewInMemoryCatalog()

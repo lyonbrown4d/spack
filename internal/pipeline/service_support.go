@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
+	cxmapping "github.com/arcgolabs/collectionx/mapping"
+	cxset "github.com/arcgolabs/collectionx/set"
 	appEvent "github.com/daiyuang/spack/internal/event"
 	"github.com/samber/lo"
 	"log/slog"
@@ -168,35 +170,82 @@ func (s *Service) shouldRemoveExpiredFile(file cleanupFile, now time.Time) bool 
 	return s.artifactPolicy != nil && s.artifactPolicy.ShouldRemoveExpired(file.namespace, file.lastUsed, now)
 }
 
-func (s *Service) enforceCleanupCacheLimit(ctx context.Context, files []cleanupFile, result *cleanupResult) {
-	maxCacheBytes := int64(0)
-	if s.artifactPolicy != nil {
-		maxCacheBytes = s.artifactPolicy.MaxCacheBytes()
+func (s *Service) enforceCleanupCacheLimitByNamespace(ctx context.Context, files []cleanupFile, result *cleanupResult) []cleanupFile {
+	filesByNamespace := cxmapping.NewMapWithCapacity[string, *cxlist.List[cleanupFile]](len(files))
+	for _, file := range files {
+		filesBucket, ok := filesByNamespace.Get(file.namespace)
+		if !ok || filesBucket == nil {
+			filesBucket = cxlist.NewList[cleanupFile]()
+			filesByNamespace.Set(file.namespace, filesBucket)
+		}
+		filesBucket.Add(file)
 	}
-	if maxCacheBytes <= 0 || result.totalBytes <= maxCacheBytes {
-		return
+
+	remaining := cxlist.NewList[cleanupFile]()
+	filesByNamespace.Range(func(namespace string, namespaceFiles *cxlist.List[cleanupFile]) bool {
+		limit := s.artifactPolicy.MaxCacheBytesForNamespace(namespace)
+		remainingFiles := s.evictCleanupFilesBySize(ctx, namespaceFiles.Values(), limit, appEvent.VariantRemovalReasonSize, result)
+		if len(remainingFiles) > 0 {
+			remaining.Add(remainingFiles...)
+		}
+		return true
+	})
+	return remaining.Values()
+}
+
+func (s *Service) enforceCleanupCacheLimitByBytes(ctx context.Context, files []cleanupFile, result *cleanupResult, maxCacheBytes int64) {
+	_ = s.evictCleanupFilesBySize(ctx, files, maxCacheBytes, appEvent.VariantRemovalReasonSize, result)
+}
+
+func (s *Service) evictCleanupFilesBySize(
+	ctx context.Context,
+	files []cleanupFile,
+	maxCacheBytes int64,
+	reason appEvent.VariantRemovalReason,
+	result *cleanupResult,
+) []cleanupFile {
+	if maxCacheBytes <= 0 || len(files) == 0 {
+		return files
+	}
+
+	totalBytes := lo.SumBy(files, func(file cleanupFile) int64 {
+		return file.size
+	})
+	if totalBytes <= maxCacheBytes {
+		return files
 	}
 
 	pq, err := cxlist.NewPriorityQueue(func(left, right cleanupFile) bool {
 		return left.lastUsed.Before(right.lastUsed)
 	}, files...)
 	if err != nil {
-		return
+		return files
 	}
 
-	for {
-		if result.totalBytes <= maxCacheBytes {
-			return
-		}
+	removed := cxset.NewSet[string]()
+	for totalBytes > maxCacheBytes {
 		file, ok := pq.Pop()
 		if !ok {
-			return
+			return files
 		}
-		if !s.removeCleanupFile(ctx, file, appEvent.VariantRemovalReasonSize) {
+		if !s.removeCleanupFile(ctx, file, reason) {
 			continue
 		}
 		recordSizeCleanupRemoval(result, file.size)
+		totalBytes -= file.size
+		removed.Add(file.path)
 	}
+	if removed.IsEmpty() {
+		return files
+	}
+	return lo.Reject(files, func(file cleanupFile, _ int) bool {
+		return removed.Contains(file.path)
+	})
+}
+
+func (s *Service) enforceCleanupCacheLimit(ctx context.Context, files []cleanupFile, result *cleanupResult) {
+	files = s.enforceCleanupCacheLimitByNamespace(ctx, files, result)
+	s.enforceCleanupCacheLimitByBytes(ctx, files, result, s.artifactPolicy.MaxCacheBytes())
 }
 
 func (s *Service) removeCleanupFile(ctx context.Context, file cleanupFile, reason appEvent.VariantRemovalReason) bool {

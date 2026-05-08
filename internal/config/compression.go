@@ -17,21 +17,23 @@ const (
 )
 
 type Compression struct {
-	Enable         bool   `koanf:"enable"`
-	Mode           string `koanf:"mode"             validate:"required,oneof=off lazy warmup"`
-	CacheDir       string `koanf:"cache_dir"        validate:"required"`
-	MinSize        int64  `koanf:"min_size"         validate:"gte=0"`
-	Workers        int    `koanf:"workers"          validate:"gte=0"`
-	QueueSize      int    `koanf:"queue_size"       validate:"gte=0"`
-	Encodings      string `koanf:"encodings"`
-	CleanupEvery   string `koanf:"cleanup_every"    validate:"omitempty,spack_duration"`
-	MaxAge         string `koanf:"max_age"          validate:"omitempty,spack_flexible_duration"`
-	ImageMaxAge    string `koanf:"image_max_age"    validate:"omitempty,spack_flexible_duration"`
-	EncodingMaxAge string `koanf:"encoding_max_age" validate:"omitempty,spack_flexible_duration"`
-	MaxCacheBytes  int64  `koanf:"max_cache_bytes"  validate:"gte=0"`
-	BrotliQuality  int    `koanf:"brotli_quality"   validate:"gte=0,lte=11"`
-	ZstdLevel      int    `koanf:"zstd_level"       validate:"gte=0,lte=22"`
-	GzipLevel      int    `koanf:"gzip_level"       validate:"gte=-2,lte=9"`
+	Enable                bool   `koanf:"enable"`
+	Mode                  string `koanf:"mode"             validate:"required,oneof=off lazy warmup"`
+	CacheDir              string `koanf:"cache_dir"        validate:"required"`
+	MinSize               int64  `koanf:"min_size"         validate:"gte=0"`
+	Workers               int    `koanf:"workers"          validate:"gte=0"`
+	QueueSize             int    `koanf:"queue_size"       validate:"gte=0"`
+	Encodings             string `koanf:"encodings"`
+	CleanupEvery          string `koanf:"cleanup_every"    validate:"omitempty,spack_duration"`
+	MaxAge                string `koanf:"max_age"          validate:"omitempty,spack_flexible_duration"`
+	ImageMaxAge           string `koanf:"image_max_age"    validate:"omitempty,spack_flexible_duration"`
+	EncodingMaxAge        string `koanf:"encoding_max_age" validate:"omitempty,spack_flexible_duration"`
+	MaxCacheBytes         int64  `koanf:"max_cache_bytes"  validate:"gte=0"`
+	EncodingMaxCacheBytes int64  `koanf:"encoding_max_cache_bytes" validate:"gte=0"`
+	ImageMaxCacheBytes    int64  `koanf:"image_max_cache_bytes"    validate:"gte=0"`
+	BrotliQuality         int    `koanf:"brotli_quality"   validate:"gte=0,lte=11"`
+	ZstdLevel             int    `koanf:"zstd_level"       validate:"gte=0,lte=22"`
+	GzipLevel             int    `koanf:"gzip_level"       validate:"gte=-2,lte=9"`
 }
 
 func (c Compression) NormalizedMode() string {
@@ -86,6 +88,17 @@ func (c Compression) NamespaceMaxAges() *cxmapping.Map[string, time.Duration] {
 	}
 	if d := validation.ParseFlexibleDuration(c.ImageMaxAge); d > 0 {
 		out.Set("image", d)
+	}
+	return out
+}
+
+func (c Compression) NamespaceMaxCacheBytes() *cxmapping.Map[string, int64] {
+	out := cxmapping.NewMapWithCapacity[string, int64](2)
+	if c.EncodingMaxCacheBytes > 0 {
+		out.Set("encoding", c.EncodingMaxCacheBytes)
+	}
+	if c.ImageMaxCacheBytes > 0 {
+		out.Set("image", c.ImageMaxCacheBytes)
 	}
 	return out
 }

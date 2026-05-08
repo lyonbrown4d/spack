@@ -74,6 +74,22 @@ func TestCompressionNamespaceMaxAges(t *testing.T) {
 	}
 }
 
+func TestCompressionNamespaceMaxCacheBytes(t *testing.T) {
+	cfg := config.Compression{
+		EncodingMaxCacheBytes: 1024,
+		ImageMaxCacheBytes:    2048,
+	}
+	got := cfg.NamespaceMaxCacheBytes()
+	encodingMaxCacheBytes, ok := got.Get("encoding")
+	if !ok || encodingMaxCacheBytes != 1024 {
+		t.Fatalf("expected encoding max cache bytes 1024, got %d", encodingMaxCacheBytes)
+	}
+	imageMaxCacheBytes, ok := got.Get("image")
+	if !ok || imageMaxCacheBytes != 2048 {
+		t.Fatalf("expected image max cache bytes 2048, got %d", imageMaxCacheBytes)
+	}
+}
+
 func TestCompressionNormalizedEncodings(t *testing.T) {
 	cfg := config.Compression{Encodings: " gzip , zstd , bad , gzip "}
 	if got := cfg.NormalizedEncodings(); !slices.Equal(got.Values(), []string{"gzip", "zstd"}) {

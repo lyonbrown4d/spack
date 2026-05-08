@@ -28,3 +28,24 @@ func TestArtifactPolicyUsesNamespaceMaxAgeWhenPresent(t *testing.T) {
 		t.Fatalf("expected namespace max-age, got %s", got)
 	}
 }
+
+func TestArtifactPolicyFallsBackToDefaultMaxCacheBytes(t *testing.T) {
+	policy := cachepolicy.NewArtifactPolicy(&config.Compression{
+		MaxCacheBytes: 2048,
+	})
+
+	if got := policy.MaxCacheBytesForNamespace("encoding"); got != 2048 {
+		t.Fatalf("expected namespace fallback max cache bytes, got %d", got)
+	}
+}
+
+func TestArtifactPolicyUsesNamespaceMaxCacheBytesWhenPresent(t *testing.T) {
+	policy := cachepolicy.NewArtifactPolicy(&config.Compression{
+		MaxCacheBytes:         2048,
+		EncodingMaxCacheBytes: 512,
+	})
+
+	if got := policy.MaxCacheBytesForNamespace("encoding"); got != 512 {
+		t.Fatalf("expected namespace max cache bytes, got %d", got)
+	}
+}

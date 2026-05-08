@@ -146,6 +146,8 @@ func (s *Service) startCleanupIfNeeded(ctx context.Context) {
 		slog.String("encoding_max_age", s.artifactPolicy.MaxAge("encoding").String()),
 		slog.String("image_max_age", s.artifactPolicy.MaxAge("image").String()),
 		slog.Int64("max_cache_bytes", s.artifactPolicy.MaxCacheBytes()),
+		slog.Int64("encoding_max_cache_bytes", s.artifactPolicy.MaxCacheBytesForNamespace("encoding")),
+		slog.Int64("image_max_cache_bytes", s.artifactPolicy.MaxCacheBytesForNamespace("image")),
 	)
 }
 

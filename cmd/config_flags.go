@@ -130,6 +130,8 @@ func bindCompressionFlags(flags *pflag.FlagSet, defaults config.Compression) {
 	flags.String("compression.image_max_age", defaults.ImageMaxAge, "Cache max-age for generated image variants.")
 	flags.String("compression.encoding_max_age", defaults.EncodingMaxAge, "Cache max-age for precompressed variants.")
 	flags.Int64("compression.max_cache_bytes", defaults.MaxCacheBytes, "Maximum bytes allowed in compression cache.")
+	flags.Int64("compression.encoding_max_cache_bytes", defaults.EncodingMaxCacheBytes, "Maximum bytes allowed for precompressed artifacts.")
+	flags.Int64("compression.image_max_cache_bytes", defaults.ImageMaxCacheBytes, "Maximum bytes allowed for generated image artifacts.")
 	flags.Int("compression.brotli_quality", defaults.BrotliQuality, "Brotli compression quality.")
 	flags.Int("compression.zstd_level", defaults.ZstdLevel, "Zstd compression level.")
 	flags.Int("compression.gzip_level", defaults.GzipLevel, "Gzip compression level.")
