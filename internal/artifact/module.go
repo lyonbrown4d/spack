@@ -8,7 +8,7 @@ import (
 
 var Module = dix.NewModule("artifact",
 	dix.WithModuleProviders(
-		dix.Provider1(func(cfg *config.Compression) Store {
+		dix.ProviderErr1(func(cfg *config.Compression) (Store, error) {
 			return newLocalStore(cfg.CacheDir)
 		}),
 	),

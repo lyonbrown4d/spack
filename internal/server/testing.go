@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
@@ -73,10 +74,19 @@ func NewObservedAppForTest(
 ) *fiber.App {
 	healthChecks := newHealthCheckDefinitions(cfg, cat)
 	return newServerFromDeps(cfg, dix.AppMeta{Version: "test"}, newServerRegistrations(
-		newMiddlewareRegistration(cfg, logger, obs, runtimeMetrics),
-		newHealthRoutesRegistration(cat, healthChecks, obs),
-		newRobotsRouteRegistration(cfg, logger, cat, bodyCache),
-		newAssetRouteRegistration(cfg, newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger)), assetResolver, pipelineSvc, bodyCache, bus),
+		cxlist.NewList[appRegistration](
+			newMiddlewareRegistration(newMiddlewareRegistrationDeps(cfg, logger, obs, runtimeMetrics)),
+			newHealthRoutesRegistration(newHealthRoutesRegistrationDeps(cat, healthChecks, obs)),
+			newRobotsRouteRegistration(newRobotsRouteRegistrationDeps(cfg, logger, cat, bodyCache)),
+			newAssetRouteRegistration(newAssetRouteRegistrationDeps(
+				cfg,
+				newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger)),
+				assetResolver,
+				pipelineSvc,
+				bodyCache,
+				bus,
+			)),
+		),
 	))
 }
 

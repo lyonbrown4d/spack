@@ -19,7 +19,8 @@ var Module = dix.NewModule("pipeline",
 		dix.Provider0(newImageEngine),
 		dix.Provider4(newImageStage),
 		dix.Provider4(newCompressionStage),
-		dix.Provider2(newStageRegistrations),
+		dix.Contribute1(newImageStageRegistration, dix.Order(100)),
+		dix.Contribute1(newCompressionStageRegistration, dix.Order(200)),
 		dix.Provider1(newStages),
 		dix.Provider6(newServiceDeps),
 		dix.Provider4(newService),
@@ -32,11 +33,16 @@ var Module = dix.NewModule("pipeline",
 	),
 )
 
-func newStageRegistrations(image *imageStage, compression *compressionStage) *cxlist.List[stageRegistration] {
-	return cxlist.NewList[stageRegistration](
-		newStageRegistration(100, image),
-		newStageRegistration(200, compression),
-	)
+func newImageStageRegistration(
+	stage *imageStage,
+) stageRegistration {
+	return newStageRegistration(100, stage)
+}
+
+func newCompressionStageRegistration(
+	stage *compressionStage,
+) stageRegistration {
+	return newStageRegistration(200, stage)
 }
 
 func newStages(registrations *cxlist.List[stageRegistration]) *cxlist.List[Stage] {

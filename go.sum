@@ -11,8 +11,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/anthonynsimon/bild v0.15.0 h1:FzvaNLuNlAPKw1Xz7V2WYOcGIEBMj8Y6ZyAk7CI+HzA=
 github.com/anthonynsimon/bild v0.15.0/go.mod h1:qIgJ9FldkCn0iy5Ad24fzUkz5R+iJ0WfhiV+6FeCB5A=
-github.com/arcgolabs/collectionx/graph v0.7.0 h1:UpGN7p+1JrcUjzRRkGJ6Dc/PlRFf+w3a/48yqSLJwZc=
-github.com/arcgolabs/collectionx/graph v0.7.0/go.mod h1:ed6tV9GiiLzvSajUwyaEYt4c5R2m8itI3FKfkHSRv80=
+github.com/arcgolabs/collectionx/graph v0.8.0 h1:6suvPNa02DvRD1mHAY2xL6bsuOKx8T0iivFd2rbtnBs=
+github.com/arcgolabs/collectionx/graph v0.8.0/go.mod h1:ed6tV9GiiLzvSajUwyaEYt4c5R2m8itI3FKfkHSRv80=
 github.com/arcgolabs/collectionx/list v0.8.0 h1:Nld94yYmNaIPRSSt4Hyb4p5bo8X3TcTrFVEnzoppPeo=
 github.com/arcgolabs/collectionx/list v0.8.0/go.mod h1:ljn1rjvCXgliu1T7qnFGbozhSUmMqJqlYeLcoLF1YMM=
 github.com/arcgolabs/collectionx/mapping v0.8.0 h1:nocPzyU9ccsJaS3A036O1VH4l2pSvno2SKXq4OTp5XI=

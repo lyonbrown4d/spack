@@ -3,6 +3,7 @@ package artifact
 import (
 	"errors"
 	"fmt"
+	"github.com/samber/oops"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,8 +21,22 @@ type LocalStore struct {
 	root string
 }
 
-func newLocalStore(root string) Store {
-	return &LocalStore{root: root}
+func newLocalStore(root string) (Store, error) {
+	normalizedRoot := strings.TrimSpace(root)
+	if normalizedRoot == "" {
+		return nil, oops.In("artifact").Owner("store").Wrap(errors.New("missing cache root"))
+	}
+	if err := os.MkdirAll(normalizedRoot, 0o750); err != nil {
+		return nil, oops.In("artifact").Owner("store").With("root", normalizedRoot).Wrap(err)
+	}
+	info, err := os.Stat(normalizedRoot)
+	if err != nil {
+		return nil, oops.In("artifact").Owner("store").With("root", normalizedRoot).Wrap(err)
+	}
+	if !info.IsDir() {
+		return nil, oops.In("artifact").Owner("store").With("root", normalizedRoot).Wrap(fmt.Errorf("cache root is not a directory: %s", normalizedRoot))
+	}
+	return &LocalStore{root: normalizedRoot}, nil
 }
 
 func (s *LocalStore) Root() string {

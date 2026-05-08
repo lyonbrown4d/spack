@@ -29,6 +29,18 @@ const (
 	MemoryUseCaseDirect MemoryUseCase = "direct"
 )
 
+var textLikeFileExtensions = cxset.NewOrderedSet(
+	".html",
+	".css",
+	".js",
+	".mjs",
+	".json",
+	".xml",
+	".txt",
+	".svg",
+	".webmanifest",
+)
+
 type MemoryRequest struct {
 	Path           string
 	AssetPath      string
@@ -141,22 +153,13 @@ func memorySubjectPath(request MemoryRequest) string {
 	return strings.TrimSpace(request.Path)
 }
 
-func isTextLikeMediaType(mediaType string) bool {
-	return media.IsTextLikeMediaType(mediaType)
-}
-
 func isTextLikeRequest(request MemoryRequest) bool {
 	if media.IsTextLikeMediaType(request.MediaType) {
 		return true
 	}
 
 	ext := strings.ToLower(filepath.Ext(memorySubjectPath(request)))
-	switch ext {
-	case ".html", ".css", ".js", ".mjs", ".json", ".xml", ".txt", ".svg", ".webmanifest":
-		return true
-	default:
-		return false
-	}
+	return textLikeFileExtensions.Contains(ext)
 }
 
 func clampMemoryTTL(value, minTTL, maxTTL time.Duration) time.Duration {

@@ -27,10 +27,10 @@ var Module = dix.NewModule("task",
 		dix.Provider6(newArtifactJanitorRuntime),
 		dix.Provider5(newCacheWarmerRuntime),
 		dix.Provider1(newSourceRescanWatcher),
-		dix.Provider1(newSourceRescanTaskRegistration),
-		dix.Provider1(newArtifactJanitorTaskRegistration),
-		dix.Provider1(newCacheWarmerTaskRegistration),
-		dix.Provider3(newTaskRegistrations),
+		dix.Contribute1(newSourceRescanTaskRegistration, dix.Order(100)),
+		dix.Contribute1(newArtifactJanitorTaskRegistration, dix.Order(200)),
+		dix.Contribute1(newCacheWarmerTaskRegistration, dix.Order(300)),
+		dix.Provider1(newTaskRegistrations),
 	),
 	dix.WithModuleHooks(
 		dix.OnStart2(startTaskRuntime),
@@ -57,18 +57,6 @@ type taskRegistration struct {
 	Register func(context.Context, gocron.Scheduler) (bool, error)
 }
 
-type sourceRescanTaskRegistration struct {
-	taskRegistration
-}
-
-type artifactJanitorTaskRegistration struct {
-	taskRegistration
-}
-
-type cacheWarmerTaskRegistration struct {
-	taskRegistration
-}
-
 func newTaskRegistration(
 	order int,
 	name string,
@@ -82,15 +70,9 @@ func newTaskRegistration(
 }
 
 func newTaskRegistrations(
-	sourceRescan sourceRescanTaskRegistration,
-	artifactJanitor artifactJanitorTaskRegistration,
-	cacheWarmer cacheWarmerTaskRegistration,
+	registrations *cxlist.List[taskRegistration],
 ) *cxlist.List[taskRegistration] {
-	return cxlist.NewList[taskRegistration](
-		sourceRescan.taskRegistration,
-		artifactJanitor.taskRegistration,
-		cacheWarmer.taskRegistration,
-	).Sort(func(left, right taskRegistration) int {
+	return registrations.Sort(func(left, right taskRegistration) int {
 		if left.Order != right.Order {
 			return cmp.Compare(left.Order, right.Order)
 		}
@@ -126,10 +108,10 @@ func newSourceRescanRuntime(
 	}
 }
 
-func newSourceRescanTaskRegistration(runtime *sourceRescanRuntime) sourceRescanTaskRegistration {
-	return sourceRescanTaskRegistration{newTaskRegistration(100, "source_rescan", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
+func newSourceRescanTaskRegistration(runtime *sourceRescanRuntime) taskRegistration {
+	return newTaskRegistration(100, "source_rescan", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
 		return registerSourceRescanTask(ctx, scheduler, runtime)
-	})}
+	})
 }
 
 type sourceRescanWatcher struct {
@@ -169,10 +151,10 @@ func newArtifactJanitorRuntime(
 	}
 }
 
-func newArtifactJanitorTaskRegistration(runtime *artifactJanitorRuntime) artifactJanitorTaskRegistration {
-	return artifactJanitorTaskRegistration{newTaskRegistration(200, "artifact_janitor", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
+func newArtifactJanitorTaskRegistration(runtime *artifactJanitorRuntime) taskRegistration {
+	return newTaskRegistration(200, "artifact_janitor", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
 		return registerArtifactJanitorTask(ctx, scheduler, runtime)
-	})}
+	})
 }
 
 type cacheWarmerRuntime struct {
@@ -199,10 +181,10 @@ func newCacheWarmerRuntime(
 	}
 }
 
-func newCacheWarmerTaskRegistration(runtime *cacheWarmerRuntime) cacheWarmerTaskRegistration {
-	return cacheWarmerTaskRegistration{newTaskRegistration(300, "cache_warmer", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
+func newCacheWarmerTaskRegistration(runtime *cacheWarmerRuntime) taskRegistration {
+	return newTaskRegistration(300, "cache_warmer", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
 		return registerCacheWarmerTask(ctx, scheduler, runtime)
-	})}
+	})
 }
 
 func startScheduledTasks(
@@ -210,11 +192,8 @@ func startScheduledTasks(
 	scheduler gocron.Scheduler,
 	registrations *cxlist.List[taskRegistration],
 ) error {
-	registered := cxlist.FlatMapList[taskRegistration, taskRegistration](registrations, func(_ int, registration taskRegistration) []taskRegistration {
-		if registration.Register == nil {
-			return nil
-		}
-		return []taskRegistration{registration}
+	registered := cxlist.FilterList(registrations, func(_ int, registration taskRegistration) bool {
+		return registration.Register != nil
 	})
 	if registered.IsEmpty() {
 		return nil

@@ -20,13 +20,17 @@ var Module = dix.NewModule("server",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),
 		dix.Provider2(newResourceHintService),
-		dix.Provider4(newMiddlewareRegistration),
 		dix.Provider3(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
-		dix.Provider3(newHealthRoutesRegistration),
-		dix.Provider4(newRobotsRouteRegistration),
-		dix.Provider6(newAssetRouteRegistration),
-		dix.Provider4(newServerRegistrations),
+		dix.Provider4(newMiddlewareRegistrationDeps),
+		dix.Provider3(newHealthRoutesRegistrationDeps),
+		dix.Provider4(newRobotsRouteRegistrationDeps),
+		dix.Provider6(newAssetRouteRegistrationDeps),
+		dix.Contribute1(newMiddlewareRegistration),
+		dix.Contribute1(newHealthRoutesRegistration),
+		dix.Contribute1(newRobotsRouteRegistration),
+		dix.Contribute1(newAssetRouteRegistration),
+		dix.Provider1(newServerRegistrations),
 		dix.Provider2(newEventPublisher),
 		dix.Provider3(newServerFromDeps),
 	),
@@ -39,22 +43,6 @@ type appRegistration struct {
 	Order int
 	Name  string
 	Apply func(*fiber.App)
-}
-
-type middlewareRegistration struct {
-	appRegistration
-}
-
-type healthRoutesRegistration struct {
-	appRegistration
-}
-
-type robotsRouteRegistration struct {
-	appRegistration
-}
-
-type assetRouteRegistration struct {
-	appRegistration
 }
 
 type assetRouteRuntime struct {
@@ -71,56 +59,122 @@ func newAppRegistration(order int, name string, apply func(*fiber.App)) appRegis
 	}
 }
 
-func newMiddlewareRegistration(
+type middlewareRegistrationDeps struct {
+	cfg     *config.Config
+	logger  *slog.Logger
+	obs     observabilityx.Observability
+	metrics *RuntimeMetrics
+}
+
+func newMiddlewareRegistrationDeps(
 	cfg *config.Config,
 	logger *slog.Logger,
 	obs observabilityx.Observability,
 	runtimeMetrics *RuntimeMetrics,
-) middlewareRegistration {
-	return middlewareRegistration{newAppRegistration(100, "middleware", func(app *fiber.App) {
-		registerMiddleware(app, cfg, logger, obs, runtimeMetrics)
-	})}
+) middlewareRegistrationDeps {
+	return middlewareRegistrationDeps{
+		cfg:     cfg,
+		logger:  logger,
+		obs:     obs,
+		metrics: runtimeMetrics,
+	}
 }
 
-func newHealthRoutesRegistration(
+func newMiddlewareRegistration(deps middlewareRegistrationDeps) appRegistration {
+	return newAppRegistration(100, "middleware", func(app *fiber.App) {
+		registerMiddleware(app, deps.cfg, deps.logger, deps.obs, deps.metrics)
+	})
+}
+
+type healthRoutesRegistrationDeps struct {
+	cat    catalog.Catalog
+	checks *cxlist.List[healthCheckDefinition]
+	obs    observabilityx.Observability
+}
+
+func newHealthRoutesRegistrationDeps(
 	cat catalog.Catalog,
 	checks *cxlist.List[healthCheckDefinition],
 	obs observabilityx.Observability,
-) healthRoutesRegistration {
-	return healthRoutesRegistration{newAppRegistration(200, "health_routes", func(app *fiber.App) {
-		registerHealthRoutes(app, cat, checks, obs)
-	})}
+) healthRoutesRegistrationDeps {
+	return healthRoutesRegistrationDeps{
+		cat:    cat,
+		checks: checks,
+		obs:    obs,
+	}
 }
 
-func newRobotsRouteRegistration(
+func newHealthRoutesRegistration(deps healthRoutesRegistrationDeps) appRegistration {
+	return newAppRegistration(200, "health_routes", func(app *fiber.App) {
+		registerHealthRoutes(app, deps.cat, deps.checks, deps.obs)
+	})
+}
+
+type robotsRouteRegistrationDeps struct {
+	cfg       *config.Config
+	logger    *slog.Logger
+	cat       catalog.Catalog
+	bodyCache *assetcache.Cache
+}
+
+func newRobotsRouteRegistrationDeps(
 	cfg *config.Config,
 	logger *slog.Logger,
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
-) robotsRouteRegistration {
-	return robotsRouteRegistration{newAppRegistration(250, "robots_route", func(app *fiber.App) {
-		registerRobotsRoute(app, cfg, logger, cat, bodyCache)
-	})}
+) robotsRouteRegistrationDeps {
+	return robotsRouteRegistrationDeps{
+		cfg:       cfg,
+		logger:    logger,
+		cat:       cat,
+		bodyCache: bodyCache,
+	}
 }
 
-func newAssetRouteRegistration(
+func newRobotsRouteRegistration(deps robotsRouteRegistrationDeps) appRegistration {
+	return newAppRegistration(250, "robots_route", func(app *fiber.App) {
+		registerRobotsRoute(app, deps.cfg, deps.logger, deps.cat, deps.bodyCache)
+	})
+}
+
+type assetRouteRegistrationDeps struct {
+	cfg           *config.Config
+	runtime       assetRouteRuntime
+	assetResolver *resolver.Resolver
+	pipelineSvc   *pipeline.Service
+	bodyCache     *assetcache.Cache
+	bus           eventx.BusRuntime
+}
+
+func newAssetRouteRegistrationDeps(
 	cfg *config.Config,
 	runtime assetRouteRuntime,
 	assetResolver *resolver.Resolver,
 	pipelineSvc *pipeline.Service,
 	bodyCache *assetcache.Cache,
 	bus eventx.BusRuntime,
-) assetRouteRegistration {
-	return assetRouteRegistration{newAppRegistration(300, "asset_route", func(app *fiber.App) {
+) assetRouteRegistrationDeps {
+	return assetRouteRegistrationDeps{
+		cfg:           cfg,
+		runtime:       runtime,
+		assetResolver: assetResolver,
+		pipelineSvc:   pipelineSvc,
+		bodyCache:     bodyCache,
+		bus:           bus,
+	}
+}
+
+func newAssetRouteRegistration(deps assetRouteRegistrationDeps) appRegistration {
+	return newAppRegistration(300, "asset_route", func(app *fiber.App) {
 		registerAssetRoute(app, newAssetDeliveryRuntime(assetDeliveryRuntimeDeps{
-			cfg:           cfg,
-			routeRuntime:  runtime,
-			assetResolver: assetResolver,
-			pipelineSvc:   pipelineSvc,
-			bodyCache:     bodyCache,
-			bus:           bus,
+			cfg:           deps.cfg,
+			routeRuntime:  deps.runtime,
+			assetResolver: deps.assetResolver,
+			pipelineSvc:   deps.pipelineSvc,
+			bodyCache:     deps.bodyCache,
+			bus:           deps.bus,
 		}))
-	})}
+	})
 }
 
 func newAssetRouteRuntime(logger *slog.Logger, obs observabilityx.Observability, resourceHints *resourceHintService) assetRouteRuntime {
@@ -136,17 +190,9 @@ func shouldTrackAssetDelivery(logger *slog.Logger, obs observabilityx.Observabil
 }
 
 func newServerRegistrations(
-	middleware middlewareRegistration,
-	healthRoutes healthRoutesRegistration,
-	robotsRoute robotsRouteRegistration,
-	assetRoute assetRouteRegistration,
+	registrations *cxlist.List[appRegistration],
 ) *cxlist.List[appRegistration] {
-	return cxlist.NewList[appRegistration](
-		middleware.appRegistration,
-		healthRoutes.appRegistration,
-		robotsRoute.appRegistration,
-		assetRoute.appRegistration,
-	).Sort(func(left, right appRegistration) int {
+	return registrations.Sort(func(left, right appRegistration) int {
 		if left.Order != right.Order {
 			return cmp.Compare(left.Order, right.Order)
 		}

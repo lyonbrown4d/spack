@@ -3,6 +3,7 @@ package event
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"reflect"
 
@@ -10,11 +11,12 @@ import (
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/daiyuang/spack/internal/asyncx"
+	"github.com/samber/oops"
 )
 
 var Module = dix.NewModule("event",
 	dix.WithModuleProviders(
-		dix.Provider3(newBus),
+		dix.ProviderErr3(newBus),
 	),
 	dix.WithModuleHooks(
 		dix.OnStop(func(ctx context.Context, bus eventx.BusRuntime) error {
@@ -27,7 +29,13 @@ func newBus(
 	settings *asyncx.Settings,
 	logger *slog.Logger,
 	obs observabilityx.Observability,
-) eventx.BusRuntime {
+) (eventx.BusRuntime, error) {
+	if settings == nil || settings.Size <= 0 {
+		return nil, oops.In("event").Wrap(fmt.Errorf("invalid async worker settings"))
+	}
+	if logger == nil {
+		return nil, oops.In("event").Owner("logger").Wrap(fmt.Errorf("logger is required"))
+	}
 	return eventx.New(
 		eventx.WithParallelDispatch(true),
 		eventx.WithAntsPool(settings.Size),
@@ -41,5 +49,5 @@ func newBus(
 				slog.String("error", err.Error()),
 			)
 		}),
-	)
+	), nil
 }
