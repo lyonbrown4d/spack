@@ -157,3 +157,57 @@ func TestMemoryPolicyScalesTTLByAssetSize(t *testing.T) {
 		t.Fatalf("expected large text asset ttl to scale down under base, got %s >= %s", large, baseTTL)
 	}
 }
+
+func TestMemoryPolicyUsesDistinctTTLBands(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	policy := cachepolicy.NewMemoryPolicy(&cfg)
+
+	baseTTL := cfg.HTTP.MemoryCache.ParsedTTL()
+	smallThreshold := cfg.HTTP.MemoryCache.MaxFileSize / 4
+	if smallThreshold < 1024 {
+		smallThreshold = 1024
+	}
+	if smallThreshold > cfg.HTTP.MemoryCache.MaxFileSize {
+		smallThreshold = cfg.HTTP.MemoryCache.MaxFileSize
+	}
+	large := cfg.HTTP.MemoryCache.MaxFileSize * 3 / 4
+	if large > cfg.HTTP.MemoryCache.MaxFileSize {
+		large = cfg.HTTP.MemoryCache.MaxFileSize
+	}
+	if large <= 0 {
+		t.Fatal("expected positive large threshold for ttl band assertions")
+	}
+
+	if got := policy.TTL(cachepolicy.MemoryRequest{
+		Path:      "app.js",
+		AssetPath: "app.js",
+		Size:      0,
+		MediaType: "text/plain",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseServe,
+	}); got != baseTTL {
+		t.Fatalf("expected unknown size ttl to match base ttl, got %s", got)
+	}
+
+	if got := policy.TTL(cachepolicy.MemoryRequest{
+		Path:      "app.js",
+		AssetPath: "app.js",
+		Size:      smallThreshold,
+		MediaType: "text/plain",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseServe,
+	}); got <= baseTTL {
+		t.Fatalf("expected small text ttl to increase, got %s <= %s", got, baseTTL)
+	}
+
+	if got := policy.TTL(cachepolicy.MemoryRequest{
+		Path:      "app.js",
+		AssetPath: "app.js",
+		Size:      large,
+		MediaType: "text/plain",
+		Kind:      cachepolicy.MemoryEntryKindAsset,
+		UseCase:   cachepolicy.MemoryUseCaseServe,
+	}); got >= baseTTL {
+		t.Fatalf("expected large text ttl to decrease, got %s >= %s", got, baseTTL)
+	}
+}

@@ -2,19 +2,21 @@ package task
 
 import (
 	"context"
-	cxlist "github.com/arcgolabs/collectionx/list"
-	cxset "github.com/arcgolabs/collectionx/set"
-	"github.com/daiyuang/spack/internal/artifact"
-	"github.com/daiyuang/spack/internal/assetcache"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/go-co-op/gocron/v2"
-	"github.com/samber/oops"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	cxlist "github.com/arcgolabs/collectionx/list"
+	cxset "github.com/arcgolabs/collectionx/set"
+	cxtree "github.com/arcgolabs/collectionx/tree"
+	"github.com/daiyuang/spack/internal/artifact"
+	"github.com/daiyuang/spack/internal/assetcache"
+	"github.com/daiyuang/spack/internal/catalog"
+	"github.com/go-co-op/gocron/v2"
+	"github.com/samber/oops"
 )
 
 const artifactJanitorInterval = 15 * time.Minute
@@ -71,6 +73,7 @@ func runArtifactJanitor(ctx context.Context, runtime *artifactJanitorRuntime) {
 	}
 	recordArtifactJanitorMetrics(ctx, runtime.obs, report)
 	runtime.catMetrics.SyncCatalog(runtime.catalog)
+
 	if report.ScannedArtifacts == 0 && report.RemovedOrphans == 0 && report.MissingVariants == 0 && report.RemovedDirectories == 0 {
 		return
 	}
@@ -197,20 +200,63 @@ func (r *artifactJanitorRun) walkOrphanArtifacts() error {
 }
 
 func pruneEmptyArtifactDirs(root string) int {
-	if strings.TrimSpace(root) == "" {
+	cleanRoot := strings.TrimSpace(filepath.Clean(root))
+	if cleanRoot == "" {
 		return 0
 	}
 
 	directories := cxlist.NewList[string]()
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	entries := []cxtree.Entry[string, struct{}]{cxtree.RootEntry(cleanRoot, struct{}{})}
+
+	if err := filepath.WalkDir(cleanRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() && path != root {
-			directories.Add(path)
+		if !entry.IsDir() {
+			return nil
 		}
+		cleanPath := filepath.Clean(path)
+		directories.Add(cleanPath)
+		if cleanPath == cleanRoot {
+			return nil
+		}
+		entries = append(entries, cxtree.ChildEntry(cleanPath, filepath.Clean(filepath.Dir(cleanPath)), struct{}{}))
 		return nil
 	}); err != nil {
+		return 0
+	}
+	if len(entries) == 1 {
+		return 0
+	}
+
+	artifactTree, treeErr := cxtree.Build(entries)
+	if treeErr != nil {
+		return sortAndRemoveDirectories(directories)
+	}
+
+	nodes := artifactTree.Descendants(cleanRoot)
+	if len(nodes) == 0 {
+		return 0
+	}
+
+	removed := 0
+	for i := len(nodes) - 1; i >= 0; i-- {
+		node := nodes[i]
+		if node == nil {
+			continue
+		}
+		if node.ID() == cleanRoot {
+			continue
+		}
+		if err := os.Remove(node.ID()); err == nil {
+			removed++
+		}
+	}
+	return removed
+}
+
+func sortAndRemoveDirectories(directories *cxlist.List[string]) int {
+	if directories.IsEmpty() {
 		return 0
 	}
 

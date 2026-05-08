@@ -8,6 +8,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
+	cxprefix "github.com/arcgolabs/collectionx/prefix"
 	"github.com/daiyuang/spack/internal/catalog"
 	"github.com/daiyuang/spack/internal/contentcoding"
 	"github.com/daiyuang/spack/internal/source"
@@ -25,8 +26,9 @@ type Snapshot struct {
 }
 
 type Scanner struct {
-	src      source.Source
-	matchers *cxlist.List[sidecarMatcher]
+	src         source.Source
+	matchers    *cxlist.List[sidecarMatcher]
+	matcherTrie *cxprefix.Trie[sidecarMatcher]
 }
 
 type SidecarMatcher struct {
@@ -41,9 +43,11 @@ type SidecarMatch struct {
 }
 
 func NewScanner(src source.Source, registry contentcoding.Registry) Scanner {
+	matchers := buildSidecarMatchers(registry)
 	return Scanner{
-		src:      src,
-		matchers: buildSidecarMatchers(registry),
+		src:         src,
+		matchers:    matchers,
+		matcherTrie: buildSidecarMatcherTrie(matchers),
 	}
 }
 
@@ -61,25 +65,20 @@ func (s Scanner) MatchSidecarPath(path string) (SidecarMatch, bool) {
 		return SidecarMatch{}, false
 	}
 
-	match := SidecarMatch{}
-	found := false
-	s.matchers.Range(func(_ int, matcher sidecarMatcher) bool {
-		if !strings.HasSuffix(normalized, matcher.suffix) {
-			return true
-		}
-		assetPath := strings.TrimSuffix(normalized, matcher.suffix)
-		if assetPath == "" || assetPath == normalized {
-			return true
-		}
-		match = SidecarMatch{
-			AssetPath: assetPath,
-			Encoding:  matcher.encoding,
-			Suffix:    matcher.suffix,
-		}
-		found = true
-		return false
-	})
-	return match, found
+	matcher, ok := matchSidecarWithTrie(normalized, s.matcherTrie).Get()
+	if !ok {
+		return SidecarMatch{}, false
+	}
+
+	assetPath := strings.TrimSuffix(normalized, matcher.suffix)
+	if assetPath == "" || assetPath == normalized {
+		return SidecarMatch{}, false
+	}
+	return SidecarMatch{
+		AssetPath: assetPath,
+		Encoding:  matcher.encoding,
+		Suffix:    matcher.suffix,
+	}, true
 }
 
 func (s Scanner) SidecarMatchers() *cxlist.List[SidecarMatcher] {

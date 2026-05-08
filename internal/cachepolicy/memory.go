@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	cxinterval "github.com/arcgolabs/collectionx/interval"
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/daiyuang/spack/internal/config"
 	"github.com/daiyuang/spack/internal/media"
@@ -70,6 +71,7 @@ type StaticMemoryPolicy struct {
 	genericTTL    time.Duration
 	smallFileSize int64
 	largeFileSize int64
+	textTTLScheme *cxinterval.RangeMap[int64, int64]
 	priorityPaths *cxset.OrderedSet[string]
 }
 
@@ -88,6 +90,7 @@ func NewMemoryPolicy(cfg *config.Config) MemoryPolicy {
 		genericTTL:    clampMemoryTTL(baseTTL/2, time.Minute, baseTTL),
 		smallFileSize: memorySmallFileSize(cfg.HTTP.MemoryCache.MaxFileSize),
 		largeFileSize: memoryLargeFileSize(cfg.HTTP.MemoryCache.MaxFileSize),
+		textTTLScheme: newMemoryTextTTLScheme(cfg.HTTP.MemoryCache.MaxFileSize),
 		priorityPaths: memoryPriorityPaths(cfg),
 	}
 }
@@ -179,13 +182,38 @@ func (p StaticMemoryPolicy) adjustTTLForSize(ttl time.Duration, size int64) time
 	if size <= 0 {
 		return ttl
 	}
-	if size >= p.largeFileSize {
-		return ttl / 2
-	}
-	if size <= p.smallFileSize {
-		return ttl + ttl/4
+	if multiplier, ok := p.textTTLScheme.Get(size); ok {
+		return time.Duration(ttl.Nanoseconds()*multiplier/1000) * time.Nanosecond
 	}
 	return ttl
+}
+
+func newMemoryTextTTLScheme(maxFileSize int64) *cxinterval.RangeMap[int64, int64] {
+	scheme := cxinterval.NewRangeMap[int64, int64]()
+	if maxFileSize <= 0 {
+		return scheme
+	}
+
+	maxExclusive := maxFileSize + 1
+	_ = scheme.Put(1, maxExclusive, 1000)
+
+	smallFileSize := memorySmallFileSize(maxFileSize)
+	if smallFileSize > 0 {
+		_ = scheme.Put(1, min(memoryClampToBounds(smallFileSize)+1, maxExclusive), 1250)
+	}
+
+	largeFileSize := memoryLargeFileSize(maxFileSize)
+	if largeFileSize > 0 {
+		_ = scheme.Put(largeFileSize, maxExclusive, 500)
+	}
+	return scheme
+}
+
+func memoryClampToBounds(size int64) int64 {
+	if size < 1 {
+		return 1
+	}
+	return size
 }
 
 func memorySmallFileSize(maxFileSize int64) int64 {

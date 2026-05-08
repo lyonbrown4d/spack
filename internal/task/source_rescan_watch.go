@@ -43,8 +43,8 @@ func (w *sourceRescanWatcher) watchSourceChanges(ctx context.Context, changes <-
 	timer := time.NewTimer(sourceRescanDebounce)
 	stopTimer(timer)
 	defer timer.Stop()
-	pending := cxlist.NewList[source.ChangeEvent]()
 
+	pending := cxlist.NewDeque[source.ChangeEvent]()
 	for {
 		select {
 		case <-ctx.Done():
@@ -57,14 +57,14 @@ func (w *sourceRescanWatcher) watchSourceChanges(ctx context.Context, changes <-
 				slog.String("path", change.Path),
 				slog.String("op", change.Op),
 			)
-			pending.Add(change)
+			pending.PushBack(change)
 			resetTimer(timer, sourceRescanDebounce)
 		case <-timer.C:
 			if pending.IsEmpty() {
 				continue
 			}
 			events := pending.Values()
-			pending = cxlist.NewList[source.ChangeEvent]()
+			pending.Clear()
 			runSourceRescan(ctx, w.runtime, events...)
 		}
 	}

@@ -3,6 +3,7 @@ package sourcecatalog
 import (
 	"context"
 	"fmt"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/daiyuang/spack/internal/catalog"
@@ -52,7 +53,7 @@ func buildAssets(
 		return assets, nil
 	}
 
-	results := cxlist.NewListWithCapacity[assetBuildResult](candidates.Len())
+	results := cxlist.NewConcurrentListWithCapacity[assetBuildResult](candidates.Len())
 	for range candidates.Len() {
 		results.Add(assetBuildResult{})
 	}
@@ -76,7 +77,7 @@ func buildAssets(
 		return nil, oops.In("sourcecatalog").Owner("asset build").Wrap(err)
 	}
 
-	results.Range(func(_ int, result assetBuildResult) bool {
+	results.Snapshot().Range(func(_ int, result assetBuildResult) bool {
 		assets.Set(result.path, result.asset)
 		return true
 	})

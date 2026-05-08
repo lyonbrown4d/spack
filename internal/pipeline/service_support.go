@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	appEvent "github.com/daiyuang/spack/internal/event"
 	"github.com/samber/lo"
@@ -176,18 +177,26 @@ func (s *Service) enforceCleanupCacheLimit(ctx context.Context, files []cleanupF
 		return
 	}
 
-	cxlist.NewList[cleanupFile](files...).Sort(func(left, right cleanupFile) int {
-		return left.lastUsed.Compare(right.lastUsed)
-	}).Range(func(_ int, file cleanupFile) bool {
+	pq, err := cxlist.NewPriorityQueue(func(left, right cleanupFile) bool {
+		return left.lastUsed.Before(right.lastUsed)
+	}, files...)
+	if err != nil {
+		return
+	}
+
+	for {
 		if result.totalBytes <= maxCacheBytes {
-			return false
+			return
+		}
+		file, ok := pq.Pop()
+		if !ok {
+			return
 		}
 		if !s.removeCleanupFile(ctx, file, appEvent.VariantRemovalReasonSize) {
-			return true
+			continue
 		}
 		recordSizeCleanupRemoval(result, file.size)
-		return true
-	})
+	}
 }
 
 func (s *Service) removeCleanupFile(ctx context.Context, file cleanupFile, reason appEvent.VariantRemovalReason) bool {

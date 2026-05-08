@@ -4,8 +4,12 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
+	cxprefix "github.com/arcgolabs/collectionx/prefix"
 	"github.com/daiyuang/spack/internal/catalog"
 	"github.com/daiyuang/spack/internal/contentcoding"
 	"github.com/daiyuang/spack/internal/source"
@@ -13,8 +17,6 @@ import (
 	"github.com/samber/mo"
 	"github.com/samber/oops"
 	"golang.org/x/sync/errgroup"
-	"path/filepath"
-	"strings"
 )
 
 type sidecarMatcher struct {
@@ -59,10 +61,37 @@ func buildSidecarMatchers(registry contentcoding.Registry) *cxlist.List[sidecarM
 	})
 }
 
+func buildSidecarMatcherTrie(matchers *cxlist.List[sidecarMatcher]) *cxprefix.Trie[sidecarMatcher] {
+	trie := cxprefix.NewTrie[sidecarMatcher]()
+	if matchers == nil || matchers.IsEmpty() {
+		return trie
+	}
+
+	matchers.Range(func(_ int, matcher sidecarMatcher) bool {
+		if matcher.suffix != "" {
+			trie.Put(reverseString(matcher.suffix), matcher)
+		}
+		return true
+	})
+	return trie
+}
+
+func matchSidecarWithTrie(path string, matcherTrie *cxprefix.Trie[sidecarMatcher]) mo.Option[sidecarMatcher] {
+	if matcherTrie == nil || matcherTrie.IsEmpty() {
+		return mo.None[sidecarMatcher]()
+	}
+	matcherKey, matcher, ok := matcherTrie.LongestPrefix(reverseString(path))
+	if !ok || len(matcherKey) == 0 {
+		return mo.None[sidecarMatcher]()
+	}
+	return mo.Some(matcher)
+}
+
 func recognizeSidecars(filesByPath *cxmapping.Map[string, source.File], matchers *cxlist.List[sidecarMatcher]) *cxmapping.Map[string, sidecarFile] {
+	matcherTrie := buildSidecarMatcherTrie(matchers)
 	sidecars := cxmapping.NewMapWithCapacity[string, sidecarFile](filesByPath.Len())
 	sortedKeys[source.File](filesByPath).Range(func(_ int, path string) bool {
-		match, ok := matchSidecar(path, filesByPath, matchers).Get()
+		match, ok := matchSidecar(path, filesByPath, matcherTrie).Get()
 		if !ok {
 			return true
 		}
@@ -74,27 +103,36 @@ func recognizeSidecars(filesByPath *cxmapping.Map[string, source.File], matchers
 	return sidecars
 }
 
-func matchSidecar(path string, filesByPath *cxmapping.Map[string, source.File], matchers *cxlist.List[sidecarMatcher]) mo.Option[sidecarFile] {
-	matcher, ok := cxlist.FindList[sidecarMatcher](matchers, func(_ int, matcher sidecarMatcher) bool {
-		if !strings.HasSuffix(path, matcher.suffix) {
-			return false
-		}
-		assetPath := normalizedAssetPath(path, matcher.suffix)
-		if assetPath == "" || assetPath == path {
-			return false
-		}
-		_, exists := filesByPath.Get(assetPath)
-		return exists
-	})
+func matchSidecar(path string, filesByPath *cxmapping.Map[string, source.File], matcherTrie *cxprefix.Trie[sidecarMatcher]) mo.Option[sidecarFile] {
+	matcher, ok := matchSidecarWithTrie(path, matcherTrie).Get()
 	if !ok {
 		return mo.None[sidecarFile]()
 	}
 
+	assetPath := normalizedAssetPath(path, matcher.suffix)
+	if assetPath == "" || assetPath == path {
+		return mo.None[sidecarFile]()
+	}
+	if _, exists := filesByPath.Get(assetPath); !exists {
+		return mo.None[sidecarFile]()
+	}
+
 	return mo.Some(sidecarFile{
-		assetPath: normalizedAssetPath(path, matcher.suffix),
+		assetPath: assetPath,
 		encoding:  matcher.encoding,
 		suffix:    matcher.suffix,
 	})
+}
+
+func reverseString(value string) string {
+	if value == "" {
+		return ""
+	}
+	runes := []rune(value)
+	for left, right := 0, len(runes)-1; left < right; left, right = left+1, right-1 {
+		runes[left], runes[right] = runes[right], runes[left]
+	}
+	return string(runes)
 }
 
 func buildSidecarVariants(
@@ -113,15 +151,15 @@ func buildSidecarVariants(
 		return nil, oops.In("sourcecatalog").Owner("sidecar build").Wrap(err)
 	}
 
-	publishSidecarVariants(pending, variants)
+	publishSidecarVariants(pending.Snapshot(), variants)
 	return variants, nil
 }
 
 func buildSidecarVariantsForCandidates(
 	ctx context.Context,
 	candidates *cxlist.List[sidecarVariantBuildCandidate],
-) (*cxlist.List[*catalog.Variant], error) {
-	results := cxlist.NewListWithCapacity[*catalog.Variant](candidates.Len())
+) (*cxlist.ConcurrentList[*catalog.Variant], error) {
+	results := cxlist.NewConcurrentListWithCapacity[*catalog.Variant](candidates.Len())
 	for range candidates.Len() {
 		results.Add(nil)
 	}

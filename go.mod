@@ -6,7 +6,9 @@ require (
 	github.com/andybalholm/brotli v1.2.1
 	github.com/anthonynsimon/bild v0.15.0
 	github.com/arcgolabs/collectionx/list v0.8.0
+	github.com/arcgolabs/collectionx/interval v0.8.0
 	github.com/arcgolabs/collectionx/mapping v0.8.0
+	github.com/arcgolabs/collectionx/prefix v0.8.0
 	github.com/arcgolabs/collectionx/set v0.8.0
 	github.com/arcgolabs/configx v0.3.2
 	github.com/arcgolabs/dix v0.8.0
@@ -43,6 +45,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/arcgolabs/collectionx/graph v0.8.0 // indirect
+	github.com/arcgolabs/collectionx/tree v0.8.0
 	github.com/arcgolabs/pkg/option v0.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
