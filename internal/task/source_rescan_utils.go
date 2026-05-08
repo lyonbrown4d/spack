@@ -17,10 +17,6 @@ func indexAssetsByPath(assets *cxlist.List[*catalog.Asset]) *cxmapping.Map[strin
 	})
 }
 
-func sortedMapKeys[T any](values *cxmapping.Map[string, T]) *cxlist.List[string] {
-	return cxlist.NewList[string](values.Keys()...).Sort(cmp.Compare[string])
-}
-
 type sortedMapEntry[T any] struct {
 	key   string
 	value T
