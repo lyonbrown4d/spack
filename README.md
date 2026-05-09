@@ -181,6 +181,19 @@ go run . --config .\spack.yaml --http.port=8080 --assets.root=.\dist
 
 ## Container Examples
 
+Published images live in GitHub Container Registry:
+
+```powershell
+docker pull ghcr.io/daiyuang/spack:latest
+docker pull ghcr.io/daiyuang/spack:1.1.5
+```
+
+Image tags follow the release version and runtime base:
+
+- `latest` and `<version>` point to the Alpine runtime image
+- `alpine` and `alpine-<version>` point to the Alpine runtime image
+- `debian` and `debian-<version>` point to the Debian Slim runtime image
+
 Use SPACK directly as the runtime base image for frontend build outputs:
 
 ```dockerfile
@@ -530,6 +543,29 @@ Recent optimization work has primarily targeted:
 - HTTP middleware short-circuiting and response-header emission
 
 Profile artifacts are written to `tmp/perf/` so later optimization passes can compare against the same entrypoints.
+
+## Release
+
+Releases are tag-driven. Pushing a `v*` tag starts the Release workflow, which uses GoReleaser to publish:
+
+- GitHub Release archives and checksums
+- `ghcr.io/daiyuang/spack` container images
+- Alpine runtime tags: `latest`, `<version>`, `alpine`, and `alpine-<version>`
+- Debian runtime tags: `debian` and `debian-<version>`
+
+Before publishing, validate the release configuration locally:
+
+```powershell
+task release:goreleaser:check
+```
+
+Create and push a patch release:
+
+```powershell
+task release:bump:patch
+```
+
+Use `task release:bump:minor` or `task release:bump:major` when the next release should advance those version segments.
 
 Use the SPA fixture:
 
