@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/arcgolabs/eventx"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	appEvent "github.com/daiyuang/spack/internal/event"
-	"github.com/daiyuang/spack/internal/pipeline"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/pipeline"
 )
 
 func TestCleanupArtifactsRemovesExpiredVariants(t *testing.T) {

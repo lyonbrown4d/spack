@@ -3,7 +3,7 @@ package media_test
 import (
 	"testing"
 
-	"github.com/daiyuang/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/media"
 )
 
 func TestIsTextLikeMediaType(t *testing.T) {

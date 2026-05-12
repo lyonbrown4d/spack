@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/arcgolabs/eventx"
-	"github.com/daiyuang/spack/internal/catalog"
-	appEvent "github.com/daiyuang/spack/internal/event"
-	"github.com/daiyuang/spack/internal/resolver"
-	"github.com/daiyuang/spack/internal/server"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/server"
 )
 
 func TestPublishVariantServedPublishesEvent(t *testing.T) {

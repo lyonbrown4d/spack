@@ -10,7 +10,7 @@ import (
 
 	"github.com/anthonynsimon/bild/transform"
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/daiyuang/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/media"
 )
 
 type imageEncodeOptions struct {

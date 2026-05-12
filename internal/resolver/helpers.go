@@ -3,8 +3,8 @@ package resolver
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
 	"strings"

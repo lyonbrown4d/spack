@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	cxset "github.com/arcgolabs/collectionx/set"
-	"github.com/daiyuang/spack/internal/constant"
+	"github.com/lyonbrown4d/spack/internal/constant"
 )
 
 var textLikeMediaTypes = cxset.NewOrderedSet[string](

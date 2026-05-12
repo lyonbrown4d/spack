@@ -2,10 +2,10 @@ package task_test
 
 import (
 	"context"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/source"
-	"github.com/daiyuang/spack/internal/sourcecatalog"
-	"github.com/daiyuang/spack/internal/task"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/source"
+	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
+	"github.com/lyonbrown4d/spack/internal/task"
 	"os"
 	"path/filepath"
 	"testing"

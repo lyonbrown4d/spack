@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/arcgolabs/configx"
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/spf13/pflag"
 )
 

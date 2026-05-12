@@ -2,8 +2,8 @@
 package main
 
 import (
-	"github.com/daiyuang/spack/cmd"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/lyonbrown4d/spack/cmd"
 	"github.com/spf13/cobra"
 )
 

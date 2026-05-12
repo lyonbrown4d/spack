@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/assetcache"
-	"github.com/daiyuang/spack/internal/asyncx"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/task"
+	"github.com/lyonbrown4d/spack/internal/assetcache"
+	"github.com/lyonbrown4d/spack/internal/asyncx"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/task"
 )
 
 func TestWarmCacheHotsetWarmsConfiguredAssetsAndVariants(t *testing.T) {

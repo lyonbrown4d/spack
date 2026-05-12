@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/arcgolabs/observabilityx"
-	"github.com/daiyuang/spack/internal/server"
 	"github.com/gofiber/fiber/v3"
+	"github.com/lyonbrown4d/spack/internal/server"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 

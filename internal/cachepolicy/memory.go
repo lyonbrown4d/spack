@@ -7,8 +7,8 @@ import (
 	"time"
 
 	cxinterval "github.com/arcgolabs/collectionx/interval"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/media"
 )
 
 const robotsAssetPath = "robots.txt"

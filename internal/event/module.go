@@ -10,7 +10,7 @@ import (
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
-	"github.com/daiyuang/spack/internal/asyncx"
+	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/samber/oops"
 )
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/daiyuang/spack/internal/validation"
+	"github.com/lyonbrown4d/spack/internal/validation"
 )
 
 type Image struct {

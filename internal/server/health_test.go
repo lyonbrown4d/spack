@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/arcgolabs/dix"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/server"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/server"
 )
 
 func TestRegisterHealthCheckSetupRegistersDixReports(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/daiyuang/spack/internal/constant"
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/lyonbrown4d/spack/internal/constant"
 )
 
 func DetectMIME(filePath string) constant.MimeType {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 )
 
 const (

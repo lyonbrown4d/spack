@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/pipeline"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/pipeline"
 )
 
 type namespaceArtifacts struct {

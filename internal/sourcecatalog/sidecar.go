@@ -7,9 +7,9 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxprefix "github.com/arcgolabs/collectionx/prefix"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/contentcoding"
-	"github.com/daiyuang/spack/internal/source"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/contentcoding"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/mo"
 )
 

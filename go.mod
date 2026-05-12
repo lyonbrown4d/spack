@@ -1,4 +1,4 @@
-module github.com/daiyuang/spack
+module github.com/lyonbrown4d/spack
 
 go 1.26.2
 

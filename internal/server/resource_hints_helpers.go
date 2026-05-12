@@ -14,9 +14,9 @@ import (
 	cxset "github.com/arcgolabs/collectionx/set"
 	"golang.org/x/net/html"
 
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/media"
 )
 
 func parseHTMLResourceHints(filePath string, cfg config.ResourceHints) (links *cxlist.List[string], err error) {

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/arcgolabs/eventx"
-	appEvent "github.com/daiyuang/spack/internal/event"
-	"github.com/daiyuang/spack/internal/resolver"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/resolver"
 	"github.com/samber/lo"
 )
 

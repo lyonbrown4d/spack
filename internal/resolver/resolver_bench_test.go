@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
 func BenchmarkResolverResolveAsset(b *testing.B) {

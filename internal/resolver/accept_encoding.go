@@ -4,7 +4,7 @@ import (
 	"cmp"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	contentcodingspec "github.com/daiyuang/spack/internal/contentcoding/spec"
+	contentcodingspec "github.com/lyonbrown4d/spack/internal/contentcoding/spec"
 	"strings"
 )
 

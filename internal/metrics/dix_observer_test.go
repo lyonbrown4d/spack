@@ -9,7 +9,7 @@ import (
 
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/observabilityx"
-	"github.com/daiyuang/spack/internal/metrics"
+	"github.com/lyonbrown4d/spack/internal/metrics"
 )
 
 func TestObserverCachesInstruments(t *testing.T) {

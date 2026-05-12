@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/daiyuang/spack/internal/asyncx"
-	"github.com/daiyuang/spack/internal/cachepolicy"
-	"github.com/daiyuang/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/asyncx"
+	"github.com/lyonbrown4d/spack/internal/cachepolicy"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 	"strings"
 	"sync"
 )

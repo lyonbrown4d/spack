@@ -6,8 +6,8 @@ import (
 	"log/slog"
 
 	"github.com/arcgolabs/eventx"
-	"github.com/daiyuang/spack/internal/cachepolicy"
-	appEvent "github.com/daiyuang/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/cachepolicy"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
 )
 
 func (c *Cache) start(_ context.Context) error {

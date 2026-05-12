@@ -10,8 +10,6 @@ import (
 
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/observabilityx"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/media"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/etag"
 	expvarmw "github.com/gofiber/fiber/v3/middleware/expvar"
@@ -20,6 +18,8 @@ import (
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/responsetime"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/samber/oops"
 	slogfiber "github.com/samber/slog-fiber"
 )

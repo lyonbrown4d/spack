@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/daiyuang/spack/internal/validation"
+	"github.com/lyonbrown4d/spack/internal/validation"
 )
 
 type Frontend struct {

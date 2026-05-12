@@ -3,7 +3,7 @@ package catalog
 import (
 	"strings"
 
-	"github.com/daiyuang/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/media"
 )
 
 type assetRecord struct {

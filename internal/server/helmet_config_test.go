@@ -3,7 +3,7 @@ package server_test
 import (
 	"testing"
 
-	"github.com/daiyuang/spack/internal/server"
+	"github.com/lyonbrown4d/spack/internal/server"
 )
 
 func TestNewHelmetConfigRelaxesCrossOriginPolicies(t *testing.T) {

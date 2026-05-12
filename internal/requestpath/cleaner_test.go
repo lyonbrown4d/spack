@@ -3,7 +3,7 @@ package requestpath_test
 import (
 	"testing"
 
-	"github.com/daiyuang/spack/internal/requestpath"
+	"github.com/lyonbrown4d/spack/internal/requestpath"
 )
 
 func TestCleanDecodesAndNormalizesAssetPath(t *testing.T) {

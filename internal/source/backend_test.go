@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/source"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/source"
 )
 
 func TestNewSourceForTestSupportsLocalBackend(t *testing.T) {

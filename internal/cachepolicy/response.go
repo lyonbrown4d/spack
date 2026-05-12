@@ -9,9 +9,9 @@ import (
 	"unicode"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
 // RevalidateCacheControl is the default response policy for original assets.

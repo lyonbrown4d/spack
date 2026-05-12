@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 func TestCompressionQueueCapacity(t *testing.T) {

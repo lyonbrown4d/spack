@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/arcgolabs/eventx"
-	"github.com/daiyuang/spack/internal/assetcache"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	appEvent "github.com/daiyuang/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/assetcache"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
 )
 
 func TestShouldServe(t *testing.T) {

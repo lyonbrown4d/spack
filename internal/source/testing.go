@@ -3,7 +3,7 @@ package source
 import (
 	"log/slog"
 
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 // NewLocalFSForTest exposes local filesystem source construction for external tests.

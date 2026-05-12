@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 func TestAsyncNormalizedWorkersUsesExplicitValue(t *testing.T) {

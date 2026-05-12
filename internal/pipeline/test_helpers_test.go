@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daiyuang/spack/internal/artifact"
+	"github.com/lyonbrown4d/spack/internal/artifact"
 )
 
 func newTestStore(root string) artifact.Store {

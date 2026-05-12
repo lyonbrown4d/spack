@@ -8,7 +8,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/logx"
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/samber/oops"
 	"log/slog"
 )

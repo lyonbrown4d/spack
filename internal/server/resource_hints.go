@@ -6,9 +6,9 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/resolver"
 	"github.com/gofiber/fiber/v3"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/resolver"
 	"log/slog"
 )
 

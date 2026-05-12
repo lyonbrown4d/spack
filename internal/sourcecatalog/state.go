@@ -4,7 +4,7 @@ import (
 	"cmp"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 )
 
 type existingScanState struct {

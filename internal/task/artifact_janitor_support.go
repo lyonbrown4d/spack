@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/daiyuang/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/samber/oops"
 )
 

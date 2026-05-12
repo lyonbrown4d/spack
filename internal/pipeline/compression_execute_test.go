@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/pipeline"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/pipeline"
 )
 
 func TestCompressionStageExecuteCreatesVariant(t *testing.T) {

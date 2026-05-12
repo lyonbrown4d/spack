@@ -2,7 +2,7 @@ package pipeline_test
 
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/daiyuang/spack/internal/pipeline"
+	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"slices"
 	"testing"
 )

@@ -3,7 +3,7 @@ package catalog_test
 import (
 	"testing"
 
-	"github.com/daiyuang/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 

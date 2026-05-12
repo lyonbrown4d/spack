@@ -6,8 +6,8 @@ import (
 
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
-	"github.com/daiyuang/spack/internal/asyncx"
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/asyncx"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 // NewCacheForTest exposes cache construction for external tests.

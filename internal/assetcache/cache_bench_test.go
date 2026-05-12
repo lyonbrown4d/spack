@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/assetcache"
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/assetcache"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 func BenchmarkCacheGetOrLoadMiss(b *testing.B) {

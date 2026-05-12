@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/assetcache"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/resolver"
-	"github.com/daiyuang/spack/internal/server"
 	"github.com/gofiber/fiber/v3"
+	"github.com/lyonbrown4d/spack/internal/assetcache"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/server"
 )
 
 type healthResponse struct {

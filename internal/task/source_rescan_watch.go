@@ -8,7 +8,7 @@ import (
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/daiyuang/spack/internal/source"
+	"github.com/lyonbrown4d/spack/internal/source"
 )
 
 const sourceRescanDebounce = 300 * time.Millisecond

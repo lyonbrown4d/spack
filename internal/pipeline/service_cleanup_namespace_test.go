@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daiyuang/spack/internal/pipeline"
+	"github.com/lyonbrown4d/spack/internal/pipeline"
 )
 
 func TestCleanupArtifactsEnforcesNamespaceMaxCacheBytes(t *testing.T) {

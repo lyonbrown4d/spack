@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 func TestNormalizeSourceBackendDefaultsToLocal(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/arcgolabs/observabilityx"
-	"github.com/daiyuang/spack/internal/task"
+	"github.com/lyonbrown4d/spack/internal/task"
 )
 
 type recordedMetric struct {

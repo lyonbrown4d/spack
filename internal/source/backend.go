@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 type sourceFactory func(*config.Assets, *slog.Logger) (Source, error)

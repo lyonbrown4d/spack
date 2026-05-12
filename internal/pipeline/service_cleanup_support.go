@@ -12,7 +12,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
-	appEvent "github.com/daiyuang/spack/internal/event"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/samber/lo"
 )
 

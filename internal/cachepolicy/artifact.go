@@ -5,7 +5,7 @@ import (
 	"time"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 // ArtifactPolicy decides artifact retention and eviction for generated variants.

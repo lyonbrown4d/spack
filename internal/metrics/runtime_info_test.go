@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	spackconfig "github.com/daiyuang/spack/internal/config"
-	"github.com/daiyuang/spack/internal/metrics"
+	spackconfig "github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )

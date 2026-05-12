@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/arcgolabs/eventx"
-	"github.com/daiyuang/spack/internal/catalog"
-	appEvent "github.com/daiyuang/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/samber/oops"
 )
 

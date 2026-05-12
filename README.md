@@ -154,7 +154,7 @@ Hot paths that are intentionally optimized:
 ## Quick Start
 
 ```dockerfile
-FROM ghcr.io/daiyuang/spack:latest
+FROM ghcr.io/lyonbrown4d/spack:latest
 
 COPY ./dist /app
 
@@ -184,8 +184,8 @@ go run . --config .\spack.yaml --http.port=8080 --assets.root=.\dist
 Published images live in GitHub Container Registry:
 
 ```powershell
-docker pull ghcr.io/daiyuang/spack:latest
-docker pull ghcr.io/daiyuang/spack:1.1.5
+docker pull ghcr.io/lyonbrown4d/spack:latest
+docker pull ghcr.io/lyonbrown4d/spack:1.1.7
 ```
 
 Image tags follow the release version and runtime base:
@@ -206,7 +206,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM ghcr.io/daiyuang/spack:latest
+FROM ghcr.io/lyonbrown4d/spack:latest
 
 COPY --from=build /workspace/dist /app
 
@@ -225,7 +225,7 @@ EXPOSE 80 8080
 Use SPACK as a reusable runtime base in your own image family:
 
 ```dockerfile
-FROM ghcr.io/daiyuang/spack:latest AS spack-runtime
+FROM ghcr.io/lyonbrown4d/spack:latest AS spack-runtime
 
 ENV SPACK_ASSETS_ROOT=/srv/www
 ENV SPACK_ASSETS_PATH=/
@@ -244,7 +244,7 @@ EXPOSE 80 8080
 Use a custom config file instead of many environment variables:
 
 ```dockerfile
-FROM ghcr.io/daiyuang/spack:latest
+FROM ghcr.io/lyonbrown4d/spack:latest
 
 COPY ./dist /app
 COPY ./deploy/spack.yaml /etc/spack/spack.yaml
@@ -257,7 +257,7 @@ CMD ["spack", "--config", "/etc/spack/spack.yaml"]
 Use SPACK only as the runtime layer while keeping your own build pipeline:
 
 ```dockerfile
-FROM ghcr.io/daiyuang/spack:latest
+FROM ghcr.io/lyonbrown4d/spack:latest
 
 COPY ./packages/web/dist /opt/assets
 
@@ -549,7 +549,7 @@ Profile artifacts are written to `tmp/perf/` so later optimization passes can co
 Releases are tag-driven. Pushing a `v*` tag starts the Release workflow, which uses GoReleaser to publish:
 
 - GitHub Release archives and checksums
-- `ghcr.io/daiyuang/spack` container images
+- `ghcr.io/lyonbrown4d/spack` container images
 - Alpine runtime tags: `latest`, `<version>`, `alpine`, and `alpine-<version>`
 - Debian runtime tags: `debian` and `debian-<version>`
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/daiyuang/spack/internal/metrics"
+	"github.com/lyonbrown4d/spack/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
@@ -13,7 +13,7 @@ import (
 func TestBuildInfoMetricsExposeStaticLabels(t *testing.T) {
 	buildInfoMetrics := metrics.NewBuildInfoMetricsForTest("spack", &debug.BuildInfo{
 		GoVersion: "go1.25.0",
-		Path:      "github.com/daiyuang/spack",
+		Path:      "github.com/lyonbrown4d/spack",
 		Main: debug.Module{
 			Version: "v1.2.3",
 		},
@@ -32,7 +32,7 @@ func TestBuildInfoMetricsExposeStaticLabels(t *testing.T) {
 	expected := strings.NewReader(`
 # HELP spack_build_info Build metadata for the current spack runtime.
 # TYPE spack_build_info gauge
-spack_build_info{app="spack",go_version="go1.25.0",module_path="github.com/daiyuang/spack",vcs_modified="true",vcs_revision="abc123",vcs_time="2026-04-09T10:00:00Z",version="v1.2.3"} 1
+spack_build_info{app="spack",go_version="go1.25.0",module_path="github.com/lyonbrown4d/spack",vcs_modified="true",vcs_revision="abc123",vcs_time="2026-04-09T10:00:00Z",version="v1.2.3"} 1
 `)
 	if err := testutil.GatherAndCompare(registry, expected, "spack_build_info"); err != nil {
 		t.Fatal(err)

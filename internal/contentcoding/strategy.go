@@ -9,8 +9,8 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/contentcoding/spec"
 	"github.com/klauspost/compress/zstd"
+	"github.com/lyonbrown4d/spack/internal/contentcoding/spec"
 )
 
 type Options struct {

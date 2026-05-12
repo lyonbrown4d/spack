@@ -3,8 +3,8 @@ package task
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/daiyuang/spack/internal/catalog"
-	"github.com/daiyuang/spack/internal/sourcecatalog"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 )
 
 func (r *sourceRescanRun) reconcileSourceSidecars(
