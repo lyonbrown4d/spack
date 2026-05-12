@@ -8,7 +8,6 @@ import (
 	"github.com/arcgolabs/eventx"
 	"github.com/daiyuang/spack/internal/cachepolicy"
 	appEvent "github.com/daiyuang/spack/internal/event"
-	"github.com/samber/lo"
 )
 
 func (c *Cache) start(_ context.Context) error {
@@ -84,9 +83,9 @@ func (c *Cache) subscribeVariantGenerated() (func(), error) {
 }
 
 func unsubscribeAll(unsubscribes ...func()) {
-	lo.ForEach(unsubscribes, func(unsubscribe func(), _ int) {
+	for _, unsubscribe := range unsubscribes {
 		if unsubscribe != nil {
 			unsubscribe()
 		}
-	})
+	}
 }

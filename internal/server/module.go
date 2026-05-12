@@ -30,7 +30,6 @@ var Module = dix.NewModule("server",
 		dix.Contribute1(newHealthRoutesRegistration),
 		dix.Contribute1(newRobotsRouteRegistration),
 		dix.Contribute1(newAssetRouteRegistration),
-		dix.Provider1(newServerRegistrations),
 		dix.Provider2(newEventPublisher),
 		dix.Provider3(newServerFromDeps),
 	),
@@ -192,7 +191,7 @@ func shouldTrackAssetDelivery(logger *slog.Logger, obs observabilityx.Observabil
 func newServerRegistrations(
 	registrations *cxlist.List[appRegistration],
 ) *cxlist.List[appRegistration] {
-	return registrations.Sort(func(left, right appRegistration) int {
+	return registrations.Clone().Sort(func(left, right appRegistration) int {
 		if left.Order != right.Order {
 			return cmp.Compare(left.Order, right.Order)
 		}
@@ -206,7 +205,7 @@ func newServerFromDeps(
 	registrations *cxlist.List[appRegistration],
 ) *fiber.App {
 	app := newServerApp(cfg, meta)
-	registrations.Range(func(_ int, registration appRegistration) bool {
+	newServerRegistrations(registrations).Range(func(_ int, registration appRegistration) bool {
 		if registration.Apply != nil {
 			registration.Apply(app)
 		}

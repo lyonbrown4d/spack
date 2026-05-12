@@ -77,17 +77,19 @@ func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported
 	}
 
 	supported = imageFormatCandidates(supported, sourceFormat)
-	candidates := cxlist.FlatMapList[string, candidate](supported, func(index int, format string) []candidate {
+	candidates := cxlist.NewListWithCapacity[candidate](supported.Len())
+	supported.Range(func(index int, format string) bool {
 		q, match := imageQualityForFormat(prefs, format)
 		if q <= 0 || match == imagePreferenceNone {
-			return nil
+			return true
 		}
-		return []candidate{{
+		candidates.Add(candidate{
 			format:   format,
 			q:        q,
 			match:    match,
 			priority: imagePriority(index, format, sourceFormat),
-		}}
+		})
+		return true
 	})
 
 	candidates.Sort(func(left, right candidate) int {

@@ -24,7 +24,7 @@ var rootCmd = &cobra.Command{
 	Use: "spack",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		dixInstance, err := createContainer(
-			configLoadOptions(),
+			configLoadOptions(cmd),
 			asyncx.Module,
 			event.Module,
 			source.Module,

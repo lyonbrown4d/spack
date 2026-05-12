@@ -4,7 +4,7 @@ import (
 	"cmp"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/samber/lo"
+	cxset "github.com/arcgolabs/collectionx/set"
 	"strings"
 )
 
@@ -21,16 +21,18 @@ func normalizeRequestStrings(values *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	normalized := cxlist.MapList[string, string](values, func(_ int, value string) string {
-		return strings.ToLower(strings.TrimSpace(value))
-	}).Where(func(_ int, value string) bool {
-		return value != ""
+	normalized := cxset.NewOrderedSetWithCapacity[string](values.Len())
+	values.Range(func(_ int, value string) bool {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value != "" {
+			normalized.Add(value)
+		}
+		return true
 	})
-	normalized = cxlist.NewList[string](lo.Uniq[string](normalized.Values())...)
 	if normalized.IsEmpty() {
 		return nil
 	}
-	return normalized.Sort(strings.Compare)
+	return cxlist.NewList[string](normalized.Values()...).Sort(strings.Compare)
 }
 
 func normalizeRequestInts(values *cxlist.List[int]) *cxlist.List[int] {
@@ -38,12 +40,15 @@ func normalizeRequestInts(values *cxlist.List[int]) *cxlist.List[int] {
 		return nil
 	}
 
-	normalized := values.Where(func(_ int, value int) bool {
-		return value > 0
+	normalized := cxset.NewOrderedSetWithCapacity[int](values.Len())
+	values.Range(func(_ int, value int) bool {
+		if value > 0 {
+			normalized.Add(value)
+		}
+		return true
 	})
-	normalized = cxlist.NewList[int](lo.Uniq[int](normalized.Values())...)
 	if normalized.IsEmpty() {
 		return nil
 	}
-	return normalized.Sort(cmp.Compare[int])
+	return cxlist.NewList[int](normalized.Values()...).Sort(cmp.Compare[int])
 }

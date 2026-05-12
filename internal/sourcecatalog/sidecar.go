@@ -38,16 +38,19 @@ func IsSourceSidecarVariant(variant *catalog.Variant) bool {
 }
 
 func buildSidecarMatchers(registry contentcoding.Registry) *cxlist.List[sidecarMatcher] {
-	return cxlist.FlatMapList[string, sidecarMatcher](registry.Names(), func(_ int, name string) []sidecarMatcher {
+	matchers := cxlist.NewListWithCapacity[sidecarMatcher](registry.Names().Len())
+	registry.Names().Range(func(_ int, name string) bool {
 		strategy, ok := registry.Lookup(name)
 		if !ok {
-			return nil
+			return true
 		}
-		return []sidecarMatcher{{
+		matchers.Add(sidecarMatcher{
 			encoding: strategy.Name(),
 			suffix:   strategy.Suffix(),
-		}}
-	}).Sort(func(left, right sidecarMatcher) int {
+		})
+		return true
+	})
+	return matchers.Sort(func(left, right sidecarMatcher) int {
 		if len(left.suffix) == len(right.suffix) {
 			return cmp.Compare(left.encoding, right.encoding)
 		}

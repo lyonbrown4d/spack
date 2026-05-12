@@ -21,10 +21,10 @@ func bindConfigFlags(cmd *cobra.Command) {
 	flags.AddFlagSet(configFlagSet)
 }
 
-func configLoadOptions() config.LoadOptions {
+func configLoadOptions(cmd *cobra.Command) config.LoadOptions {
 	return config.LoadOptions{
 		Files:   append([]string(nil), configFiles...),
-		FlagSet: configFlagSet,
+		FlagSet: cmd.Flags(),
 	}
 }
 

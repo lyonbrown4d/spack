@@ -38,12 +38,15 @@ func buildStages(registrations *cxlist.List[stageRegistration]) *cxlist.List[Sta
 		}
 	})
 
-	return cxlist.FlatMapList[stageRegistration, Stage](sorted, func(_ int, registration stageRegistration) []Stage {
+	stages := cxlist.NewListWithCapacity[Stage](sorted.Len())
+	sorted.Range(func(_ int, registration stageRegistration) bool {
 		if registration.Stage == nil {
-			return nil
+			return true
 		}
-		return []Stage{registration.Stage}
+		stages.Add(registration.Stage)
+		return true
 	})
+	return stages
 }
 
 func compareStageNames(left, right Stage) int {

@@ -49,16 +49,18 @@ func buildEncodingCandidates(prefs encodingPreferences, supported *cxlist.List[s
 	if supported.IsEmpty() {
 		supported = contentcodingspec.DefaultNames()
 	}
-	choices := cxlist.FlatMapList[string, candidate](supported, func(index int, encoding string) []candidate {
+	choices := cxlist.NewListWithCapacity[candidate](supported.Len())
+	supported.Range(func(index int, encoding string) bool {
 		q, ok := encodingQuality(prefs, encoding)
 		if !ok {
-			return nil
+			return true
 		}
-		return []candidate{{
+		choices.Add(candidate{
 			encoding: encoding,
 			q:        q,
 			priority: index,
-		}}
+		})
+		return true
 	})
 
 	choices.Sort(func(left, right candidate) int {

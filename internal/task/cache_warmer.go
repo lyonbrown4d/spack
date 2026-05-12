@@ -109,16 +109,19 @@ func collectWarmAssets(cfg *config.Config, cat catalog.Catalog) *cxlist.List[*ca
 		assetPaths.Add(staticRobotsAssetPath)
 	}
 
-	return cxlist.FlatMapList[string, *catalog.Asset](cxlist.NewList[string](assetPaths.Values()...), func(_ int, assetPath string) []*catalog.Asset {
+	assets := cxlist.NewListWithCapacity[*catalog.Asset](assetPaths.Len())
+	assetPaths.Range(func(assetPath string) bool {
 		if assetPath == "" {
-			return nil
+			return true
 		}
 		asset, ok := cat.FindAsset(assetPath)
 		if !ok || asset == nil {
-			return nil
+			return true
 		}
-		return []*catalog.Asset{asset}
+		assets.Add(asset)
+		return true
 	})
+	return assets
 }
 
 func buildHotsetCatalog(

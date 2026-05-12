@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/samber/lo"
+	cxset "github.com/arcgolabs/collectionx/set"
 )
 
 func DefaultNames() *cxlist.List[string] {
@@ -41,13 +41,16 @@ func NormalizeNames(values *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	normalized := cxlist.MapList[string, string](values, func(_ int, raw string) string {
-		return strings.ToLower(strings.TrimSpace(raw))
-	}).Where(func(_ int, name string) bool {
-		return IsSupported(name)
+	normalized := cxset.NewOrderedSetWithCapacity[string](values.Len())
+	values.Range(func(_ int, raw string) bool {
+		name := strings.ToLower(strings.TrimSpace(raw))
+		if IsSupported(name) {
+			normalized.Add(name)
+		}
+		return true
 	})
 	if normalized.IsEmpty() {
 		return nil
 	}
-	return cxlist.NewList[string](lo.Uniq[string](normalized.Values())...)
+	return cxlist.NewList[string](normalized.Values()...)
 }

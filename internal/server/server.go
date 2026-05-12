@@ -20,7 +20,6 @@ import (
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/responsetime"
-	"github.com/samber/lo"
 	"github.com/samber/oops"
 	slogfiber "github.com/samber/slog-fiber"
 )
@@ -152,9 +151,7 @@ func assetDeliveryMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
 	if delivery == "" {
 		return nil
 	}
-	return lo.Concat(requestMetricsAttrs(c), []observabilityx.Attribute{
-		observabilityx.String("delivery", delivery),
-	})
+	return append(requestMetricsAttrs(c), observabilityx.String("delivery", delivery))
 }
 
 func requestLogMiddleware(app *fiber.App, logger *slog.Logger, cfg *config.Config) {
@@ -169,7 +166,7 @@ func requestLogMiddleware(app *fiber.App, logger *slog.Logger, cfg *config.Confi
 
 func routePattern(mountPath string) string {
 	mountPath = strings.TrimSpace(mountPath)
-	if lo.Contains([]string{"", "/"}, mountPath) {
+	if mountPath == "" || mountPath == "/" {
 		return "/*"
 	}
 	return strings.TrimRight(mountPath, "/") + "*"

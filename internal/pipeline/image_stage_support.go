@@ -7,7 +7,6 @@ import (
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/daiyuang/spack/internal/catalog"
 	"github.com/daiyuang/spack/internal/media"
-	"github.com/samber/lo"
 	"os"
 )
 
@@ -50,7 +49,12 @@ func (s *imageStage) planWidths(asset *catalog.Asset, request Request, formats *
 	}
 
 	widths.Sort(cmp.Compare[int])
-	return cxlist.NewList[int](lo.Uniq[int](widths.Values())...)
+	unique := cxset.NewOrderedSetWithCapacity[int](widths.Len())
+	widths.Range(func(_ int, width int) bool {
+		unique.Add(width)
+		return true
+	})
+	return cxlist.NewList[int](unique.Values()...)
 }
 
 func shouldPlanOriginalFormatVariants(formats *cxlist.List[string], sourceFormat string) bool {
@@ -63,18 +67,22 @@ func (s *imageStage) planTasks(asset *catalog.Asset, formats *cxlist.List[string
 	if formats == nil || widths == nil {
 		return nil
 	}
-	return cxlist.FlatMapList[string, Task](formats, func(_ int, format string) []Task {
-		return cxlist.FlatMapList[int, Task](widths, func(_ int, width int) []Task {
+	tasks := cxlist.NewListWithCapacity[Task](formats.Len() * widths.Len())
+	formats.Range(func(_ int, format string) bool {
+		widths.Range(func(_ int, width int) bool {
 			if !shouldCreateImageTask(asset, s.catalog, width, format) {
-				return nil
+				return true
 			}
-			return []Task{{
+			tasks.Add(Task{
 				AssetPath: asset.Path,
 				Format:    format,
 				Width:     width,
-			}}
-		}).Values()
+			})
+			return true
+		})
+		return true
 	})
+	return tasks
 }
 
 func shouldCreateImageTask(asset *catalog.Asset, cat catalog.Catalog, width int, format string) bool {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/samber/lo"
+	cxset "github.com/arcgolabs/collectionx/set"
 )
 
 func ParseFlexibleDuration(raw string) time.Duration {
@@ -35,17 +35,23 @@ func ParseWidths(raw string) *cxlist.List[int] {
 		return cxlist.NewList[int]()
 	}
 
-	widths := cxlist.FlatMapList[string, int](cxlist.NewList[string](strings.Split(raw, ",")...), func(_ int, part string) []int {
+	widths := cxlist.NewList[int]()
+	for _, part := range strings.Split(raw, ",") {
 		width, err := strconv.Atoi(strings.TrimSpace(part))
 		if err != nil || width <= 0 {
-			return nil
+			continue
 		}
-		return []int{width}
-	})
+		widths.Add(width)
+	}
 	if widths.IsEmpty() {
 		return widths
 	}
 
 	widths.Sort(cmp.Compare[int])
-	return cxlist.NewList[int](lo.Uniq[int](widths.Values())...)
+	unique := cxset.NewOrderedSetWithCapacity[int](widths.Len())
+	widths.Range(func(_ int, width int) bool {
+		unique.Add(width)
+		return true
+	})
+	return cxlist.NewList[int](unique.Values()...)
 }

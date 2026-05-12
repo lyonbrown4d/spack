@@ -6,7 +6,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/samber/lo"
+	cxset "github.com/arcgolabs/collectionx/set"
 )
 
 type ImageFormatDescriptor struct {
@@ -96,12 +96,15 @@ func NormalizeImageFormats(formats *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	normalized := cxlist.MapList[string, string](formats, func(_ int, format string) string {
-		return NormalizeImageFormat(format)
-	}).Where(func(_ int, value string) bool {
-		return value != ""
+	normalized := cxset.NewOrderedSetWithCapacity[string](formats.Len())
+	formats.Range(func(_ int, format string) bool {
+		value := NormalizeImageFormat(format)
+		if value != "" {
+			normalized.Add(value)
+		}
+		return true
 	})
-	return cxlist.NewList[string](lo.Uniq[string](normalized.Values())...)
+	return cxlist.NewList[string](normalized.Values()...)
 }
 
 func buildImageDescriptorsByAcceptToken(

@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/daiyuang/spack/internal/catalog"
@@ -42,7 +41,7 @@ func newSourceRescanChangeSet() *sourceRescanChangeSet {
 }
 
 func (changes *sourceRescanChangeSet) normalizeIncrementalTargets() {
-	cxlist.NewList(changes.deletedAssets.Values()...).Range(func(_ int, assetPath string) bool {
+	changes.deletedAssets.Range(func(assetPath string) bool {
 		changes.changedAssets.Delete(assetPath)
 		return true
 	})
@@ -78,7 +77,7 @@ func (changes *sourceRescanChangeSet) changedAssetMatchPath(match sourcecatalog.
 }
 
 func (r *sourceRescanRun) processDeletedAssets(deletedAssets *cxset.Set[string]) error {
-	cxlist.NewList(deletedAssets.Values()...).Range(func(_ int, assetPath string) bool {
+	deletedAssets.Range(func(assetPath string) bool {
 		existing, ok := r.cat.FindAsset(assetPath)
 		if !ok {
 			return true

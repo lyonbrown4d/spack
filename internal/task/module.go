@@ -30,7 +30,6 @@ var Module = dix.NewModule("task",
 		dix.Contribute1(newSourceRescanTaskRegistration, dix.Order(100)),
 		dix.Contribute1(newArtifactJanitorTaskRegistration, dix.Order(200)),
 		dix.Contribute1(newCacheWarmerTaskRegistration, dix.Order(300)),
-		dix.Provider1(newTaskRegistrations),
 	),
 	dix.WithModuleHooks(
 		dix.OnStart2(startTaskRuntime),
@@ -72,7 +71,7 @@ func newTaskRegistration(
 func newTaskRegistrations(
 	registrations *cxlist.List[taskRegistration],
 ) *cxlist.List[taskRegistration] {
-	return registrations.Sort(func(left, right taskRegistration) int {
+	return registrations.Clone().Sort(func(left, right taskRegistration) int {
 		if left.Order != right.Order {
 			return cmp.Compare(left.Order, right.Order)
 		}
@@ -192,7 +191,7 @@ func startScheduledTasks(
 	scheduler gocron.Scheduler,
 	registrations *cxlist.List[taskRegistration],
 ) error {
-	registered := cxlist.FilterList(registrations, func(_ int, registration taskRegistration) bool {
+	registered := cxlist.FilterList(newTaskRegistrations(registrations), func(_ int, registration taskRegistration) bool {
 		return registration.Register != nil
 	})
 	if registered.IsEmpty() {

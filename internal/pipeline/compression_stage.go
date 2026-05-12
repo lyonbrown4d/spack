@@ -54,16 +54,19 @@ func (s *compressionStage) Plan(asset *catalog.Asset, request Request) *cxlist.L
 		encodings = supportedEncodings
 	}
 
-	return cxlist.FlatMapList[string, Task](encodings, func(_ int, encoding string) []Task {
+	tasks := cxlist.NewListWithCapacity[Task](encodings.Len())
+	encodings.Range(func(_ int, encoding string) bool {
 		variant, ok := s.catalog.FindEncodingVariant(asset.Path, encoding)
 		if ok && hasEncodingVariant(variant, asset.SourceHash, encoding) {
-			return nil
+			return true
 		}
-		return []Task{{
+		tasks.Add(Task{
 			AssetPath: asset.Path,
 			Encoding:  encoding,
-		}}
+		})
+		return true
 	})
+	return tasks
 }
 
 func (s *compressionStage) Execute(task Task, asset *catalog.Asset) (*catalog.Variant, error) {
