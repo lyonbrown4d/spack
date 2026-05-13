@@ -5,6 +5,7 @@ import "github.com/gofiber/fiber/v3"
 const assetDeliveryLocalKey = "asset_delivery"
 
 const (
+	deliveryHotResponseHit  = "hot_response_hit"
 	deliveryMemoryCacheHit  = "memory_cache_hit"
 	deliveryMemoryCacheFill = "memory_cache_fill"
 	deliverySendFile        = "sendfile"

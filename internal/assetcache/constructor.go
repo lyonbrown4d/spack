@@ -10,6 +10,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"golang.org/x/sync/singleflight"
 )
 
 type Cache struct {
@@ -17,7 +18,8 @@ type Cache struct {
 	obs     observabilityx.Observability
 	policy  cachepolicy.MemoryPolicy
 	warmup  bool
-	cache   *ristretto.Cache[string, []byte]
+	cache   *ristretto.Cache[string, *Entry]
+	loader  singleflight.Group
 	bus     eventx.BusRuntime
 	workers *asyncx.Settings
 
@@ -45,7 +47,7 @@ func newCache(
 		return cache, nil
 	}
 
-	bodyCache, err := ristretto.NewCache(&ristretto.Config[string, []byte]{
+	bodyCache, err := ristretto.NewCache(&ristretto.Config[string, *Entry]{
 		NumCounters:        cacheCfg.NumCounters(),
 		MaxCost:            cacheCfg.MaxCost(),
 		BufferItems:        64,

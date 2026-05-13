@@ -36,9 +36,11 @@ func TestMetricsMiddlewareRecordsAssetDeliveryMetrics(t *testing.T) {
 
 	requestCounter := findMetric(t, obs.counters, "http_requests_total")
 	assertAttrAbsent(t, requestCounter.attrs, "delivery")
+	assertAttrValue(t, requestCounter.attrs, "route", "/")
 
 	deliveryCounter := findMetric(t, obs.counters, "http_asset_delivery_total")
 	assertAttrValue(t, deliveryCounter.attrs, "delivery", "memory_cache_hit")
+	assertAttrValue(t, deliveryCounter.attrs, "route", "/")
 	assertAttrValue(t, deliveryCounter.attrs, "status", "204")
 }
 
@@ -61,6 +63,9 @@ func TestMetricsMiddlewareSkipsAssetDeliveryMetricsWithoutDelivery(t *testing.T)
 	assertMetricCount(t, obs.histograms, "http_request_duration_seconds", 1)
 	assertMetricCount(t, obs.counters, "http_asset_delivery_total", 0)
 	assertMetricCount(t, obs.histograms, "http_asset_delivery_duration_seconds", 0)
+
+	requestCounter := findMetric(t, obs.counters, "http_requests_total")
+	assertAttrValue(t, requestCounter.attrs, "route", "/healthz")
 }
 
 func TestMetricsMiddlewareTracksInFlightRequests(t *testing.T) {

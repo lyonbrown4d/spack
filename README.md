@@ -531,6 +531,17 @@ Run repeatable performance baselines:
 task perf:bench
 ```
 
+Compare SPACK static-file delivery with Nginx over real local HTTP:
+
+```powershell
+task perf:bench:static
+```
+
+This integration benchmark requires Docker because it starts an `nginx:alpine`
+container beside an in-process SPACK HTTP server. It disables SPACK compression,
+image generation, resource hints, and memory cache so the comparison focuses on
+plain static file delivery.
+
 Capture CPU and memory profiles for a single subsystem:
 
 ```powershell

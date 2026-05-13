@@ -75,10 +75,10 @@ func (c *Cache) recordWarmStats(ctx context.Context, stats WarmStats) {
 	c.addCounterWithContext(ctx, metricAssetCacheWarmBytes, stats.Bytes)
 }
 
-func (c *Cache) onEviction(item *ristretto.Item[[]byte]) {
+func (c *Cache) onEviction(item *ristretto.Item[*Entry]) {
 	c.addCounter(metricAssetCacheEvictions, 1)
-	if item != nil {
-		c.addCounter(metricAssetCacheEvictedBytes, int64(len(item.Value)))
+	if item != nil && item.Value != nil {
+		c.addCounter(metricAssetCacheEvictedBytes, int64(len(item.Value.Body)))
 	}
 }
 

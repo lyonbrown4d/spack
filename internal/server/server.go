@@ -141,7 +141,7 @@ func metricsMiddleware(obs observabilityx.Observability, runtimeMetrics *Runtime
 func requestMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
 	return []observabilityx.Attribute{
 		observabilityx.String("method", c.Method()),
-		observabilityx.String("path", c.Path()),
+		observabilityx.String("route", requestRoute(c)),
 		observabilityx.String("status", strconv.Itoa(c.Response().StatusCode())),
 	}
 }
@@ -152,6 +152,16 @@ func assetDeliveryMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
 		return nil
 	}
 	return append(requestMetricsAttrs(c), observabilityx.String("delivery", delivery))
+}
+
+func requestRoute(c fiber.Ctx) string {
+	route := c.Route()
+	if route != nil {
+		if path := strings.TrimSpace(route.Path); path != "" {
+			return path
+		}
+	}
+	return "unmatched"
 }
 
 func requestLogMiddleware(app *fiber.App, logger *slog.Logger, cfg *config.Config) {

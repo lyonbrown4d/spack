@@ -3,14 +3,14 @@ package assetcache
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strings"
+	"sync"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/catalog"
-	"strings"
-	"sync"
 )
 
 type WarmStats struct {
@@ -46,30 +46,6 @@ func (c *Cache) GetOrLoad(path string) ([]byte, bool, error) {
 		Path:    path,
 		UseCase: cachepolicy.MemoryUseCaseDirect,
 	})
-}
-
-func (c *Cache) GetOrLoadWithRequest(path string, request cachepolicy.MemoryRequest) ([]byte, bool, error) {
-	if !c.Enabled() {
-		return nil, false, errors.New("memory cache is disabled")
-	}
-
-	if body, found := c.cache.Get(path); found {
-		c.addCounter(metricAssetCacheHits, 1)
-		return body, true, nil
-	}
-	c.addCounter(metricAssetCacheMisses, 1)
-
-	body, cached, err := c.readAndCachePath(path, request)
-	if err != nil {
-		c.addCounter(metricAssetCacheLoadErrors, 1)
-		return nil, false, err
-	}
-
-	if cached {
-		c.addCounter(metricAssetCacheFills, 1)
-		c.addCounter(metricAssetCacheFillBytes, int64(len(body)))
-	}
-	return body, false, nil
 }
 
 func (c *Cache) Delete(path string) bool {
@@ -227,14 +203,14 @@ func (c *Cache) preloadPath(path string, request cachepolicy.MemoryRequest, stat
 		return nil
 	}
 
-	body, cached, err := c.readAndCachePath(path, request)
+	entry, cached, err := c.readAndCachePath(path, request)
 	if err != nil {
 		return err
 	}
 
 	if stats != nil && cached {
 		stats.Entries++
-		stats.Bytes += int64(len(body))
+		stats.Bytes += int64(len(entry.Body))
 	}
 	return nil
 }
@@ -243,24 +219,34 @@ func (c *Cache) shouldWarm(request cachepolicy.MemoryRequest) bool {
 	return c.Enabled() && c.policy != nil && c.policy.ShouldWarm(request)
 }
 
-func (c *Cache) readAndCachePath(path string, request cachepolicy.MemoryRequest) ([]byte, bool, error) {
+func (c *Cache) readAndCachePath(path string, request cachepolicy.MemoryRequest) (Entry, bool, error) {
 	body, err := c.readFile(path)
 	if err != nil {
-		return nil, false, err
+		return Entry{}, false, err
 	}
 
+	entry := Entry{Body: body}
+	return entry, c.storeEntry(path, entry, request), nil
+}
+
+func (c *Cache) storeEntry(path string, entry Entry, request cachepolicy.MemoryRequest) bool {
 	ttl := c.policy.TTL(request)
-	cost := max(int64(len(body)), 1)
+	cost := max(int64(len(entry.Body)), 1)
 	var stored bool
 	if ttl > 0 {
-		stored = c.cache.SetWithTTL(path, body, cost, ttl)
+		stored = c.cache.SetWithTTL(path, &entry, cost, ttl)
 	} else {
-		stored = c.cache.Set(path, body, cost)
+		stored = c.cache.Set(path, &entry, cost)
 	}
 	c.cache.Wait()
 	cached := false
 	if stored {
 		_, cached = c.cache.Get(path)
 	}
-	return body, cached, nil
+	return cached
+}
+
+type cacheLoadResult struct {
+	entry Entry
+	found bool
 }

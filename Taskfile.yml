@@ -46,6 +46,11 @@ tasks:
     cmds:
       - go test -run=TestDoesNotExist -bench='.' -benchmem -count=3 ./internal/resolver ./internal/assetcache ./internal/pipeline ./internal/server
 
+  perf:bench:static:
+    desc: 对比 spack 与 nginx 的真实 HTTP 静态文件 benchmark（需要 Docker）
+    cmds:
+      - go test -tags=integration -run=TestDoesNotExist -bench='BenchmarkStaticFileServers' -benchmem ./internal/staticbench
+
   perf:profile:resolver:
     desc: 生成 resolver 基线 CPU/内存 profile
     cmds:
