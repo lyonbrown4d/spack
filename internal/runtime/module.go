@@ -19,7 +19,7 @@ import (
 
 var Module = dix.NewModule("runtime",
 	dix.WithModuleProviders(
-		dix.Provider5(newCatalogBootstrapDeps),
+		dix.Provider6(newCatalogBootstrapDeps),
 		dix.Provider3(newCatalogBootstrapRuntime),
 		dix.Provider4(newHTTPRuntime),
 		dix.Provider6(newDebugRuntimeDeps),
@@ -41,6 +41,7 @@ type catalogBootstrapDeps struct {
 	catMetrics  *catalog.RuntimeMetrics
 	bodyCache   *assetcache.Cache
 	pipelineSvc *pipeline.Service
+	prepared    *server.PreparedService
 }
 
 func newCatalogBootstrapDeps(
@@ -49,6 +50,7 @@ func newCatalogBootstrapDeps(
 	catMetrics *catalog.RuntimeMetrics,
 	bodyCache *assetcache.Cache,
 	pipelineSvc *pipeline.Service,
+	prepared *server.PreparedService,
 ) catalogBootstrapDeps {
 	return catalogBootstrapDeps{
 		scanner:     scanner,
@@ -56,6 +58,7 @@ func newCatalogBootstrapDeps(
 		catMetrics:  catMetrics,
 		bodyCache:   bodyCache,
 		pipelineSvc: pipelineSvc,
+		prepared:    prepared,
 	}
 }
 
@@ -66,6 +69,7 @@ type catalogBootstrapRuntime struct {
 	catMetrics  *catalog.RuntimeMetrics
 	bodyCache   *assetcache.Cache
 	pipelineSvc *pipeline.Service
+	prepared    *server.PreparedService
 	logger      *slog.Logger
 }
 
@@ -81,6 +85,7 @@ func newCatalogBootstrapRuntime(
 		catMetrics:  deps.catMetrics,
 		bodyCache:   deps.bodyCache,
 		pipelineSvc: deps.pipelineSvc,
+		prepared:    deps.prepared,
 		logger:      logger,
 	}
 }

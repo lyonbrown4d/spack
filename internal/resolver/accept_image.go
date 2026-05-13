@@ -26,6 +26,10 @@ const (
 )
 
 func parseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
+	return ParseAcceptImageFormats(header, sourceFormat, supported)
+}
+
+func ParseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
 	if strings.TrimSpace(header) == "" {
 		return nil
 	}

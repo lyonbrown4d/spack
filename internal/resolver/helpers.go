@@ -150,6 +150,10 @@ func firstNonEmpty(values ...string) string {
 }
 
 func preferredWidths(width int) *cxlist.List[int] {
+	return PreferredWidths(width)
+}
+
+func PreferredWidths(width int) *cxlist.List[int] {
 	if width <= 0 {
 		return nil
 	}
@@ -157,6 +161,14 @@ func preferredWidths(width int) *cxlist.List[int] {
 }
 
 func preferredImageFormats(
+	acceptHeader,
+	explicitFormat,
+	sourceMediaType string,
+) *cxlist.List[string] {
+	return PreferredImageFormats(acceptHeader, explicitFormat, sourceMediaType)
+}
+
+func PreferredImageFormats(
 	acceptHeader,
 	explicitFormat,
 	sourceMediaType string,

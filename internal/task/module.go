@@ -6,6 +6,7 @@ import (
 	"context"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/dix"
+	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/lyonbrown4d/spack/internal/artifact"
@@ -23,6 +24,7 @@ var Module = dix.NewModule("task",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),
 		dix.ProviderErr2(newScheduler),
+		dix.Provider2(newTaskTelemetry),
 		dix.Provider6(newSourceRescanRuntime),
 		dix.Provider6(newArtifactJanitorRuntime),
 		dix.Provider5(newCacheWarmerRuntime),
@@ -84,9 +86,22 @@ type sourceRescanRuntime struct {
 	catalog    catalog.Catalog
 	catMetrics *catalog.RuntimeMetrics
 	bodyCache  *assetcache.Cache
+	bus        eventx.BusRuntime
 	logger     *slog.Logger
 	obs        observabilityx.Observability
 	rescanMu   sync.Mutex
+}
+
+type taskTelemetry struct {
+	logger *slog.Logger
+	obs    observabilityx.Observability
+}
+
+func newTaskTelemetry(logger *slog.Logger, obs observabilityx.Observability) taskTelemetry {
+	return taskTelemetry{
+		logger: logger,
+		obs:    observabilityx.Normalize(obs, logger),
+	}
 }
 
 func newSourceRescanRuntime(
@@ -94,16 +109,17 @@ func newSourceRescanRuntime(
 	cat catalog.Catalog,
 	catMetrics *catalog.RuntimeMetrics,
 	bodyCache *assetcache.Cache,
-	logger *slog.Logger,
-	obs observabilityx.Observability,
+	bus eventx.BusRuntime,
+	telemetry taskTelemetry,
 ) *sourceRescanRuntime {
 	return &sourceRescanRuntime{
 		scanner:    scanner,
 		catalog:    cat,
 		catMetrics: catMetrics,
 		bodyCache:  bodyCache,
-		logger:     logger,
-		obs:        observabilityx.Normalize(obs, logger),
+		bus:        bus,
+		logger:     telemetry.logger,
+		obs:        telemetry.obs,
 	}
 }
 
@@ -128,6 +144,7 @@ type artifactJanitorRuntime struct {
 	catalog    catalog.Catalog
 	catMetrics *catalog.RuntimeMetrics
 	bodyCache  *assetcache.Cache
+	bus        eventx.BusRuntime
 	logger     *slog.Logger
 	obs        observabilityx.Observability
 }
@@ -137,16 +154,17 @@ func newArtifactJanitorRuntime(
 	cat catalog.Catalog,
 	catMetrics *catalog.RuntimeMetrics,
 	bodyCache *assetcache.Cache,
-	logger *slog.Logger,
-	obs observabilityx.Observability,
+	bus eventx.BusRuntime,
+	telemetry taskTelemetry,
 ) *artifactJanitorRuntime {
 	return &artifactJanitorRuntime{
 		store:      store,
 		catalog:    cat,
 		catMetrics: catMetrics,
 		bodyCache:  bodyCache,
-		logger:     logger,
-		obs:        observabilityx.Normalize(obs, logger),
+		bus:        bus,
+		logger:     telemetry.logger,
+		obs:        telemetry.obs,
 	}
 }
 

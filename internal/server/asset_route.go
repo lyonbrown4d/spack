@@ -28,6 +28,7 @@ type assetDeliveryRuntime struct {
 	pipelineSvc    *pipeline.Service
 	bodyCache      *assetcache.Cache
 	bus            eventx.BusRuntime
+	prepared       *PreparedService
 	trackDelivery  bool
 	resourceHints  *resourceHintService
 }
@@ -57,6 +58,7 @@ func newAssetDeliveryRuntime(deps assetDeliveryRuntimeDeps) *assetDeliveryRuntim
 		pipelineSvc:    deps.pipelineSvc,
 		bodyCache:      deps.bodyCache,
 		bus:            deps.bus,
+		prepared:       deps.routeRuntime.prepared,
 		trackDelivery:  deps.routeRuntime.trackDelivery,
 		resourceHints:  deps.routeRuntime.resourceHints,
 	}
@@ -65,6 +67,18 @@ func newAssetDeliveryRuntime(deps assetDeliveryRuntimeDeps) *assetDeliveryRuntim
 func (r *assetDeliveryRuntime) handle(c fiber.Ctx) error {
 	requestedFormat := media.NormalizeImageFormat(c.Query("format"))
 	request := buildResolverRequest(c, r.mountPath, requestedFormat)
+	if r.prepared != nil {
+		if selection, ok := r.prepared.Resolve(preparedRequest{Request: request, RequestedFormat: requestedFormat}); ok {
+			delivery, result, err := r.sendPreparedAsset(c, request, selection)
+			if err != nil {
+				return err
+			}
+			r.afterAssetServed(c, delivery, result)
+			return nil
+		}
+		return fiber.ErrNotFound
+	}
+
 	result, err := r.assetResolver.Resolve(c.Context(), request)
 	if err != nil {
 		return fiber.ErrNotFound
@@ -75,13 +89,17 @@ func (r *assetDeliveryRuntime) handle(c fiber.Ctx) error {
 	if deliveryErr != nil {
 		return deliveryErr
 	}
+	r.afterAssetServed(c, delivery, resolvedResult)
+	return nil
+}
+
+func (r *assetDeliveryRuntime) afterAssetServed(c fiber.Ctx, delivery string, result *resolver.Result) {
 	if delivery != "" {
 		if r.trackDelivery {
 			setAssetDelivery(c, delivery)
 		}
-		publishVariantServed(c.Context(), resolvedResult, r.bus, r.logger)
+		publishVariantServed(c.Context(), result, r.bus, r.logger)
 	}
-	return nil
 }
 
 func (r *assetDeliveryRuntime) sendResolvedAssetWithVariantFallback(

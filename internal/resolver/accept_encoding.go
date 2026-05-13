@@ -15,6 +15,10 @@ type encodingPreferences struct {
 }
 
 func parseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
+	return ParseAcceptEncoding(header, supported)
+}
+
+func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
 	if strings.TrimSpace(header) == "" {
 		return nil
 	}

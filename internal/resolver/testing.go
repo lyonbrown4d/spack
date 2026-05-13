@@ -47,15 +47,15 @@ func NewResolverWithCompressionForTest(
 
 // ParseAcceptEncodingForTest exposes encoding preference parsing for external tests.
 func ParseAcceptEncodingForTest(header string) *cxlist.List[string] {
-	return parseAcceptEncoding(header, contentcodingspec.DefaultNames())
+	return ParseAcceptEncoding(header, contentcodingspec.DefaultNames())
 }
 
 // ParseAcceptEncodingWithSupportedForTest exposes encoding preference parsing with a custom support list for external tests.
 func ParseAcceptEncodingWithSupportedForTest(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	return parseAcceptEncoding(header, supported)
+	return ParseAcceptEncoding(header, supported)
 }
 
 // ParseAcceptImageFormatsForTest exposes image format preference parsing for external tests.
 func ParseAcceptImageFormatsForTest(header, sourceFormat string) *cxlist.List[string] {
-	return parseAcceptImageFormats(header, sourceFormat, media.SupportedImageFormats())
+	return ParseAcceptImageFormats(header, sourceFormat, media.SupportedImageFormats())
 }

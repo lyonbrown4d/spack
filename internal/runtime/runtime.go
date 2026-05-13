@@ -34,6 +34,9 @@ func bootstrapCatalogOnStart(
 	if cacheErr != nil {
 		return bootstrapErr.With("service", "asset memory cache").Wrap(cacheErr)
 	}
+	if err := runtime.prepared.Rebuild(ctx); err != nil {
+		return bootstrapErr.With("service", "prepared snapshot").Wrap(err)
+	}
 
 	runtime.logger.LogAttrs(
 		ctx,

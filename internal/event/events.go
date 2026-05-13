@@ -6,6 +6,7 @@ const (
 	variantServedEventName    = "variant.served"
 	variantGeneratedEventName = "variant.generated"
 	variantRemovedEventName   = "variant.removed"
+	catalogChangedEventName   = "catalog.changed"
 )
 
 type VariantRemovalReason string
@@ -47,4 +48,13 @@ type VariantRemoved struct {
 
 func (VariantRemoved) Name() string {
 	return variantRemovedEventName
+}
+
+type CatalogChanged struct {
+	Reason    string
+	ChangedAt time.Time
+}
+
+func (CatalogChanged) Name() string {
+	return catalogChangedEventName
 }

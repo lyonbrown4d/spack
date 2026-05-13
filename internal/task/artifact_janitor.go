@@ -78,6 +78,7 @@ func runArtifactJanitor(ctx context.Context, runtime *artifactJanitorRuntime) {
 	if report.ScannedArtifacts == 0 && report.RemovedOrphans == 0 && report.MissingVariants == 0 && report.RemovedDirectories == 0 {
 		return
 	}
+	publishCatalogChanged(ctx, runtime.bus, "artifact_janitor", runtime.logger)
 
 	runtime.logger.Info("Task artifact janitor completed",
 		slog.Int("scanned_artifacts", report.ScannedArtifacts),

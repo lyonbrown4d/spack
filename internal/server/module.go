@@ -20,7 +20,8 @@ var Module = dix.NewModule("server",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),
 		dix.Provider2(newResourceHintService),
-		dix.Provider3(newAssetRouteRuntime),
+		dix.Provider5(newPreparedService),
+		dix.Provider4(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
 		dix.Provider4(newMiddlewareRegistrationDeps),
 		dix.Provider3(newHealthRoutesRegistrationDeps),
@@ -36,6 +37,14 @@ var Module = dix.NewModule("server",
 	dix.WithModuleSetups(
 		dix.Setup(registerHealthCheckSetup),
 	),
+	dix.WithModuleHooks(
+		dix.OnStart(func(ctx context.Context, svc *PreparedService) error {
+			return svc.start(ctx)
+		}),
+		dix.OnStop(func(ctx context.Context, svc *PreparedService) error {
+			return svc.stop(ctx)
+		}),
+	),
 )
 
 type appRegistration struct {
@@ -48,6 +57,7 @@ type assetRouteRuntime struct {
 	logger        *slog.Logger
 	trackDelivery bool
 	resourceHints *resourceHintService
+	prepared      *PreparedService
 }
 
 func newAppRegistration(order int, name string, apply func(*fiber.App)) appRegistration {
@@ -176,11 +186,17 @@ func newAssetRouteRegistration(deps assetRouteRegistrationDeps) appRegistration 
 	})
 }
 
-func newAssetRouteRuntime(logger *slog.Logger, obs observabilityx.Observability, resourceHints *resourceHintService) assetRouteRuntime {
+func newAssetRouteRuntime(
+	logger *slog.Logger,
+	obs observabilityx.Observability,
+	resourceHints *resourceHintService,
+	prepared *PreparedService,
+) assetRouteRuntime {
 	return assetRouteRuntime{
 		logger:        logger,
 		trackDelivery: shouldTrackAssetDelivery(logger, obs),
 		resourceHints: resourceHints,
+		prepared:      prepared,
 	}
 }
 

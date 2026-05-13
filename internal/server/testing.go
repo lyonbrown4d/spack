@@ -17,6 +17,13 @@ import (
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
+type PreparedSelectionForTest struct {
+	FilePath     string
+	Encoding     string
+	BodyLen      int
+	FallbackUsed bool
+}
+
 // ShouldVaryAcceptForTest exposes vary-header behavior for external tests.
 func ShouldVaryAcceptForTest(sourceMediaType, explicitFormat string) bool {
 	return shouldVaryAccept(sourceMediaType, explicitFormat)
@@ -80,7 +87,7 @@ func NewObservedAppForTest(
 			newRobotsRouteRegistration(newRobotsRouteRegistrationDeps(cfg, logger, cat, bodyCache)),
 			newAssetRouteRegistration(newAssetRouteRegistrationDeps(
 				cfg,
-				newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger)),
+				newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), nil),
 				assetResolver,
 				pipelineSvc,
 				bodyCache,
@@ -88,6 +95,37 @@ func NewObservedAppForTest(
 			)),
 		),
 	))
+}
+
+func NewPreparedServiceForTest(
+	cfg *config.Config,
+	logger *slog.Logger,
+	cat catalog.Catalog,
+) *PreparedService {
+	return newPreparedService(cfg, cat, logger, newResourceHintService(&cfg.Frontend, logger), nil)
+}
+
+func ResolvePreparedForTest(
+	svc *PreparedService,
+	request resolver.Request,
+	requestedFormat string,
+) (PreparedSelectionForTest, bool) {
+	selection, ok := svc.Resolve(preparedRequest{Request: request, RequestedFormat: requestedFormat})
+	if !ok || selection == nil || selection.response == nil {
+		return PreparedSelectionForTest{}, false
+	}
+	response := selection.response
+	out := PreparedSelectionForTest{
+		FilePath:     response.filePath(),
+		FallbackUsed: selection.fallbackUsed,
+	}
+	if response.bodyPrepared {
+		out.BodyLen = len(response.body)
+	}
+	if variant := response.variant(); variant != nil {
+		out.Encoding = variant.Encoding
+	}
+	return out, true
 }
 
 // NewHelmetConfigForTest exposes the helmet configuration for external tests.

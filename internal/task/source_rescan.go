@@ -77,6 +77,7 @@ func runSourceRescan(ctx context.Context, runtime *sourceRescanRuntime, changes 
 	recordSourceRescanMetrics(ctx, runtime.obs, report)
 	go runtime.catMetrics.SyncCatalog(runtime.catalog)
 	go runtime.catMetrics.SetSourceBytes(report.TotalBytes)
+	publishCatalogChanged(ctx, runtime.bus, "source_rescan", runtime.logger)
 
 	runtime.logger.Info("Task source rescan completed",
 		slog.Int("scanned", report.Scanned),
