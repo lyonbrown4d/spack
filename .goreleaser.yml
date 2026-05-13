@@ -4,12 +4,14 @@ project_name: spack
 
 before:
   hooks:
-    - go mod tidy
+    - go mod tidy -diff
 
 builds:
   - id: spack-linux
     main: .
     binary: spack
+    flags:
+      - -trimpath
     goos:
       - linux
     goarch:
@@ -23,6 +25,8 @@ builds:
   - id: spack-cross
     main: .
     binary: spack
+    flags:
+      - -trimpath
     goos:
       - darwin
       - windows

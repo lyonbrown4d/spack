@@ -5,12 +5,9 @@ version: '3'
 vars:
   BIN_NAME: spack
   DIST_DIR: dist
-  # 默认平台
-  DEFAULT_GOOS: linux
-  DEFAULT_GOARCH: amd64
-  CONTAINER_REPO: ghcr.io/daiyuang/{{.BIN_NAME}}
-  CONTAINER_PLATFORM_ALL: linux/amd64,linux/arm64
-  CONTAINER_PLATFORM: '{{default .CONTAINER_PLATFORM_ALL .PLATFORMS}}'
+  GO_LDFLAGS: -s -w
+  GORELEASER_VERSION: v2.15.4
+
 tasks:
   dev:
     desc: development
@@ -29,89 +26,12 @@ tasks:
   build:
     desc: 构建当前平台
     cmds:
-      - go build -trimpath -ldflags="-s -w -X main.Version={{.GIT_COMMIT}}" -o {{.DIST_DIR}}/{{.BIN_NAME}} .
-    vars:
-      GIT_COMMIT:
-        sh: git log -n 1 --format=%h
+      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o {{.DIST_DIR}}/{{.BIN_NAME}} .
 
   build:all:
-    desc: 构建所有平台
-    deps: [ build:linux, build:darwin, build:windows ]
-
-  build:linux:
-    desc: 构建 Linux 版本
-    deps: [ clean ]
-    env:
-      GOOS: linux
-      GOARCH: amd64
+    desc: 使用 GoReleaser 构建发布覆盖的平台快照
     cmds:
-      - mkdir -p {{.DIST_DIR}}/linux
-      - go build -trimpath -ldflags="-s -w" -o {{.DIST_DIR}}/linux/{{.BIN_NAME}} .
-
-  build:darwin:
-    desc: 构建 macOS 版本
-    env:
-      GOOS: darwin
-      GOARCH: amd64
-    cmds:
-      - mkdir -p {{.DIST_DIR}}/darwin
-      - go build -trimpath -ldflags="-s -w" -o {{.DIST_DIR}}/darwin/{{.BIN_NAME}} .
-    deps: [ clean ]
-
-
-  build:windows:
-    desc: 构建 Windows 版本
-    deps: [ clean ]
-    env:
-      GOOS: windows
-      GOARCH: amd64
-    cmds:
-      - mkdir -p {{.DIST_DIR}}/windows
-      - go build -trimpath -ldflags="-s -w" -o {{.DIST_DIR}}/windows/{{.BIN_NAME}}.exe .
-
-  build:docker:alpine:
-    desc: 构建 Alpine 运行时镜像
-    cmds:
-      - |
-        docker buildx build \
-          --target alpine \
-          --platform {{.CONTAINER_PLATFORM}} \
-          -t {{.CONTAINER_REPO}}:alpine \
-          -t {{.CONTAINER_REPO}}:latest \
-          -t {{.CONTAINER_REPO}}:{{.RELEASE_VERSION}} \
-          -t {{.CONTAINER_REPO}}:alpine-{{.RELEASE_VERSION}} \
-          -t {{.CONTAINER_REPO}}:alpine-{{.GIT_COMMIT}} \
-          --push \
-          .
-    vars:
-      GIT_COMMIT:
-        sh: git log -n 1 --format=%h
-      AUTO_RELEASE_VERSION:
-        sh: go run ./scripts/release latest-no-v
-      RELEASE_VERSION: '{{default .AUTO_RELEASE_VERSION .VERSION}}'
-
-  build:docker:debian:
-    desc: 构建 Debian Slim 运行时镜像
-    cmds:
-      - |
-        docker buildx build \
-          --target debian \
-          --platform {{.CONTAINER_PLATFORM}} \
-          -t {{.CONTAINER_REPO}}:debian \
-          -t {{.CONTAINER_REPO}}:debian-{{.RELEASE_VERSION}} \
-          -t {{.CONTAINER_REPO}}:debian-{{.GIT_COMMIT}} \
-          --push \
-          .
-    vars:
-      GIT_COMMIT:
-        sh: git log -n 1 --format=%h
-      AUTO_RELEASE_VERSION:
-        sh: go run ./scripts/release latest-no-v
-      RELEASE_VERSION: '{{default .AUTO_RELEASE_VERSION .VERSION}}'
-
-  build:docker:
-    desc: build container
-    deps: [ build:docker:alpine,build:docker:debian ]
+      - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} build --snapshot --clean
 
   check:
     cmds:
@@ -162,15 +82,15 @@ tasks:
   release:goreleaser:check:
     desc: "校验 .goreleaser.yml 配置"
     cmds:
-      - go run github.com/goreleaser/goreleaser/v2@latest check
+      - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} check
 
   release:goreleaser:snapshot:
     desc: "使用 GoReleaser 执行本地快照构建（不发布）"
     cmds:
-      - go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean --skip=publish
+      - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} release --snapshot --clean --skip=publish
 
   release:
-    desc: "创建并推送标签（用法: task release VERSION=0.1.0）"
+    desc: "创建并推送当前分支与标签（用法: task release VERSION=0.1.0）"
     requires:
       vars: [ VERSION ]
     vars:
@@ -180,13 +100,15 @@ tasks:
       - task: release:tag
         vars:
           VERSION: '{{.VERSION}}'
+      - git push origin HEAD
       - git push origin {{.TAG}}
 
   release:bump:major:
     desc: "自动递增 major 并发布（用法: task release:bump:major）"
     vars:
-      VERSION:
-        sh: go run ./scripts/release bump-major
+      LATEST_TAG:
+        sh: git describe --tags --abbrev=0 --match "v[0-9]*"
+      VERSION: '{{ $parts := splitList "." (trimPrefix "v" .LATEST_TAG) }}{{ printf "%d.0.0" (add (atoi (index $parts 0)) 1) }}'
     cmds:
       - task: release
         vars:
@@ -195,8 +117,9 @@ tasks:
   release:bump:minor:
     desc: "自动递增 minor 并发布（用法: task release:bump:minor）"
     vars:
-      VERSION:
-        sh: go run ./scripts/release bump-minor
+      LATEST_TAG:
+        sh: git describe --tags --abbrev=0 --match "v[0-9]*"
+      VERSION: '{{ $parts := splitList "." (trimPrefix "v" .LATEST_TAG) }}{{ printf "%s.%d.0" (index $parts 0) (add (atoi (index $parts 1)) 1) }}'
     cmds:
       - task: release
         vars:
@@ -205,8 +128,9 @@ tasks:
   release:bump:patch:
     desc: "自动递增 patch 并发布（用法: task release:bump:patch）"
     vars:
-      VERSION:
-        sh: go run ./scripts/release bump-patch
+      LATEST_TAG:
+        sh: git describe --tags --abbrev=0 --match "v[0-9]*"
+      VERSION: '{{ $parts := splitList "." (trimPrefix "v" .LATEST_TAG) }}{{ printf "%s.%s.%d" (index $parts 0) (index $parts 1) (add (atoi (index $parts 2)) 1) }}'
     cmds:
       - task: release
         vars:

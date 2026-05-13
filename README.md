@@ -510,7 +510,19 @@ go run . --config .\spack.yaml --config .\spack.local.yaml
 Run tests:
 
 ```powershell
-go test ./...
+task test
+```
+
+Build the current platform binary:
+
+```powershell
+task build
+```
+
+Build the release platform matrix locally through GoReleaser:
+
+```powershell
+task build:all
 ```
 
 Run repeatable performance baselines:
