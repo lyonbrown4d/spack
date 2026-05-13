@@ -1,15 +1,16 @@
-package cmd
+package cmd_test
 
 import (
 	"testing"
 
+	"github.com/lyonbrown4d/spack/cmd"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/spf13/cobra"
 )
 
 func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 	command := &cobra.Command{Use: "spack-test"}
-	command.Flags().AddFlagSet(newConfigFlagSet())
+	command.Flags().AddFlagSet(cmd.NewConfigFlagSetForTest())
 	if err := command.ParseFlags([]string{
 		"--assets.root=/tmp/spack-assets",
 		"--http.port=18080",
@@ -18,7 +19,7 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loaded, err := config.LoadWithOptions(configLoadOptions(command))
+	loaded, err := config.LoadWithOptions(cmd.ConfigLoadOptionsForTest(command))
 	if err != nil {
 		t.Fatal(err)
 	}

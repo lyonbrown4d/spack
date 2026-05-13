@@ -36,7 +36,7 @@ func ParseWidths(raw string) *cxlist.List[int] {
 	}
 
 	widths := cxlist.NewList[int]()
-	for _, part := range strings.Split(raw, ",") {
+	for part := range strings.SplitSeq(raw, ",") {
 		width, err := strconv.Atoi(strings.TrimSpace(part))
 		if err != nil || width <= 0 {
 			continue
