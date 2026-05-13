@@ -96,14 +96,12 @@ func NormalizeImageFormats(formats *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	normalized := cxset.NewOrderedSetWithCapacity[string](formats.Len())
-	formats.Range(func(_ int, format string) bool {
+	values := cxlist.FilterMapList[string, string](formats, func(_ int, format string) (string, bool) {
 		value := NormalizeImageFormat(format)
-		if value != "" {
-			normalized.Add(value)
-		}
-		return true
+		return value, value != ""
 	})
+
+	normalized := cxset.NewOrderedSet[string](values.Values()...)
 	return cxlist.NewList[string](normalized.Values()...)
 }
 

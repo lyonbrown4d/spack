@@ -2,7 +2,6 @@ package server
 
 import (
 	"path"
-	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -10,11 +9,23 @@ import (
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/samber/mo"
 )
+
+var preparedDefaultEncodings = contentcodingspec.DefaultNames()
 
 type preparedRequest struct {
 	resolver.Request
 	RequestedFormat string
+	CleanedPath     requestpath.Cleaned
+}
+
+func newPreparedRequest(request resolver.Request, requestedFormat string) preparedRequest {
+	return preparedRequest{
+		Request:         request,
+		RequestedFormat: requestedFormat,
+		CleanedPath:     requestpath.Clean(request.Path),
+	}
 }
 
 type preparedSelection struct {
@@ -26,65 +37,73 @@ type preparedSelection struct {
 	explicitFormat     bool
 }
 
-func (s *preparedSnapshot) resolve(cfg config.Assets, request preparedRequest) (*preparedSelection, bool) {
-	route, fallbackUsed, ok := s.findRoute(cfg, request.Path)
-	if !ok || route == nil {
-		return nil, false
-	}
-	return route.selectResponse(request, fallbackUsed), true
+type preparedRouteMatch struct {
+	route        *preparedRoute
+	fallbackUsed bool
 }
 
-func (s *preparedSnapshot) findRoute(cfg config.Assets, requestPath string) (*preparedRoute, bool, bool) {
-	cleaned := requestpath.Clean(requestPath)
-	if route, ok := s.findPrimaryRoute(cfg, cleaned); ok {
-		return route, false, true
+func (s *preparedSnapshot) resolve(cfg config.Assets, request preparedRequest) mo.Option[preparedSelection] {
+	match, ok := s.findRoute(cfg, request.CleanedPath).Get()
+	if !ok || match.route == nil {
+		return mo.None[preparedSelection]()
+	}
+	return mo.Some(match.route.selectResponse(request, match.fallbackUsed))
+}
+
+func (s *preparedSnapshot) findRoute(cfg config.Assets, requestPath requestpath.Cleaned) mo.Option[preparedRouteMatch] {
+	if route, ok := s.findPrimaryRoute(cfg, requestPath).Get(); ok {
+		return mo.Some(preparedRouteMatch{route: route})
 	}
 
-	if cfg.Fallback.On == config.FallbackOnNotFound && cleaned.AllowsEntryFallback {
+	if cfg.Fallback.On == config.FallbackOnNotFound && requestPath.AllowsEntryFallback {
 		target := requestpath.Clean(cfg.Fallback.Target).Value
 		if route, ok := s.routes.Get(target); ok {
-			return route, true, true
+			return mo.Some(preparedRouteMatch{route: route, fallbackUsed: true})
 		}
 	}
-	return nil, false, false
+	return mo.None[preparedRouteMatch]()
 }
 
-func (s *preparedSnapshot) findPrimaryRoute(cfg config.Assets, requestPath requestpath.Cleaned) (*preparedRoute, bool) {
+func (s *preparedSnapshot) findPrimaryRoute(cfg config.Assets, requestPath requestpath.Cleaned) mo.Option[*preparedRoute] {
 	if requestPath.Value == "" {
-		return s.routes.Get(cfg.Entry)
+		return mo.TupleToOption(s.routes.Get(cfg.Entry))
 	}
 	if route, ok := s.routes.Get(requestPath.Value); ok {
-		return route, true
+		return mo.Some(route)
 	}
 	if !requestPath.AllowsEntryFallback {
-		return nil, false
+		return mo.None[*preparedRoute]()
 	}
 
 	candidate := path.Join(requestPath.Value, cfg.Entry)
 	if candidate == requestPath.Value {
-		return nil, false
+		return mo.None[*preparedRoute]()
 	}
-	return s.routes.Get(candidate)
+	return mo.TupleToOption(s.routes.Get(candidate))
 }
 
-func (r *preparedRoute) selectResponse(request preparedRequest, fallbackUsed bool) *preparedSelection {
-	selection := &preparedSelection{
+func (r *preparedRoute) selectResponse(request preparedRequest, fallbackUsed bool) preparedSelection {
+	selection := preparedSelection{
 		response:       r.identity,
 		fallbackUsed:   fallbackUsed,
-		explicitFormat: strings.TrimSpace(request.RequestedFormat) != "",
+		explicitFormat: request.RequestedFormat != "",
 	}
 
-	if image := r.selectImageResponse(request, selection); image != nil {
+	if image := r.selectImageResponse(request, &selection); image != nil {
 		selection.response = image
 		return selection
 	}
-	if encoding := r.selectEncodingResponse(request, selection); encoding != nil {
+	if encoding := r.selectEncodingResponse(request, &selection); encoding != nil {
 		selection.response = encoding
 	}
 	return selection
 }
 
 func (r *preparedRoute) selectImageResponse(request preparedRequest, selection *preparedSelection) *preparedResponse {
+	if r.images.IsEmpty() {
+		return nil
+	}
+
 	asset := r.identity.asset()
 	if asset == nil {
 		return nil
@@ -100,10 +119,11 @@ func (r *preparedRoute) selectImageResponse(request preparedRequest, selection *
 		formats = cxlist.NewList[string](media.ImageFormat(asset.MediaType))
 	}
 
-	picked, _ := cxlist.FilterMapList[string, *preparedResponse](formats, func(_ int, format string) (*preparedResponse, bool) {
-		response := r.pickImageFormat(format, request.Width)
-		return response, response != nil
-	}).GetFirst()
+	var picked *preparedResponse
+	formats.Range(func(_ int, format string) bool {
+		picked = r.pickImageFormat(format, request.Width)
+		return picked == nil
+	})
 	return picked
 }
 
@@ -119,28 +139,37 @@ func (r *preparedRoute) pickImageFormat(format string, width int) *preparedRespo
 }
 
 func (r *preparedRoute) selectEncodingResponse(request preparedRequest, selection *preparedSelection) *preparedResponse {
-	if request.RangeRequested {
+	if request.RangeRequested || r.encodings.IsEmpty() {
 		return nil
 	}
 
-	encodings := resolver.ParseAcceptEncoding(request.AcceptEncoding, contentcodingspec.DefaultNames())
+	encodings := resolver.ParseAcceptEncodingNormalized(request.AcceptEncoding, preparedDefaultEncodings)
 	selection.preferredEncodings = encodings
 	if encodings.Len() == 0 {
 		return nil
 	}
 
-	picked, _ := cxlist.FilterMapList[string, *preparedResponse](encodings, func(_ int, encoding string) (*preparedResponse, bool) {
+	var picked *preparedResponse
+	encodings.Range(func(_ int, encoding string) bool {
 		response, ok := r.encodings.Get(encoding)
-		return response, ok
-	}).GetFirst()
+		if ok {
+			picked = response
+		}
+		return picked == nil
+	})
 	return picked
 }
 
 func pickZeroWidthImageResponse(responses *cxlist.List[*preparedResponse]) *preparedResponse {
-	picked, _ := responses.FirstWhere(func(_ int, response *preparedResponse) bool {
+	var picked *preparedResponse
+	responses.Range(func(_ int, response *preparedResponse) bool {
 		variant := response.variant()
-		return variant != nil && variant.Width == 0
-	}).Get()
+		if variant == nil || variant.Width != 0 {
+			return true
+		}
+		picked = response
+		return false
+	})
 	return picked
 }
 

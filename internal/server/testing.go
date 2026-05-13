@@ -79,6 +79,37 @@ func NewObservedAppForTest(
 	pipelineSvc *pipeline.Service,
 	bus eventx.BusRuntime,
 ) *fiber.App {
+	return newObservedAppForTest(cfg, logger, obs, runtimeMetrics, cat, bodyCache, assetResolver, pipelineSvc, bus, nil)
+}
+
+func NewPreparedAppForTest(
+	cfg *config.Config,
+	logger *slog.Logger,
+	cat catalog.Catalog,
+	bodyCache *assetcache.Cache,
+	assetResolver *resolver.Resolver,
+	pipelineSvc *pipeline.Service,
+	bus eventx.BusRuntime,
+) (*fiber.App, error) {
+	prepared := NewPreparedServiceForTest(cfg, logger, cat)
+	if err := prepared.Rebuild(context.Background()); err != nil {
+		return nil, err
+	}
+	return newObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, pipelineSvc, bus, prepared), nil
+}
+
+func newObservedAppForTest(
+	cfg *config.Config,
+	logger *slog.Logger,
+	obs observabilityx.Observability,
+	runtimeMetrics *RuntimeMetrics,
+	cat catalog.Catalog,
+	bodyCache *assetcache.Cache,
+	assetResolver *resolver.Resolver,
+	pipelineSvc *pipeline.Service,
+	bus eventx.BusRuntime,
+	prepared *PreparedService,
+) *fiber.App {
 	healthChecks := newHealthCheckDefinitions(cfg, cat)
 	return newServerFromDeps(cfg, dix.AppMeta{Version: "test"}, newServerRegistrations(
 		cxlist.NewList[appRegistration](
@@ -87,7 +118,7 @@ func NewObservedAppForTest(
 			newRobotsRouteRegistration(newRobotsRouteRegistrationDeps(cfg, logger, cat, bodyCache)),
 			newAssetRouteRegistration(newAssetRouteRegistrationDeps(
 				cfg,
-				newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), nil),
+				newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), prepared),
 				assetResolver,
 				pipelineSvc,
 				bodyCache,
@@ -110,8 +141,8 @@ func ResolvePreparedForTest(
 	request resolver.Request,
 	requestedFormat string,
 ) (PreparedSelectionForTest, bool) {
-	selection, ok := svc.Resolve(preparedRequest{Request: request, RequestedFormat: requestedFormat})
-	if !ok || selection == nil || selection.response == nil {
+	selection, ok := svc.Resolve(newPreparedRequest(request, requestedFormat)).Get()
+	if !ok || selection.response == nil {
 		return PreparedSelectionForTest{}, false
 	}
 	response := selection.response

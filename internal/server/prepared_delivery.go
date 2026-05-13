@@ -11,7 +11,7 @@ import (
 func (r *assetDeliveryRuntime) sendPreparedAsset(
 	c fiber.Ctx,
 	request resolver.Request,
-	selection *preparedSelection,
+	selection preparedSelection,
 ) (string, *resolver.Result, error) {
 	response := selection.response
 	headerPlan := lo.Ternary(selection.explicitFormat, response.explicitHeaderPlan, response.headerPlan)
@@ -26,30 +26,32 @@ func (r *assetDeliveryRuntime) sendPreparedAsset(
 		if err := c.Send(response.body); err != nil {
 			return "", nil, fmt.Errorf("send prepared asset body: %w", err)
 		}
-		return deliveryPreparedMemory, response.resultWithPreferences(
-			selection.preferredEncodings,
-			selection.preferredWidths,
-			selection.preferredFormats,
-			selection.fallbackUsed,
-		), nil
+		return deliveryPreparedMemory, preparedServedVariantResult(selection), nil
 	}
 
 	delivery, err := r.sendPreparedAssetFile(c, request, selection, headerPlan)
 	if err != nil {
 		return "", nil, err
 	}
-	return delivery, response.resultWithPreferences(
+	return delivery, preparedServedVariantResult(selection), nil
+}
+
+func preparedServedVariantResult(selection preparedSelection) *resolver.Result {
+	if selection.response == nil || selection.response.variant() == nil {
+		return nil
+	}
+	return selection.response.resultWithPreferences(
 		selection.preferredEncodings,
 		selection.preferredWidths,
 		selection.preferredFormats,
 		selection.fallbackUsed,
-	), nil
+	)
 }
 
 func (r *assetDeliveryRuntime) sendPreparedAssetFile(
 	c fiber.Ctx,
 	request resolver.Request,
-	selection *preparedSelection,
+	selection preparedSelection,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
 	response := selection.response
@@ -77,7 +79,7 @@ func (r *assetDeliveryRuntime) retryPreparedArtifactMiss(
 	if !r.prepared.DeleteVariantArtifact(c.Context(), response.filePath()) {
 		return false, nil
 	}
-	next, ok := r.prepared.Resolve(preparedRequest{Request: request, RequestedFormat: request.Format})
+	next, ok := r.prepared.Resolve(newPreparedRequest(request, request.Format)).Get()
 	if !ok || next.response == nil || next.response.filePath() == response.filePath() {
 		return false, nil
 	}

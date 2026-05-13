@@ -41,14 +41,12 @@ func NormalizeNames(values *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	normalized := cxset.NewOrderedSetWithCapacity[string](values.Len())
-	values.Range(func(_ int, raw string) bool {
+	names := cxlist.FilterMapList[string, string](values, func(_ int, raw string) (string, bool) {
 		name := strings.ToLower(strings.TrimSpace(raw))
-		if IsSupported(name) {
-			normalized.Add(name)
-		}
-		return true
+		return name, IsSupported(name)
 	})
+
+	normalized := cxset.NewOrderedSet[string](names.Values()...)
 	if normalized.IsEmpty() {
 		return nil
 	}

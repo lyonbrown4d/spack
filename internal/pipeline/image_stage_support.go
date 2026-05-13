@@ -48,12 +48,7 @@ func (s *imageStage) planWidths(asset *catalog.Asset, request Request, formats *
 		return widths
 	}
 
-	widths.Sort(cmp.Compare[int])
-	unique := cxset.NewOrderedSetWithCapacity[int](widths.Len())
-	widths.Range(func(_ int, width int) bool {
-		unique.Add(width)
-		return true
-	})
+	unique := cxset.NewOrderedSet[int](widths.Sort(cmp.Compare[int]).Values()...)
 	return cxlist.NewList[int](unique.Values()...)
 }
 
@@ -67,22 +62,18 @@ func (s *imageStage) planTasks(asset *catalog.Asset, formats *cxlist.List[string
 	if formats == nil || widths == nil {
 		return nil
 	}
-	tasks := cxlist.NewListWithCapacity[Task](formats.Len() * widths.Len())
-	formats.Range(func(_ int, format string) bool {
-		widths.Range(func(_ int, width int) bool {
+	return cxlist.FlatMapList[string, Task](formats, func(_ int, format string) []Task {
+		return cxlist.FilterMapList[int, Task](widths, func(_ int, width int) (Task, bool) {
 			if !shouldCreateImageTask(asset, s.catalog, width, format) {
-				return true
+				return Task{}, false
 			}
-			tasks.Add(Task{
+			return Task{
 				AssetPath: asset.Path,
 				Format:    format,
 				Width:     width,
-			})
-			return true
-		})
-		return true
+			}, true
+		}).Values()
 	})
-	return tasks
 }
 
 func shouldCreateImageTask(asset *catalog.Asset, cat catalog.Catalog, width int, format string) bool {

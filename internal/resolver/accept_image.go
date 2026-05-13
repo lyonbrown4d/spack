@@ -81,19 +81,17 @@ func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported
 	}
 
 	supported = imageFormatCandidates(supported, sourceFormat)
-	candidates := cxlist.NewListWithCapacity[candidate](supported.Len())
-	supported.Range(func(index int, format string) bool {
+	candidates := cxlist.FilterMapList[string, candidate](supported, func(index int, format string) (candidate, bool) {
 		q, match := imageQualityForFormat(prefs, format)
 		if q <= 0 || match == imagePreferenceNone {
-			return true
+			return candidate{}, false
 		}
-		candidates.Add(candidate{
+		return candidate{
 			format:   format,
 			q:        q,
 			match:    match,
 			priority: imagePriority(index, format, sourceFormat),
-		})
-		return true
+		}, true
 	})
 
 	candidates.Sort(func(left, right candidate) int {
@@ -118,10 +116,7 @@ func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported
 }
 
 func imageFormatCandidates(supported *cxlist.List[string], sourceFormat string) *cxlist.List[string] {
-	candidates := cxlist.NewList[string]()
-	if supported != nil && !supported.IsEmpty() {
-		candidates.Add(supported.Values()...)
-	}
+	candidates := cxlist.NewList[string]().Merge(supported)
 	if sourceFormat != "" {
 		candidates.Add(sourceFormat)
 	}

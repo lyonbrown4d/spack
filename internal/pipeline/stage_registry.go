@@ -38,15 +38,9 @@ func buildStages(registrations *cxlist.List[stageRegistration]) *cxlist.List[Sta
 		}
 	})
 
-	stages := cxlist.NewListWithCapacity[Stage](sorted.Len())
-	sorted.Range(func(_ int, registration stageRegistration) bool {
-		if registration.Stage == nil {
-			return true
-		}
-		stages.Add(registration.Stage)
-		return true
+	return cxlist.FilterMapList[stageRegistration, Stage](sorted, func(_ int, registration stageRegistration) (Stage, bool) {
+		return registration.Stage, registration.Stage != nil
 	})
-	return stages
 }
 
 func compareStageNames(left, right Stage) int {

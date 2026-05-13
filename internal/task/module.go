@@ -216,21 +216,15 @@ func startScheduledTasks(
 		return nil
 	}
 
-	started := false
-	var registerErr error
-	registered.Range(func(_ int, registration taskRegistration) bool {
+	started, err := cxlist.ReduceErrList[taskRegistration, bool](registered, false, func(started bool, _ int, registration taskRegistration) (bool, error) {
 		enabled, err := registration.Register(ctx, scheduler)
 		if err != nil {
-			registerErr = oops.In("task").Owner(registration.Name).Wrap(err)
-			return false
+			return started, oops.In("task").Owner(registration.Name).Wrap(err)
 		}
-		if enabled {
-			started = true
-		}
-		return true
+		return started || enabled, nil
 	})
-	if registerErr != nil {
-		return registerErr
+	if err != nil {
+		return err
 	}
 	if started {
 		scheduler.Start()

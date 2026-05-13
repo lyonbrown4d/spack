@@ -66,9 +66,14 @@ func newAssetDeliveryRuntime(deps assetDeliveryRuntimeDeps) *assetDeliveryRuntim
 
 func (r *assetDeliveryRuntime) handle(c fiber.Ctx) error {
 	requestedFormat := media.NormalizeImageFormat(c.Query("format"))
-	request := buildResolverRequest(c, r.mountPath, requestedFormat)
+	cleanedPath := requestpath.CleanMounted(c.Path(), r.mountPath)
+	request := buildResolverRequest(c, cleanedPath, requestedFormat)
 	if r.prepared != nil {
-		if selection, ok := r.prepared.Resolve(preparedRequest{Request: request, RequestedFormat: requestedFormat}); ok {
+		if selection, ok := r.prepared.Resolve(preparedRequest{
+			Request:         request,
+			RequestedFormat: requestedFormat,
+			CleanedPath:     cleanedPath,
+		}).Get(); ok {
 			delivery, result, err := r.sendPreparedAsset(c, request, selection)
 			if err != nil {
 				return err
@@ -174,8 +179,7 @@ func asMissingResolvedVariantError(err error) *missingResolvedVariantError {
 	return nil
 }
 
-func buildResolverRequest(c fiber.Ctx, mountPath, requestedFormat string) resolver.Request {
-	cleanedPath := requestpath.CleanMounted(c.Path(), mountPath)
+func buildResolverRequest(c fiber.Ctx, cleanedPath requestpath.Cleaned, requestedFormat string) resolver.Request {
 	acceptHeader := strings.TrimSpace(c.Get(fiber.HeaderAccept))
 	acceptEncodingHeader := strings.TrimSpace(c.Get(fiber.HeaderAcceptEncoding))
 

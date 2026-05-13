@@ -21,14 +21,12 @@ func normalizeRequestStrings(values *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	normalized := cxset.NewOrderedSetWithCapacity[string](values.Len())
-	values.Range(func(_ int, value string) bool {
+	items := cxlist.FilterMapList[string, string](values, func(_ int, value string) (string, bool) {
 		value = strings.ToLower(strings.TrimSpace(value))
-		if value != "" {
-			normalized.Add(value)
-		}
-		return true
+		return value, value != ""
 	})
+
+	normalized := cxset.NewOrderedSet[string](items.Values()...)
 	if normalized.IsEmpty() {
 		return nil
 	}
@@ -40,13 +38,11 @@ func normalizeRequestInts(values *cxlist.List[int]) *cxlist.List[int] {
 		return nil
 	}
 
-	normalized := cxset.NewOrderedSetWithCapacity[int](values.Len())
-	values.Range(func(_ int, value int) bool {
-		if value > 0 {
-			normalized.Add(value)
-		}
-		return true
+	positive := values.Where(func(_ int, value int) bool {
+		return value > 0
 	})
+
+	normalized := cxset.NewOrderedSet[int](positive.Values()...)
 	if normalized.IsEmpty() {
 		return nil
 	}

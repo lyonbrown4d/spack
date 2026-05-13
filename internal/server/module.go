@@ -221,11 +221,12 @@ func newServerFromDeps(
 	registrations *cxlist.List[appRegistration],
 ) *fiber.App {
 	app := newServerApp(cfg, meta)
-	newServerRegistrations(registrations).Range(func(_ int, registration appRegistration) bool {
-		if registration.Apply != nil {
+	newServerRegistrations(registrations).
+		Where(func(_ int, registration appRegistration) bool {
+			return registration.Apply != nil
+		}).
+		Each(func(_ int, registration appRegistration) {
 			registration.Apply(app)
-		}
-		return true
-	})
+		})
 	return app
 }

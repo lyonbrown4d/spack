@@ -13,6 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
+	"github.com/samber/mo"
 )
 
 type PreparedService struct {
@@ -72,10 +73,10 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 	return nil
 }
 
-func (s *PreparedService) Resolve(request preparedRequest) (*preparedSelection, bool) {
+func (s *PreparedService) Resolve(request preparedRequest) mo.Option[preparedSelection] {
 	snapshot := s.current()
 	if snapshot == nil {
-		return nil, false
+		return mo.None[preparedSelection]()
 	}
 	return snapshot.resolve(s.cfg.Assets, request)
 }

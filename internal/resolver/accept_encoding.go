@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var defaultSupportedEncodings = contentcodingspec.DefaultNames()
+
 type encodingPreferences struct {
 	explicit    *cxmapping.Map[string, float64]
 	wildcardQ   float64
@@ -15,10 +17,18 @@ type encodingPreferences struct {
 }
 
 func parseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	return ParseAcceptEncoding(header, supported)
+	return ParseAcceptEncodingNormalized(header, supported)
 }
 
 func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
+	if strings.TrimSpace(header) == "" {
+		return nil
+	}
+
+	return buildEncodingCandidates(collectEncodingPreferences(header), contentcodingspec.NormalizeNames(supported))
+}
+
+func ParseAcceptEncodingNormalized(header string, supported *cxlist.List[string]) *cxlist.List[string] {
 	if strings.TrimSpace(header) == "" {
 		return nil
 	}
@@ -49,22 +59,19 @@ func buildEncodingCandidates(prefs encodingPreferences, supported *cxlist.List[s
 		priority int
 	}
 
-	supported = contentcodingspec.NormalizeNames(supported)
 	if supported.IsEmpty() {
-		supported = contentcodingspec.DefaultNames()
+		supported = defaultSupportedEncodings
 	}
-	choices := cxlist.NewListWithCapacity[candidate](supported.Len())
-	supported.Range(func(index int, encoding string) bool {
+	choices := cxlist.FilterMapList[string, candidate](supported, func(index int, encoding string) (candidate, bool) {
 		q, ok := encodingQuality(prefs, encoding)
 		if !ok {
-			return true
+			return candidate{}, false
 		}
-		choices.Add(candidate{
+		return candidate{
 			encoding: encoding,
 			q:        q,
 			priority: index,
-		})
-		return true
+		}, true
 	})
 
 	choices.Sort(func(left, right candidate) int {

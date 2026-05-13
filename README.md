@@ -15,6 +15,7 @@ Current scope:
 - `index.html` fallback for client-side routing
 - built-in `robots.txt` fallback generation with static-file precedence
 - MemDB-backed runtime asset catalog
+- immutable prepared response snapshot for the static serving hot path
 - request-path normalization for mounted, encoded, and SPA-style routes
 - `gzip`, `brotli`, and `zstd` variant generation
 - scanned precompressed sidecar files such as `app.js.br`, `app.js.zst`, and `app.js.gz`
@@ -44,22 +45,24 @@ The current runtime is composed of:
 2. `source`
    Reads files from the configured asset backend, currently local filesystem.
 3. `catalog`
-   Stores scanned source assets, source sidecars, and generated variants in a MemDB-backed in-memory index.
-4. `requestpath`
+   Stores scanned source assets, source sidecars, generated variants, metadata, and cache policy inputs in a MemDB-backed in-memory index.
+4. `prepared snapshot`
+   Compiles catalog entries into immutable route-indexed HTTP response plans, including headers, cache policy, variants, and small in-memory bodies.
+5. `requestpath`
    Normalizes mounted paths, percent-encoded asset paths, and SPA route-like requests before resolution.
-5. `resolver`
-   Maps an HTTP request to the best asset or variant, including `Accept` and `Accept-Encoding` negotiation.
-6. `pipeline`
+6. `resolver`
+   Keeps the dynamic resolution rules used by tests, fallback paths, and variant generation decisions.
+7. `pipeline`
    Generates compressed and image variants in lazy or warmup mode.
-7. `assetcache`
-   Keeps small hot responses in memory and supports warmup/invalidation.
-8. `server`
-   Handles HTTP, fallback, delivery, generated `robots.txt`, cache headers, and request metrics.
-9. `event`
+8. `assetcache`
+   Keeps legacy/dynamic small-file cache entries and supports warmup/invalidation where a prepared body is not the right storage model.
+9. `server`
+   Handles HTTP, prepared snapshot lookup, fallback, delivery, generated `robots.txt`, cache headers, and request metrics.
+10. `event`
    Decouples variant lifecycle notifications between server, pipeline, and cache.
-10. `task + scheduler`
+11. `task + scheduler`
     Runs internal source rescans, artifact cleanup, and cache warmup through `gocron`.
-11. `runtime + observability`
+12. `runtime + observability`
     Boots HTTP/debug runtimes and exports Prometheus metrics, build/config info, and Grafana-ready signals.
 
 ```mermaid
@@ -79,7 +82,9 @@ flowchart TB
         CLI --> Lifecycle["runtime lifecycle"]
         Lifecycle --> Source["source"]
         Source --> Catalog["catalog"]
+        Lifecycle --> Resolver["resolver"]
         Lifecycle --> Pipeline["pipeline"]
+        Lifecycle --> Prepared["prepared snapshot"]
         Lifecycle --> AsyncLimit["async concurrency limit"]
         Lifecycle --> AssetCache["assetcache"]
         Lifecycle --> Scheduler["gocron scheduler"]
@@ -89,6 +94,7 @@ flowchart TB
         Pipeline --> AsyncLimit
         Pipeline --> ArtifactStore["artifact store"]
         ArtifactStore --> Catalog
+        Catalog --> Prepared
 
         Scheduler --> SourceRescan["source rescan"]
         Scheduler --> ArtifactJanitor["artifact janitor"]
@@ -101,11 +107,11 @@ flowchart TB
     subgraph RequestFlow["Request Flow"]
         Client["client"] --> HTTP
         HTTP --> PathCleaner["requestpath cleaner"]
-        PathCleaner --> Resolver["resolver"]
-        Resolver --> Catalog
-        Resolver --> Fallback["entry fallback"]
-        Resolver --> Delivery["delivery"]
-        Delivery --> MemoryCache["memory cache hit/fill"]
+        PathCleaner --> PreparedLookup["prepared route lookup"]
+        PreparedLookup --> Prepared
+        PreparedLookup --> Fallback["entry fallback"]
+        PreparedLookup --> Delivery["delivery"]
+        Delivery --> PreparedBody["prepared in-memory body"]
         Delivery --> Sendfile["sendfile / range"]
         Delivery --> Headers["ETag / Last-Modified / Cache-Control / Expires"]
     end
@@ -113,13 +119,17 @@ flowchart TB
     subgraph Events["Event Flow"]
         HTTP -->|VariantServed| EventBus["event bus"]
         Pipeline -->|VariantGenerated / VariantRemoved| EventBus
+        SourceRescan -->|CatalogChanged| EventBus
+        ArtifactJanitor -->|CatalogChanged| EventBus
         EventBus --> Pipeline
         EventBus --> AssetCache
+        EventBus --> Prepared
     end
 
     subgraph Observability["Observability"]
         HTTP --> Metrics["observabilityx"]
         Resolver --> Metrics
+        Prepared --> Metrics
         Pipeline --> Metrics
         Scheduler --> Metrics
         AsyncLimit --> Metrics
@@ -135,21 +145,21 @@ Request flow at a high level:
 1. The runtime scans `SPACK_ASSETS_ROOT` into the catalog.
 2. An internal scheduler periodically rescans the source tree and removes stale generated artifacts.
 3. The pipeline optionally warms compressed/image variants.
-4. The memory cache can optionally preload small hot assets and generated variants.
+4. The prepared compiler builds an immutable snapshot from the catalog and atomically publishes it.
 5. Precompressed source sidecars are indexed as variants without treating them as plain source assets.
-6. Each request path is normalized by `requestpath` before route resolution so mounted, encoded, and SPA-style paths follow the same matching rules.
-7. The resolver chooses the best asset or variant, including content-coding and image-format negotiation.
-8. Delivery uses memory cache for eligible small files, otherwise Fiber `SendFile`.
-9. Cache and validator headers are applied from resolved metadata and response policy rules.
+6. Each request path is normalized by `requestpath` once before prepared route lookup.
+7. The prepared snapshot chooses the best precomputed response, including content-coding and image-format variants.
+8. Delivery sends a prepared in-memory body for eligible small files, otherwise Fiber `SendFile`.
+9. Cache and validator headers are applied from the prepared response plan.
 10. HTML responses can emit resource hints, and fingerprinted static assets can receive immutable cache headers.
-11. Served/generated/removed variants are propagated through the event bus for decoupled cache and pipeline updates.
+11. Served/generated/removed/catalog-changed events rebuild or update decoupled pipeline, cache, and prepared snapshot state.
 
 Hot paths that are intentionally optimized:
 
 - request-path cleaning for already-canonical asset paths
-- resolver negotiation for direct assets, encoding variants, and image variants
+- prepared snapshot lookup for direct assets, encoding variants, image variants, and SPA fallback
 - HTTP middleware short-circuiting when request logging or metrics are disabled
-- response-header calculation for `Vary`, `Content-Length`, `Last-Modified`, resource hints, and cache-policy emission
+- precomputed response-header plans for `Vary`, `Content-Length`, `Last-Modified`, resource hints, and cache-policy emission
 
 ## Quick Start
 
