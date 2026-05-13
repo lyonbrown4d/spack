@@ -2,23 +2,15 @@ FROM alpine:latest AS alpine
 
 ARG TARGETPLATFORM
 
-RUN apk upgrade --no-cache \
-    && apk add --no-cache ca-certificates curl dumb-init \
-    && adduser -D -g '' appuser
-
 WORKDIR /opt
-COPY ${TARGETPLATFORM}/spack /opt/spack
+COPY --chmod=755 ${TARGETPLATFORM}/spack /opt/spack
 
-RUN chmod +x /opt/spack
+USER 65532:65532
 
-USER appuser
-
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+ENTRYPOINT ["/opt/spack"]
 
 EXPOSE 80
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -fsS http://127.0.0.1/livez || exit 1
-
-CMD ["sh", "-c", "/opt/spack"]
+  CMD ["/opt/spack", "healthcheck", "--url", "http://127.0.0.1/livez", "--timeout", "3s"]

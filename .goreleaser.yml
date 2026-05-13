@@ -20,7 +20,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
+      - -s -w -buildid=
 
   - id: spack-cross
     main: .
@@ -35,7 +35,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
+      - -s -w -buildid=
 
 release:
   prerelease: auto
