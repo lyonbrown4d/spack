@@ -14,6 +14,7 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 	if err := command.ParseFlags([]string{
 		"--assets.root=/tmp/spack-assets",
 		"--http.port=18080",
+		"--http.expose_server_header=true",
 		"--debug.enable=false",
 	}); err != nil {
 		t.Fatal(err)
@@ -29,6 +30,9 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 	}
 	if loaded.HTTP.Port != 18080 {
 		t.Fatalf("expected parsed http.port flag, got %d", loaded.HTTP.Port)
+	}
+	if !loaded.HTTP.ExposeServerHeader {
+		t.Fatal("expected parsed http.expose_server_header=true flag")
 	}
 	if loaded.Debug.Enable {
 		t.Fatal("expected parsed debug.enable=false flag")

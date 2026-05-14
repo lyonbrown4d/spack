@@ -29,6 +29,16 @@ func ShouldVaryAcceptForTest(sourceMediaType, explicitFormat string) bool {
 	return shouldVaryAccept(sourceMediaType, explicitFormat)
 }
 
+// IdentityHeaderMiddlewareForTest exposes identity-header stripping behavior for external tests.
+func IdentityHeaderMiddlewareForTest(cfg *config.Config) fiber.Handler {
+	return identityHeaderMiddleware(cfg)
+}
+
+// ServerHeaderForTest exposes configured server-header construction for external tests.
+func ServerHeaderForTest(cfg *config.Config, meta dix.AppMeta) string {
+	return serverHeader(cfg, meta)
+}
+
 // MetricsMiddlewareForTest exposes HTTP metrics middleware for external tests.
 func MetricsMiddlewareForTest(obs observabilityx.Observability) fiber.Handler {
 	return metricsMiddleware(obs, nil)

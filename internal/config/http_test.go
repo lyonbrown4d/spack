@@ -85,3 +85,10 @@ func TestDefaultHTTPPreforkDisabled(t *testing.T) {
 		t.Fatal("expected HTTP prefork to be disabled by default")
 	}
 }
+
+func TestDefaultHTTPServerHeaderHidden(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	if cfg.HTTP.ExposeServerHeader {
+		t.Fatal("expected HTTP server header to be hidden by default")
+	}
+}

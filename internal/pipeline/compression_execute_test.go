@@ -86,6 +86,7 @@ func assertCompressionVariantCreated(t *testing.T, spec compressionVariantSpec) 
 	}
 	if variant == nil {
 		t.Fatal("expected variant to be created")
+		return
 	}
 	if variant.Encoding != spec.encoding {
 		t.Fatalf("expected %s encoding, got %q", spec.encoding, variant.Encoding)

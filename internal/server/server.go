@@ -50,17 +50,23 @@ var (
 )
 
 func newServerApp(cfg *config.Config, meta dix.AppMeta) *fiber.App {
-	header := buildServerHeader(meta)
 	return fiber.New(fiber.Config{
 		AppName:           "Spack",
 		Immutable:         true,
 		StreamRequestBody: true,
 		UnescapePath:      true,
 		ErrorHandler:      errorHandler,
-		ServerHeader:      header,
+		ServerHeader:      serverHeader(cfg, meta),
 		StrictRouting:     true,
 		ReduceMemoryUsage: cfg.HTTP.LowMemory,
 	})
+}
+
+func serverHeader(cfg *config.Config, meta dix.AppMeta) string {
+	if cfg == nil || !cfg.HTTP.ExposeServerHeader {
+		return ""
+	}
+	return buildServerHeader(meta)
 }
 
 func registerMiddleware(
@@ -70,6 +76,7 @@ func registerMiddleware(
 	obs observabilityx.Observability,
 	runtimeMetrics *RuntimeMetrics,
 ) {
+	app.Use(identityHeaderMiddleware(cfg))
 	requestIDConfig := requestid.ConfigDefault
 	requestIDConfig.Header = RequestIDHeader
 	app.Use(requestid.New(requestIDConfig))
@@ -90,6 +97,20 @@ func registerMiddleware(
 	recoverConfig := recoverer.ConfigDefault
 	recoverConfig.EnableStackTrace = true
 	app.Use(recoverer.New(recoverConfig))
+}
+
+func identityHeaderMiddleware(cfg *config.Config) fiber.Handler {
+	stripServerHeader := cfg == nil || !cfg.HTTP.ExposeServerHeader
+	return func(c fiber.Ctx) error {
+		if err := c.Next(); err != nil {
+			return oops.In("server").Wrap(fmt.Errorf("strip identity headers: %w", err))
+		}
+		c.Response().Header.Del(poweredByHeader)
+		if stripServerHeader {
+			c.Response().Header.Del(fiber.HeaderServer)
+		}
+		return nil
+	}
 }
 
 func metricsMiddleware(obs observabilityx.Observability, runtimeMetrics *RuntimeMetrics) fiber.Handler {

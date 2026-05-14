@@ -127,6 +127,7 @@ func TestImageStageExecuteCreatesResizedVariant(t *testing.T) {
 	}
 	if variant == nil {
 		t.Fatal("expected image variant to be created")
+		return
 	}
 	if variant.Width != 640 {
 		t.Fatalf("expected width 640, got %d", variant.Width)
@@ -169,6 +170,7 @@ func TestImageStageExecuteCreatesFormatVariant(t *testing.T) {
 	}
 	if variant == nil {
 		t.Fatal("expected format variant to be created")
+		return
 	}
 	if variant.Format != "jpeg" || variant.MediaType != "image/jpeg" {
 		t.Fatalf("unexpected format variant: %#v", variant)
