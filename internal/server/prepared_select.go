@@ -29,12 +29,9 @@ func newPreparedRequest(request resolver.Request, requestedFormat string) prepar
 }
 
 type preparedSelection struct {
-	response           *preparedResponse
-	fallbackUsed       bool
-	preferredEncodings *cxlist.List[string]
-	preferredWidths    *cxlist.List[int]
-	preferredFormats   *cxlist.List[string]
-	explicitFormat     bool
+	response       *preparedResponse
+	fallbackUsed   bool
+	explicitFormat bool
 }
 
 type preparedRouteMatch struct {
@@ -89,17 +86,17 @@ func (r *preparedRoute) selectResponse(request preparedRequest, fallbackUsed boo
 		explicitFormat: request.RequestedFormat != "",
 	}
 
-	if image := r.selectImageResponse(request, &selection); image != nil {
+	if image := r.selectImageResponse(request); image != nil {
 		selection.response = image
 		return selection
 	}
-	if encoding := r.selectEncodingResponse(request, &selection); encoding != nil {
+	if encoding := r.selectEncodingResponse(request); encoding != nil {
 		selection.response = encoding
 	}
 	return selection
 }
 
-func (r *preparedRoute) selectImageResponse(request preparedRequest, selection *preparedSelection) *preparedResponse {
+func (r *preparedRoute) selectImageResponse(request preparedRequest) *preparedResponse {
 	if r.images.IsEmpty() {
 		return nil
 	}
@@ -110,8 +107,6 @@ func (r *preparedRoute) selectImageResponse(request preparedRequest, selection *
 	}
 
 	formats := resolver.PreferredImageFormats(request.Accept, request.RequestedFormat, asset.MediaType)
-	selection.preferredFormats = formats
-	selection.preferredWidths = resolver.PreferredWidths(request.Width)
 	if request.Width <= 0 && formats.Len() == 0 {
 		return nil
 	}
@@ -138,13 +133,12 @@ func (r *preparedRoute) pickImageFormat(format string, width int) *preparedRespo
 	return pickClosestWidthImageResponse(responses, width)
 }
 
-func (r *preparedRoute) selectEncodingResponse(request preparedRequest, selection *preparedSelection) *preparedResponse {
+func (r *preparedRoute) selectEncodingResponse(request preparedRequest) *preparedResponse {
 	if request.RangeRequested || r.encodings.IsEmpty() {
 		return nil
 	}
 
 	encodings := resolver.ParseAcceptEncodingNormalized(request.AcceptEncoding, preparedDefaultEncodings)
-	selection.preferredEncodings = encodings
 	if encodings.Len() == 0 {
 		return nil
 	}

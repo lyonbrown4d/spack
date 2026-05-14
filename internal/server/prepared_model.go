@@ -99,20 +99,3 @@ func (r *preparedResponse) filePath() string {
 	}
 	return r.result.FilePath
 }
-
-func (r *preparedResponse) resultWithPreferences(
-	preferredEncodings *cxlist.List[string],
-	preferredWidths *cxlist.List[int],
-	preferredFormats *cxlist.List[string],
-	fallbackUsed bool,
-) *resolver.Result {
-	if r == nil {
-		return nil
-	}
-	result := r.result
-	result.PreferredEncodings = preferredEncodings
-	result.PreferredWidths = preferredWidths
-	result.PreferredFormats = preferredFormats
-	result.FallbackUsed = fallbackUsed
-	return &result
-}

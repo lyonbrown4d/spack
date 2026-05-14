@@ -40,12 +40,7 @@ func preparedServedVariantResult(selection preparedSelection) *resolver.Result {
 	if selection.response == nil || selection.response.variant() == nil {
 		return nil
 	}
-	return selection.response.resultWithPreferences(
-		selection.preferredEncodings,
-		selection.preferredWidths,
-		selection.preferredFormats,
-		selection.fallbackUsed,
-	)
+	return &selection.response.result
 }
 
 func (r *assetDeliveryRuntime) sendPreparedAssetFile(
