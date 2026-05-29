@@ -15,6 +15,8 @@ import (
 	"github.com/samber/oops"
 )
 
+const dixRecentEventCapacity = 128
+
 func createContainer(loadOptions config.LoadOptions, userModules ...dix.Module) (*dix.App, error) {
 	allModules := cxlist.NewListWithCapacity[dix.Module](8 + len(userModules))
 	allModules.Add(appmeta.Module,
@@ -27,11 +29,15 @@ func createContainer(loadOptions config.LoadOptions, userModules ...dix.Module) 
 		task.Module,
 	)
 	allModules.Add(userModules...)
-	instance := dix.New(
-		"spack",
-		dix.WithModules(allModules.Values()...),
-		dix.WithRunStopTimeout(dix.DefaultRunStopTimeout),
-	)
+	var instance *dix.App
+	allModules.ViewValues(func(modules []dix.Module) {
+		instance = dix.New(
+			"spack",
+			dix.Modules(modules...),
+			dix.RunStopTimeout(dix.DefaultRunStopTimeout),
+			dix.RecentEvents(dixRecentEventCapacity),
+		)
+	})
 	err := instance.Validate()
 	if err != nil {
 		return nil, oops.In("command").Owner("container").Wrap(err)

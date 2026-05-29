@@ -65,10 +65,10 @@ func TestCatalogReadyAttrsIncludeCacheAndCompressionState(t *testing.T) {
 	cat := catalog.NewInMemoryCatalog()
 	bodyCache := assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler))
 
-	if err := cat.UpsertAsset(&catalog.Asset{Path: "app.js"}); err != nil {
+	if err := cat.UpsertAsset(&catalog.Asset{Path: "app.js", MediaType: "text/javascript"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := cat.UpsertVariant(&catalog.Variant{ID: "app.js|encoding=br", AssetPath: "app.js"}); err != nil {
+	if err := cat.UpsertVariant(&catalog.Variant{ID: "app.js|encoding=br", AssetPath: "app.js", Encoding: "br"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,6 +90,24 @@ func TestCatalogReadyAttrsIncludeCacheAndCompressionState(t *testing.T) {
 	}
 	if got, _ := attrMap.Get("compression_mode"); got != cfg.Compression.NormalizedMode() {
 		t.Fatalf("expected compression_mode %q, got %#v", cfg.Compression.NormalizedMode(), got)
+	}
+	assertCountAttr(t, attrMap, "asset_media_types", "text/javascript", 1)
+	assertCountAttr(t, attrMap, "variant_encodings", "br", 1)
+}
+
+func assertCountAttr(t *testing.T, attrs *cxmapping.Map[string, any], attrKey, countKey string, want int) {
+	t.Helper()
+
+	raw, ok := attrs.Get(attrKey)
+	if !ok {
+		t.Fatalf("expected %s attr", attrKey)
+	}
+	counts, ok := raw.(map[string]int)
+	if !ok {
+		t.Fatalf("expected %s to be map[string]int, got %#v", attrKey, raw)
+	}
+	if got := counts[countKey]; got != want {
+		t.Fatalf("expected %s[%s] to be %d, got %d", attrKey, countKey, want, got)
 	}
 }
 

@@ -17,10 +17,11 @@ type preparedSnapshot struct {
 }
 
 type preparedRoute struct {
-	path      string
-	identity  *preparedResponse
-	encodings *cxmapping.Map[string, *preparedResponse]
-	images    *cxmapping.Map[string, *cxlist.List[*preparedResponse]]
+	path        string
+	identity    *preparedResponse
+	encodings   *cxmapping.Map[string, *preparedResponse]
+	images      *cxmapping.Map[string, *cxlist.List[*preparedResponse]]
+	imageWidths *cxmapping.Table[string, int, *preparedResponse]
 }
 
 type preparedResponse struct {
@@ -41,10 +42,11 @@ func newPreparedSnapshot(capacity int) *preparedSnapshot {
 
 func newPreparedRoute(path string, identity *preparedResponse) *preparedRoute {
 	return &preparedRoute{
-		path:      path,
-		identity:  identity,
-		encodings: cxmapping.NewMap[string, *preparedResponse](),
-		images:    cxmapping.NewMap[string, *cxlist.List[*preparedResponse]](),
+		path:        path,
+		identity:    identity,
+		encodings:   cxmapping.NewMap[string, *preparedResponse](),
+		images:      cxmapping.NewMap[string, *cxlist.List[*preparedResponse]](),
+		imageWidths: cxmapping.NewTable[string, int, *preparedResponse](),
 	}
 }
 
@@ -61,11 +63,10 @@ func (r *preparedRoute) addVariant(response *preparedResponse) {
 	if format == "" {
 		return
 	}
-	responses, ok := r.images.Get(format)
-	if !ok {
-		responses = cxlist.NewList[*preparedResponse]()
-		r.images.Set(format, responses)
-	}
+	responses, _ := r.images.GetOrCompute(format, func() *cxlist.List[*preparedResponse] {
+		return cxlist.NewList[*preparedResponse]()
+	})
+	r.imageWidths.Put(format, variant.Width, response)
 	responses.Add(response)
 }
 

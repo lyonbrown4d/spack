@@ -54,7 +54,7 @@ func (s *preparedSnapshot) findRoute(cfg config.Assets, requestPath requestpath.
 
 	if cfg.Fallback.On == config.FallbackOnNotFound && requestPath.AllowsEntryFallback {
 		target := requestpath.Clean(cfg.Fallback.Target).Value
-		if route, ok := s.routes.Get(target); ok {
+		if route, ok := s.routes.GetOption(target).Get(); ok {
 			return mo.Some(preparedRouteMatch{route: route, fallbackUsed: true})
 		}
 	}
@@ -63,9 +63,9 @@ func (s *preparedSnapshot) findRoute(cfg config.Assets, requestPath requestpath.
 
 func (s *preparedSnapshot) findPrimaryRoute(cfg config.Assets, requestPath requestpath.Cleaned) mo.Option[*preparedRoute] {
 	if requestPath.Value == "" {
-		return mo.TupleToOption(s.routes.Get(cfg.Entry))
+		return s.routes.GetOption(cfg.Entry)
 	}
-	if route, ok := s.routes.Get(requestPath.Value); ok {
+	if route, ok := s.routes.GetOption(requestPath.Value).Get(); ok {
 		return mo.Some(route)
 	}
 	if !requestPath.AllowsEntryFallback {
@@ -76,7 +76,7 @@ func (s *preparedSnapshot) findPrimaryRoute(cfg config.Assets, requestPath reque
 	if candidate == requestPath.Value {
 		return mo.None[*preparedRoute]()
 	}
-	return mo.TupleToOption(s.routes.Get(candidate))
+	return s.routes.GetOption(candidate)
 }
 
 func (r *preparedRoute) selectResponse(request preparedRequest, fallbackUsed bool) preparedSelection {
@@ -123,12 +123,18 @@ func (r *preparedRoute) selectImageResponse(request preparedRequest) *preparedRe
 }
 
 func (r *preparedRoute) pickImageFormat(format string, width int) *preparedResponse {
-	responses, ok := r.images.Get(format)
+	responses, ok := r.images.GetOption(format).Get()
 	if !ok || responses.IsEmpty() {
 		return nil
 	}
 	if width <= 0 {
+		if response, ok := r.imageWidths.GetOption(format, 0).Get(); ok {
+			return response
+		}
 		return pickZeroWidthImageResponse(responses)
+	}
+	if response, ok := r.imageWidths.GetOption(format, width).Get(); ok {
+		return response
 	}
 	return pickClosestWidthImageResponse(responses, width)
 }
@@ -145,8 +151,7 @@ func (r *preparedRoute) selectEncodingResponse(request preparedRequest) *prepare
 
 	var picked *preparedResponse
 	encodings.Range(func(_ int, encoding string) bool {
-		response, ok := r.encodings.Get(encoding)
-		if ok {
+		if response, ok := r.encodings.GetOption(encoding).Get(); ok {
 			picked = response
 		}
 		return picked == nil

@@ -83,11 +83,11 @@ func collectSidecarVariantBuildCandidates(
 	existingSidecars *cxmapping.Map[string, *catalog.Variant],
 ) (*cxmapping.Map[string, *catalog.Variant], *cxlist.List[sidecarVariantBuildCandidate]) {
 	variants := cxmapping.NewMapWithCapacity[string, *catalog.Variant](sidecars.Len())
-	candidates := cxlist.NewList[sidecarVariantBuildCandidate]()
+	candidates := cxlist.NewListWithCapacity[sidecarVariantBuildCandidate](sidecars.Len())
 
 	sortedKeys[sidecarFile](sidecars).Range(func(_ int, sidecarPath string) bool {
 		sidecar, _ := sidecars.Get(sidecarPath)
-		asset, ok := assets.Get(sidecar.assetPath)
+		asset, ok := assets.GetOption(sidecar.assetPath).Get()
 		if !ok || asset == nil {
 			return true
 		}
@@ -106,7 +106,7 @@ func reusableSidecarVariant(
 	sidecar sidecarFile,
 	asset *catalog.Asset,
 ) mo.Option[*catalog.Variant] {
-	variant, ok := existingSidecars.Get(sidecar.FullPath)
+	variant, ok := existingSidecars.GetOption(sidecar.FullPath).Get()
 	if !ok || !canReuseSidecarVariant(variant, sidecar, asset) {
 		return mo.None[*catalog.Variant]()
 	}

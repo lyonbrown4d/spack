@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/arcgolabs/configx"
+	configjson "github.com/arcgolabs/configx/format/json"
+	configtoml "github.com/arcgolabs/configx/format/toml"
+	configyaml "github.com/arcgolabs/configx/format/yaml"
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/go-playground/validator/v10"
@@ -46,6 +49,9 @@ func loadConfig(
 		fileOnly := configx.New(
 			configx.WithFiles(loadOptions.Files...),
 			configx.WithPriority(configx.SourceFile),
+			configyaml.WithYAMLSupport(),
+			configjson.WithJSONSupport(),
+			configtoml.WithTomlSupport(),
 		)
 		fileConfig, fileErr := fileOnly.LoadConfig()
 		if fileErr != nil {

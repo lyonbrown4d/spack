@@ -167,8 +167,10 @@ func recordHealthCheckMetrics(
 		observabilityx.String("kind", string(kind)),
 		observabilityx.String("check", strings.TrimSpace(checkName)),
 		observabilityx.String("result", healthMetricResult(healthy)))
-	obs.Counter(healthCheckRunsTotalSpec).Add(ctx, 1, attrs.Values()...)
-	obs.Histogram(healthCheckDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs.Values()...)
+	attrs.ViewValues(func(values []observabilityx.Attribute) {
+		obs.Counter(healthCheckRunsTotalSpec).Add(ctx, 1, values...)
+		obs.Histogram(healthCheckDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), values...)
+	})
 }
 
 func recordHealthReportMetrics(
@@ -183,8 +185,10 @@ func recordHealthReportMetrics(
 		observabilityx.String("kind", string(kind)),
 		observabilityx.String("result", healthMetricResult(healthy)),
 	)
-	obs.Counter(healthReportsTotalSpec).Add(ctx, 1, attrs.Values()...)
-	obs.Histogram(healthReportDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs.Values()...)
+	attrs.ViewValues(func(values []observabilityx.Attribute) {
+		obs.Counter(healthReportsTotalSpec).Add(ctx, 1, values...)
+		obs.Histogram(healthReportDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), values...)
+	})
 }
 
 func healthMetricResult(healthy bool) string {

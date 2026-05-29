@@ -27,10 +27,11 @@ func sortedMapEntries[T any](values *cxmapping.Map[string, T]) *cxlist.List[sort
 		return cxlist.NewList[sortedMapEntry[T]]()
 	}
 
-	entries := cxlist.NewList[sortedMapEntry[T]]()
-	values.Range(func(key string, value T) bool {
-		entries.Add(sortedMapEntry[T]{key: key, value: value})
-		return true
+	entries := cxlist.NewListWithCapacity[sortedMapEntry[T]](values.Len())
+	values.ViewAll(func(items map[string]T) {
+		for key, value := range items {
+			entries.Add(sortedMapEntry[T]{key: key, value: value})
+		}
 	})
 	return entries.Sort(func(left, right sortedMapEntry[T]) int {
 		return cmp.Compare(left.key, right.key)

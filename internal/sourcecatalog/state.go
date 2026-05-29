@@ -35,5 +35,14 @@ func buildExistingScanState(cat catalog.Catalog) existingScanState {
 }
 
 func sortedKeys[T any](values *cxmapping.Map[string, T]) *cxlist.List[string] {
-	return cxlist.NewList[string](values.Keys()...).Sort(cmp.Compare[string])
+	if values == nil {
+		return cxlist.NewList[string]()
+	}
+	keys := cxlist.NewListWithCapacity[string](values.Len())
+	values.ViewAll(func(items map[string]T) {
+		for key := range items {
+			keys.Add(key)
+		}
+	})
+	return keys.Sort(cmp.Compare[string])
 }

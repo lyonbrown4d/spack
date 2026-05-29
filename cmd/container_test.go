@@ -67,6 +67,9 @@ func mustBuildPrometheusRuntime(t *testing.T, app *dix.App) *dix.Runtime {
 	if got := rt.Meta().Version; got != info.Main.Version {
 		t.Fatalf("expected runtime version %q, got %q", info.Main.Version, got)
 	}
+	if recorder := rt.EventRecorder(); recorder == nil || recorder.Capacity() != 128 {
+		t.Fatalf("expected runtime recent event recorder with capacity 128, got %#v", recorder)
+	}
 
 	return rt
 }

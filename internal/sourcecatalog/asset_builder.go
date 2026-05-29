@@ -90,14 +90,14 @@ func collectAssetBuildCandidates(
 	existingAssets *cxmapping.Map[string, *catalog.Asset],
 ) (*cxmapping.Map[string, *catalog.Asset], *cxlist.List[assetBuildCandidate]) {
 	assets := cxmapping.NewMapWithCapacity[string, *catalog.Asset](filesByPath.Len())
-	candidates := cxlist.NewList[assetBuildCandidate]()
+	candidates := cxlist.NewListWithCapacity[assetBuildCandidate](filesByPath.Len())
 
 	sortedKeys[source.File](filesByPath).Range(func(_ int, path string) bool {
-		if _, ok := sidecars.Get(path); ok {
+		if sidecars.GetOption(path).IsPresent() {
 			return true
 		}
 		file, _ := filesByPath.Get(path)
-		if asset, ok := existingAssets.Get(path); ok && canReuseAsset(asset, file) {
+		if asset, ok := existingAssets.GetOption(path).Get(); ok && canReuseAsset(asset, file) {
 			asset.Metadata = catalog.MetadataWithModTime(asset.Metadata, file.ModTime)
 			assets.Set(path, asset)
 			return true

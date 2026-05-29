@@ -77,7 +77,9 @@ func (s *resourceHintService) cached(key string) (*cxlist.List[string], bool) {
 }
 
 func (s *resourceHintService) store(key string, links *cxlist.List[string]) {
-	s.cache.Set(key, links.Values()...)
+	links.ViewValues(func(values []string) {
+		s.cache.Set(key, values...)
+	})
 	s.cachedKeys.Add(key)
 }
 
@@ -92,7 +94,11 @@ func (r *assetDeliveryRuntime) sendEarlyResourceHints(c fiber.Ctx, links *cxlist
 	if links == nil || links.IsEmpty() {
 		return nil
 	}
-	if err := c.SendEarlyHints(links.Values()); err != nil {
+	var err error
+	links.ViewValues(func(values []string) {
+		err = c.SendEarlyHints(values)
+	})
+	if err != nil {
 		return fmt.Errorf("send early resource hints: %w", err)
 	}
 	return nil

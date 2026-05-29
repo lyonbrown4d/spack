@@ -4,12 +4,14 @@ import (
 	"cmp"
 	"context"
 	cxlist "github.com/arcgolabs/collectionx/list"
+	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/samber/oops"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -97,7 +99,7 @@ func catalogReadyAttrs(
 	totalBytes int64,
 	duration time.Duration,
 ) *cxlist.List[slog.Attr] {
-	return cxlist.NewList(
+	attrs := cxlist.NewList(
 		slog.Int("assets", cat.AssetCount()),
 		slog.Int("variants", cat.VariantCount()),
 		slog.Int64("bytes", totalBytes),
@@ -108,6 +110,40 @@ func catalogReadyAttrs(
 		slog.String("compression_mode", cfg.Compression.NormalizedMode()),
 		slog.Duration("duration", duration),
 	)
+	return attrs.Merge(catalogDistributionAttrs(cat))
+}
+
+func catalogDistributionAttrs(cat catalog.Catalog) *cxlist.List[slog.Attr] {
+	assetsByMediaType := cxset.NewMultiSet[string]()
+	cat.AllAssets().Range(func(_ int, asset *catalog.Asset) bool {
+		if asset != nil {
+			addCatalogCount(assetsByMediaType, asset.MediaType)
+		}
+		return true
+	})
+
+	variantsByEncoding := cxset.NewMultiSet[string]()
+	variantsByFormat := cxset.NewMultiSet[string]()
+	cat.AllVariants().Range(func(_ int, variant *catalog.Variant) bool {
+		if variant != nil {
+			addCatalogCount(variantsByEncoding, variant.Encoding)
+			addCatalogCount(variantsByFormat, variant.Format)
+		}
+		return true
+	})
+
+	return cxlist.NewList(
+		slog.Any("asset_media_types", assetsByMediaType.AllCounts()),
+		slog.Any("variant_encodings", variantsByEncoding.AllCounts()),
+		slog.Any("variant_formats", variantsByFormat.AllCounts()),
+	)
+}
+
+func addCatalogCount(counts *cxset.MultiSet[string], value string) {
+	value = strings.TrimSpace(value)
+	if value != "" {
+		counts.Add(value)
+	}
 }
 
 func configLogAttrs(cfg *config.Config) *cxlist.List[slog.Attr] {

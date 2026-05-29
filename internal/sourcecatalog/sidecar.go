@@ -110,7 +110,7 @@ func matchSidecar(path string, filesByPath *cxmapping.Map[string, source.File], 
 	if assetPath == "" || assetPath == path {
 		return mo.None[sidecarFile]()
 	}
-	if _, exists := filesByPath.Get(assetPath); !exists {
+	if filesByPath.GetOption(assetPath).IsAbsent() {
 		return mo.None[sidecarFile]()
 	}
 
