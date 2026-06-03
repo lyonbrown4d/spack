@@ -16,14 +16,14 @@ require (
 	github.com/arcgolabs/configx/format/yaml v0.0.0-20260517161814-12696a4be3fe
 	github.com/arcgolabs/dix v0.11.0
 	github.com/arcgolabs/eventx v0.1.2
-	github.com/arcgolabs/logx v0.1.2
+	github.com/arcgolabs/logx v0.1.3
 	github.com/arcgolabs/observabilityx v0.4.0
 	github.com/arl/statsviz v0.8.0
 	github.com/dgraph-io/ristretto/v2 v2.4.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/go-co-op/gocron/v2 v2.21.2
-	github.com/go-playground/validator/v10 v10.30.2
+	github.com/go-playground/validator/v10 v10.30.3
 	github.com/gofiber/fiber/v3 v3.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-memdb v1.3.5
@@ -32,7 +32,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/samber/lo v1.53.0
-	github.com/samber/mo v1.16.0
+	github.com/samber/mo v1.17.0
 	github.com/samber/oops v1.22.0
 	github.com/samber/slog-fiber v1.22.2
 	github.com/spf13/cobra v1.10.2
@@ -61,8 +61,8 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/gofiber/schema v1.7.1 // indirect
-	github.com/gofiber/utils/v2 v2.0.6 // indirect
+	github.com/gofiber/schema v1.7.2 // indirect
+	github.com/gofiber/utils/v2 v2.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
@@ -72,10 +72,10 @@ require (
 	github.com/knadh/koanf/providers/confmap v1.0.0 // indirect
 	github.com/knadh/koanf/providers/env/v2 v2.0.0 // indirect
 	github.com/knadh/koanf/providers/file v1.2.1 // indirect
-	github.com/knadh/koanf/v2 v2.3.4 // indirect
+	github.com/knadh/koanf/v2 v2.3.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/panjf2000/ants/v2 v2.12.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/prometheus/common v0.67.5 // indirect
+	github.com/prometheus/common v0.68.1 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
