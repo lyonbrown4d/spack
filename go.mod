@@ -10,11 +10,12 @@ require (
 	github.com/arcgolabs/collectionx/mapping v0.9.0
 	github.com/arcgolabs/collectionx/prefix v0.9.0
 	github.com/arcgolabs/collectionx/set v0.9.0
-	github.com/arcgolabs/configx v0.5.1
-	github.com/arcgolabs/configx/format/json v0.0.0-20260517161814-12696a4be3fe
-	github.com/arcgolabs/configx/format/toml v0.0.0-20260517161814-12696a4be3fe
-	github.com/arcgolabs/configx/format/yaml v0.0.0-20260517161814-12696a4be3fe
-	github.com/arcgolabs/dix v0.11.0
+	github.com/arcgolabs/configx v0.5.2
+	github.com/arcgolabs/configx/format/hcl v0.5.2
+	github.com/arcgolabs/configx/format/json v0.5.2
+	github.com/arcgolabs/configx/format/toml v0.5.2
+	github.com/arcgolabs/configx/format/yaml v0.5.2
+	github.com/arcgolabs/dix v0.11.1
 	github.com/arcgolabs/eventx v0.1.2
 	github.com/arcgolabs/logx v0.1.3
 	github.com/arcgolabs/observabilityx v0.4.0
@@ -38,12 +39,12 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/net v0.55.0
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 )
 
 require (
-	github.com/arcgolabs/configx/format/hcl v0.0.0-20260517161814-12696a4be3fe // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/knadh/koanf/parsers/hcl v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.1 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
@@ -61,7 +62,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/gofiber/schema v1.7.2 // indirect
+	github.com/gofiber/schema v1.8.0 // indirect
 	github.com/gofiber/utils/v2 v2.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
@@ -89,7 +90,6 @@ require (
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/samber/do/v2 v2.0.0 // indirect
 	github.com/samber/go-type-to-string v1.8.0 // indirect
-	github.com/samber/oops/loggers/zerolog v0.0.0-20260528145910-37b62d050ba2 // indirect
 	github.com/samber/slog-common v0.22.0 // indirect
 	github.com/samber/slog-zerolog/v2 v2.9.2 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
@@ -97,10 +97,9 @@ require (
 	github.com/valyala/fasthttp v1.71.0 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
-	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/arcgolabs/configx"
+	confighcl "github.com/arcgolabs/configx/format/hcl"
 	configjson "github.com/arcgolabs/configx/format/json"
 	configtoml "github.com/arcgolabs/configx/format/toml"
 	configyaml "github.com/arcgolabs/configx/format/yaml"
@@ -52,6 +53,7 @@ func loadConfig(
 			configyaml.WithYAMLSupport(),
 			configjson.WithJSONSupport(),
 			configtoml.WithTomlSupport(),
+			confighcl.WithHCLSupport(),
 		)
 		fileConfig, fileErr := fileOnly.LoadConfig()
 		if fileErr != nil {

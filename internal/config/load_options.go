@@ -5,6 +5,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/configx"
+	confighcl "github.com/arcgolabs/configx/format/hcl"
 	configjson "github.com/arcgolabs/configx/format/json"
 	configtoml "github.com/arcgolabs/configx/format/toml"
 	configyaml "github.com/arcgolabs/configx/format/yaml"
@@ -37,6 +38,7 @@ func (o LoadOptions) configxOptions(
 		configyaml.WithYAMLSupport(),
 		configjson.WithJSONSupport(),
 		configtoml.WithTomlSupport(),
+		confighcl.WithHCLSupport(),
 	)
 	if len(o.Files) > 0 {
 		options.Add(configx.WithFiles(o.Files...))
