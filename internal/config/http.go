@@ -7,12 +7,13 @@ import (
 )
 
 type HTTP struct {
-	Port               int         `koanf:"port"                 validate:"gte=1,lte=65535"`
-	LowMemory          bool        `koanf:"low_memory"`
-	Prefork            bool        `koanf:"prefork"`
-	ExposeServerHeader bool        `koanf:"expose_server_header"`
-	MemoryCache        MemoryCache `koanf:"memory_cache"         validate:"required"`
-	RequestLogDetail   bool        `koanf:"request_log_detail"`
+	Port                int         `koanf:"port"                 validate:"gte=1,lte=65535"`
+	LowMemory           bool        `koanf:"low_memory"`
+	Prefork             bool        `koanf:"prefork"`
+	ExposeServerHeader  bool        `koanf:"expose_server_header"`
+	ExposeServerVersion bool        `koanf:"expose_server_version"`
+	MemoryCache         MemoryCache `koanf:"memory_cache"         validate:"required"`
+	RequestLogDetail    bool        `koanf:"request_log_detail"`
 }
 
 type MemoryCache struct {

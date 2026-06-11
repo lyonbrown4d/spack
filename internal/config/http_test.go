@@ -92,3 +92,10 @@ func TestDefaultHTTPServerHeaderHidden(t *testing.T) {
 		t.Fatal("expected HTTP server header to be hidden by default")
 	}
 }
+
+func TestDefaultHTTPServerVersionHidden(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	if cfg.HTTP.ExposeServerVersion {
+		t.Fatal("expected HTTP server version to be hidden by default")
+	}
+}

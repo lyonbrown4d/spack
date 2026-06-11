@@ -68,13 +68,34 @@ func buildDebugRuntime(
 	}
 
 	mux := http.NewServeMux()
-	registerDebugCollectors(deps.pipelineMetrics)
-	registerDebugCollectors(deps.catMetrics)
-	registerDebugCollectors(deps.serverMetrics)
-	registerDebugCollectors(deps.taskMetrics)
-	registerDebugCollectors(deps.asyncMetrics)
-	registerDebugCollectors(metrics.NewBuildInfoMetrics("spack"))
-	registerDebugCollectors(metrics.NewRuntimeInfoMetrics("spack", cfg, time.Now().UTC()))
+	if err := registerDebugCollectors(deps.pipelineMetrics); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
+	if err := registerDebugCollectors(deps.catMetrics); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
+	if err := registerDebugCollectors(deps.serverMetrics); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
+	if err := registerDebugCollectors(deps.taskMetrics); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
+	if err := registerDebugCollectors(deps.asyncMetrics); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
+	if err := registerDebugCollectors(metrics.NewBuildInfoMetrics("spack")); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
+	if err := registerDebugCollectors(metrics.NewRuntimeInfoMetrics("spack", cfg, time.Now().UTC())); err != nil {
+		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
+		return &debugRuntime{}
+	}
 	if deps.metricsAdapter == nil {
 		logger.Error("Debug runtime registration failed", slog.String("err", "metrics adapter is not configured"))
 		return &debugRuntime{}
@@ -103,13 +124,13 @@ type debugCollectorProvider interface {
 	Collectors() []prometheus.Collector
 }
 
-func registerDebugCollectors(provider debugCollectorProvider) {
+func registerDebugCollectors(provider debugCollectorProvider) error {
 	if provider == nil {
-		return
+		return nil
 	}
 	collectors := provider.Collectors()
 	if len(collectors) == 0 {
-		return
+		return nil
 	}
 	for _, collector := range collectors {
 		if err := prometheus.Register(collector); err != nil {
@@ -117,9 +138,10 @@ func registerDebugCollectors(provider debugCollectorProvider) {
 			if errors.As(err, &alreadyRegistered) {
 				continue
 			}
-			panic(err)
+			return err
 		}
 	}
+	return nil
 }
 
 func startDebugRuntime(_ context.Context, logger *slog.Logger, runtime *debugRuntime) error {

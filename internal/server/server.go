@@ -66,7 +66,7 @@ func serverHeader(cfg *config.Config, meta dix.AppMeta) string {
 	if cfg == nil || !cfg.HTTP.ExposeServerHeader {
 		return ""
 	}
-	return buildServerHeader(meta)
+	return buildServerHeader(cfg, meta)
 }
 
 func registerMiddleware(

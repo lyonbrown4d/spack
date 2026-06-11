@@ -25,6 +25,17 @@ func TestServerHeaderCanBeExposed(t *testing.T) {
 	cfg.HTTP.ExposeServerHeader = true
 
 	header := server.ServerHeaderForTest(&cfg, dix.AppMeta{Version: "1.2.3"})
+	if header != constant.ServerHeaderPrefix {
+		t.Fatalf("expected non-versioned server header by default, got %q", header)
+	}
+}
+
+func TestServerHeaderCanBeVersioned(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	cfg.HTTP.ExposeServerHeader = true
+	cfg.HTTP.ExposeServerVersion = true
+
+	header := server.ServerHeaderForTest(&cfg, dix.AppMeta{Version: "1.2.3"})
 	if header != constant.ServerHeaderPrefix+"/1.2.3" {
 		t.Fatalf("expected versioned server header, got %q", header)
 	}
