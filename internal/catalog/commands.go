@@ -73,7 +73,7 @@ func (c *MemDBCatalog) DeleteAsset(assetPath string) *cxlist.List[*Variant] {
 	}
 	if ok {
 		if err := txn.Delete(catalogAssetsTable, record); err != nil && !errors.Is(err, memdb.ErrNotFound) {
-			panic(err)
+			return cxlist.NewList[*Variant]()
 		}
 	}
 
@@ -103,7 +103,7 @@ func (c *MemDBCatalog) DeleteVariantByArtifactPath(artifactPath string) bool {
 		if errors.Is(err, memdb.ErrNotFound) {
 			return false
 		}
-		panic(err)
+		return false
 	}
 	txn.Commit()
 	return true
@@ -161,7 +161,7 @@ func deleteVariantsByAssetPath(txn *memdb.Txn, assetPath string) *cxlist.List[*V
 	removed := cloneVariantRecords(records)
 	records.Range(func(_ int, record *variantRecord) bool {
 		if err := txn.Delete(catalogVariantsTable, record); err != nil && !errors.Is(err, memdb.ErrNotFound) {
-			panic(err)
+			return false
 		}
 		return true
 	})

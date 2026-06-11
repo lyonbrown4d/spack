@@ -145,7 +145,7 @@ func (c *MemDBCatalog) AllAssets() *cxlist.List[*Asset] {
 
 	iter, err := txn.Get(catalogAssetsTable, "id")
 	if err != nil {
-		panic(err)
+		return cxlist.NewList[*Asset]()
 	}
 
 	out := cxlist.NewList[*Asset]()
@@ -182,7 +182,7 @@ func (c *MemDBCatalog) Snapshot() *Snapshot {
 
 	assets, err := txn.Get(catalogAssetsTable, "id")
 	if err != nil {
-		panic(err)
+		return &Snapshot{Assets: cxlist.NewList[*Entry]()}
 	}
 
 	entries := cxlist.NewList[*Entry]()

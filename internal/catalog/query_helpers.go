@@ -38,7 +38,7 @@ func countRecords(txn *memdb.Txn, table string) int {
 
 	iter, err := txn.Get(table, "id")
 	if err != nil {
-		panic(err)
+		return 0
 	}
 
 	total := 0
