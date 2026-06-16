@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -250,16 +251,16 @@ func isValidResourceHintURL(raw string) bool {
 		return false
 	}
 
-	lower := strings.ToLower(value)
-	switch {
-	case strings.HasPrefix(lower, "data:"):
+	parsed, err := url.Parse(value)
+	if err != nil {
 		return false
-	case strings.HasPrefix(lower, "javascript:"):
-		return false
-	case strings.HasPrefix(lower, "mailto:"):
-		return false
-	default:
+	}
+
+	switch strings.ToLower(parsed.Scheme) {
+	case "", "http", "https":
 		return true
+	default:
+		return false
 	}
 }
 
