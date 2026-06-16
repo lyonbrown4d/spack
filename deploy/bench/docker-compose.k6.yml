@@ -1,0 +1,71 @@
+name: spack-k6-bench
+
+services:
+  spack:
+    image: spack-k6-bench:local
+    ports:
+      - "127.0.0.1:18080:80"
+    volumes:
+      - ../../tmp/k6/assets:/app:ro
+    environment:
+      SPACK_ASSETS_ROOT: /app
+      SPACK_ASSETS_PATH: /
+      SPACK_ASSETS_ENTRY: index.html
+      SPACK_HTTP_PORT: "80"
+      SPACK_HTTP_PREFORK: "false"
+      SPACK_HTTP_MEMORY_CACHE_ENABLE: "${SPACK_MEMORY_CACHE_ENABLE:-true}"
+      SPACK_HTTP_MEMORY_CACHE_WARMUP: "${SPACK_MEMORY_CACHE_WARMUP:-true}"
+      SPACK_COMPRESSION_ENABLE: "false"
+      SPACK_COMPRESSION_MODE: off
+      SPACK_IMAGE_ENABLE: "false"
+      SPACK_FRONTEND_RESOURCE_HINTS_ENABLE: "false"
+      SPACK_DEBUG_ENABLE: "false"
+      SPACK_LOGGER_LEVEL: error
+      SPACK_LOGGER_CONSOLE_ENABLED: "false"
+
+  spack-prefork:
+    image: spack-k6-bench:local
+    ports:
+      - "127.0.0.1:18082:80"
+    volumes:
+      - ../../tmp/k6/assets:/app:ro
+    environment:
+      SPACK_ASSETS_ROOT: /app
+      SPACK_ASSETS_PATH: /
+      SPACK_ASSETS_ENTRY: index.html
+      SPACK_HTTP_PORT: "80"
+      SPACK_HTTP_PREFORK: "true"
+      SPACK_HTTP_MEMORY_CACHE_ENABLE: "${SPACK_MEMORY_CACHE_ENABLE:-true}"
+      SPACK_HTTP_MEMORY_CACHE_WARMUP: "${SPACK_MEMORY_CACHE_WARMUP:-true}"
+      SPACK_COMPRESSION_ENABLE: "false"
+      SPACK_COMPRESSION_MODE: off
+      SPACK_IMAGE_ENABLE: "false"
+      SPACK_FRONTEND_RESOURCE_HINTS_ENABLE: "false"
+      SPACK_DEBUG_ENABLE: "false"
+      SPACK_LOGGER_LEVEL: error
+      SPACK_LOGGER_CONSOLE_ENABLED: "false"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:18081:8080"
+    volumes:
+      - ../../tmp/k6/assets:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+  k6:
+    image: grafana/k6:latest
+    depends_on:
+      - spack
+      - spack-prefork
+      - nginx
+    volumes:
+      - ./k6:/scripts:ro
+      - ../../tmp/k6/results:/results
+    environment:
+      BENCH_PATHS: "${BENCH_PATHS:-/,/index.html,/assets/app.8f3a1c2d.js,/assets/vendor.6d1e3a9b.js,/assets/style.4b21c9aa.css,/assets/hero.9d7f2a10.jpg,/assets/card.2e4c91ab.png,/assets/logo.1a2b3c4d.svg,/assets/font.7f6e5d4c.woff2,/manifest.webmanifest}"
+      PAGE_PATH: "${PAGE_PATH:-/}"
+      ASSET_PATHS: "${ASSET_PATHS:-/assets/style.4b21c9aa.css,/assets/vendor.6d1e3a9b.js,/assets/app.8f3a1c2d.js,/assets/hero.9d7f2a10.jpg,/assets/card.2e4c91ab.png,/assets/logo.1a2b3c4d.svg,/assets/font.7f6e5d4c.woff2,/manifest.webmanifest}"
+      VUS: "${VUS:-64}"
+      DURATION: "${DURATION:-30s}"
+      ACCEPT_ENCODING: "${ACCEPT_ENCODING:-identity}"

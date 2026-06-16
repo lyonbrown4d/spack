@@ -552,6 +552,50 @@ container beside an in-process SPACK HTTP server. It disables SPACK compression,
 image generation, resource hints, and memory cache so the comparison focuses on
 plain static file delivery.
 
+Run a full local HTTP pressure test with k6, with SPACK, Nginx, and k6 all
+running as Docker containers:
+
+```powershell
+task perf:k6
+```
+
+This builds a local `spack-k6-bench:local` image from the current checkout,
+starts non-prefork SPACK, prefork SPACK, and an `nginx:alpine` container, then
+runs `grafana/k6` against each service over HTTP. The default workload uses 64
+virtual users for 30 seconds against a frontend-like static asset mix.
+
+Run a more browser-like frontend page-load benchmark:
+
+```powershell
+task perf:k6:frontend
+```
+
+This requests `/` first, then batches hashed JS/CSS chunks, generated JPEG/PNG/SVG
+images, a font payload, and `manifest.webmanifest`.
+
+Run separated resource-class benchmarks:
+
+```powershell
+task perf:k6:split
+```
+
+This separately tests HTML, JS, CSS, images, and other frontend static assets
+against non-prefork SPACK, prefork SPACK, and Nginx.
+
+Tune the k6 run with environment variables:
+
+```powershell
+$env:VUS = "128"
+$env:DURATION = "60s"
+$env:BENCH_PATHS = "/app.js"
+task perf:k6
+```
+
+k6 JSON summaries are written to `tmp/k6/results/spack.json` and
+`tmp/k6/results/nginx.json`. Frontend and split runs use names such as
+`spack-frontend.json`, `spack-prefork-images.json`, and `nginx-js.json`. If a
+run is interrupted, clean up containers with `task perf:k6:down`.
+
 Capture CPU and memory profiles for a single subsystem:
 
 ```powershell

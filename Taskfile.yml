@@ -7,6 +7,13 @@ vars:
   DIST_DIR: dist
   GO_LDFLAGS: -s -w -buildid=
   GORELEASER_VERSION: v2.15.4
+  K6_HTML_PATHS: /,/index.html
+  K6_JS_PATHS: /assets/app.8f3a1c2d.js,/assets/vendor.6d1e3a9b.js
+  K6_CSS_PATHS: /assets/style.4b21c9aa.css
+  K6_IMAGE_PATHS: /assets/hero.9d7f2a10.jpg,/assets/card.2e4c91ab.png,/assets/logo.1a2b3c4d.svg
+  K6_OTHER_PATHS: /assets/font.7f6e5d4c.woff2,/manifest.webmanifest
+  K6_FRONTEND_ASSET_PATHS: /assets/style.4b21c9aa.css,/assets/vendor.6d1e3a9b.js,/assets/app.8f3a1c2d.js,/assets/hero.9d7f2a10.jpg,/assets/card.2e4c91ab.png,/assets/logo.1a2b3c4d.svg,/assets/font.7f6e5d4c.woff2,/manifest.webmanifest
+  K6_FRONTEND_PATHS: /,/index.html,/assets/app.8f3a1c2d.js,/assets/vendor.6d1e3a9b.js,/assets/style.4b21c9aa.css,/assets/hero.9d7f2a10.jpg,/assets/card.2e4c91ab.png,/assets/logo.1a2b3c4d.svg,/assets/font.7f6e5d4c.woff2,/manifest.webmanifest
 
 tasks:
   dev:
@@ -50,6 +57,136 @@ tasks:
     desc: 对比 spack 与 nginx 的真实 HTTP 静态文件 benchmark（需要 Docker）
     cmds:
       - go test -tags=integration -run=TestDoesNotExist -bench='BenchmarkStaticFileServers' -benchmem ./internal/staticbench
+
+  perf:k6:prepare:
+    desc: 准备 k6 静态压测资产和本地 SPACK 镜像
+    vars:
+      BENCH_GOARCH: '{{default "amd64" .BENCH_GOARCH}}'
+    cmds:
+      - go run ./tools/benchassets --out tmp/k6/assets --goarch {{.BENCH_GOARCH}}
+      - task: perf:k6:build:linux
+        vars:
+          BENCH_GOARCH: '{{.BENCH_GOARCH}}'
+      - docker build --build-arg TARGETPLATFORM=linux/{{.BENCH_GOARCH}} -t spack-k6-bench:local -f docker/alpine.Dockerfile tmp/k6
+
+  perf:k6:build:linux:
+    internal: true
+    vars:
+      BENCH_GOARCH: '{{default "amd64" .BENCH_GOARCH}}'
+    env:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: "{{.BENCH_GOARCH}}"
+    cmds:
+      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o tmp/k6/linux/{{.BENCH_GOARCH}}/spack .
+
+  perf:k6:
+    desc: 使用 k6 + Docker 对比 spack 与 nginx 的完整 HTTP 静态文件压测
+    vars:
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "identity" .ACCEPT_ENCODING}}'
+    cmds:
+      - task: perf:k6:prepare
+      - task: perf:k6:up
+      - task: perf:k6:run:static
+        vars: { BENCH_NAME: spack, TARGET_URL: "http://spack:80", SUMMARY: spack.json, BENCH_PATHS: "{{.K6_FRONTEND_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:static
+        vars: { BENCH_NAME: spack-prefork, TARGET_URL: "http://spack-prefork:80", SUMMARY: spack-prefork.json, BENCH_PATHS: "{{.K6_FRONTEND_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:static
+        vars: { BENCH_NAME: nginx, TARGET_URL: "http://nginx:8080", SUMMARY: nginx.json, BENCH_PATHS: "{{.K6_FRONTEND_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:down
+
+  perf:k6:frontend:
+    desc: 使用 k6 模拟完整前端页面加载，并比较 spack、spack-prefork、nginx
+    vars:
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "identity" .ACCEPT_ENCODING}}'
+    cmds:
+      - task: perf:k6:prepare
+      - task: perf:k6:up
+      - task: perf:k6:run:frontend
+        vars: { BENCH_NAME: spack, TARGET_URL: "http://spack:80", SUMMARY: spack-frontend.json, K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:frontend
+        vars: { BENCH_NAME: spack-prefork, TARGET_URL: "http://spack-prefork:80", SUMMARY: spack-prefork-frontend.json, K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:frontend
+        vars: { BENCH_NAME: nginx, TARGET_URL: "http://nginx:8080", SUMMARY: nginx-frontend.json, K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:down
+
+  perf:k6:split:
+    desc: 按 HTML、JS、CSS、图片、其他前端资源分别运行 k6 压测
+    vars:
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "15s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "identity" .ACCEPT_ENCODING}}'
+    cmds:
+      - task: perf:k6:prepare
+      - task: perf:k6:up
+      - task: perf:k6:run:group
+        vars: { GROUP: html, BENCH_PATHS: "{{.K6_HTML_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:group
+        vars: { GROUP: js, BENCH_PATHS: "{{.K6_JS_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:group
+        vars: { GROUP: css, BENCH_PATHS: "{{.K6_CSS_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:group
+        vars: { GROUP: images, BENCH_PATHS: "{{.K6_IMAGE_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:group
+        vars: { GROUP: other, BENCH_PATHS: "{{.K6_OTHER_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:down
+
+  perf:k6:up:
+    internal: true
+    cmds:
+      - docker compose -f deploy/bench/docker-compose.k6.yml up -d spack spack-prefork nginx
+
+  perf:k6:run:frontend:
+    internal: true
+    vars:
+      BENCH_NAME: '{{.BENCH_NAME}}'
+      TARGET_URL: '{{.TARGET_URL}}'
+      SUMMARY: '{{.SUMMARY}}'
+      PAGE_PATH: '{{default "/" .PAGE_PATH}}'
+      ASSET_PATHS: '{{default .K6_FRONTEND_ASSET_PATHS .ASSET_PATHS}}'
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "identity" .ACCEPT_ENCODING}}'
+    cmds:
+      - docker compose -f deploy/bench/docker-compose.k6.yml run --rm -e BENCH_NAME={{.BENCH_NAME}} -e TARGET_URL={{.TARGET_URL}} -e PAGE_PATH={{.PAGE_PATH}} -e ASSET_PATHS={{.ASSET_PATHS}} -e VUS={{.K6_VUS}} -e DURATION={{.K6_DURATION}} -e ACCEPT_ENCODING={{.ACCEPT_ENCODING}} k6 run --summary-export /results/{{.SUMMARY}} /scripts/frontend-page.js
+
+  perf:k6:run:static:
+    internal: true
+    vars:
+      BENCH_NAME: '{{.BENCH_NAME}}'
+      TARGET_URL: '{{.TARGET_URL}}'
+      SUMMARY: '{{.SUMMARY}}'
+      BENCH_PATHS: '{{.BENCH_PATHS}}'
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "identity" .ACCEPT_ENCODING}}'
+    cmds:
+      - docker compose -f deploy/bench/docker-compose.k6.yml run --rm -e BENCH_NAME={{.BENCH_NAME}} -e TARGET_URL={{.TARGET_URL}} -e BENCH_PATHS={{.BENCH_PATHS}} -e VUS={{.K6_VUS}} -e DURATION={{.K6_DURATION}} -e ACCEPT_ENCODING={{.ACCEPT_ENCODING}} k6 run --summary-export /results/{{.SUMMARY}} /scripts/static-assets.js
+
+  perf:k6:run:group:
+    internal: true
+    vars:
+      GROUP: '{{.GROUP}}'
+      BENCH_PATHS: '{{.BENCH_PATHS}}'
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "15s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "identity" .ACCEPT_ENCODING}}'
+    cmds:
+      - task: perf:k6:run:static
+        vars: { BENCH_NAME: spack, TARGET_URL: "http://spack:80", SUMMARY: "spack-{{.GROUP}}.json", BENCH_PATHS: "{{.BENCH_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:static
+        vars: { BENCH_NAME: spack-prefork, TARGET_URL: "http://spack-prefork:80", SUMMARY: "spack-prefork-{{.GROUP}}.json", BENCH_PATHS: "{{.BENCH_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+      - task: perf:k6:run:static
+        vars: { BENCH_NAME: nginx, TARGET_URL: "http://nginx:8080", SUMMARY: "nginx-{{.GROUP}}.json", BENCH_PATHS: "{{.BENCH_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
+
+  perf:k6:down:
+    desc: 清理 k6 静态压测容器和网络
+    cmds:
+      - docker compose -f deploy/bench/docker-compose.k6.yml down -v --remove-orphans
 
   perf:profile:resolver:
     desc: 生成 resolver 基线 CPU/内存 profile
