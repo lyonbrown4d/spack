@@ -68,31 +68,7 @@ func buildDebugRuntime(
 	}
 
 	mux := http.NewServeMux()
-	if err := registerDebugCollectors(deps.pipelineMetrics); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if err := registerDebugCollectors(deps.catMetrics); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if err := registerDebugCollectors(deps.serverMetrics); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if err := registerDebugCollectors(deps.taskMetrics); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if err := registerDebugCollectors(deps.asyncMetrics); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if err := registerDebugCollectors(metrics.NewBuildInfoMetrics("spack")); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if err := registerDebugCollectors(metrics.NewRuntimeInfoMetrics("spack", cfg, time.Now().UTC())); err != nil {
+	if err := registerDebugRuntimeCollectors(cfg, deps); err != nil {
 		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
 		return &debugRuntime{}
 	}
@@ -124,6 +100,24 @@ type debugCollectorProvider interface {
 	Collectors() []prometheus.Collector
 }
 
+func registerDebugRuntimeCollectors(cfg *config.Config, deps debugRuntimeDeps) error {
+	providers := []debugCollectorProvider{
+		deps.pipelineMetrics,
+		deps.catMetrics,
+		deps.serverMetrics,
+		deps.taskMetrics,
+		deps.asyncMetrics,
+		metrics.NewBuildInfoMetrics("spack"),
+		metrics.NewRuntimeInfoMetrics("spack", cfg, time.Now().UTC()),
+	}
+	for _, provider := range providers {
+		if err := registerDebugCollectors(provider); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func registerDebugCollectors(provider debugCollectorProvider) error {
 	if provider == nil {
 		return nil
@@ -138,7 +132,7 @@ func registerDebugCollectors(provider debugCollectorProvider) error {
 			if errors.As(err, &alreadyRegistered) {
 				continue
 			}
-			return err
+			return oops.In("runtime").Owner("debug collectors").Wrap(err)
 		}
 	}
 	return nil

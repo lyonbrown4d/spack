@@ -22,6 +22,11 @@ type variantRecord struct {
 	Variant      *Variant
 }
 
+type assetImageFormatKey struct {
+	AssetPath string
+	Format    string
+}
+
 func newAssetRecord(asset *Asset) *assetRecord {
 	prepared := prepareAsset(asset)
 	return &assetRecord{
@@ -67,4 +72,14 @@ func variantRecordKey(record *variantRecord) string {
 		return ""
 	}
 	return record.AssetPath + "\x00" + record.ID
+}
+
+func variantImageFormatKey(record *variantRecord) assetImageFormatKey {
+	if record == nil {
+		return assetImageFormatKey{}
+	}
+	return assetImageFormatKey{
+		AssetPath: record.AssetPath,
+		Format:    record.ImageFormat,
+	}
 }

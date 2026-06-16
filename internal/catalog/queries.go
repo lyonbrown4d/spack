@@ -2,7 +2,7 @@ package catalog
 
 import cxlist "github.com/arcgolabs/collectionx/list"
 
-func (c *MemDBCatalog) FindAsset(assetPath string) (*Asset, bool) {
+func (c *IndexedCatalog) FindAsset(assetPath string) (*Asset, bool) {
 	asset, ok, err := c.FindAssetViewResult(assetPath)
 	if err != nil {
 		return nil, false
@@ -10,7 +10,7 @@ func (c *MemDBCatalog) FindAsset(assetPath string) (*Asset, bool) {
 	return cloneAsset(asset), ok
 }
 
-func (c *MemDBCatalog) FindAssetView(assetPath string) (*Asset, bool) {
+func (c *IndexedCatalog) FindAssetView(assetPath string) (*Asset, bool) {
 	asset, ok, err := c.FindAssetViewResult(assetPath)
 	if err != nil {
 		return nil, false
@@ -18,23 +18,23 @@ func (c *MemDBCatalog) FindAssetView(assetPath string) (*Asset, bool) {
 	return asset, ok
 }
 
-func (c *MemDBCatalog) FindAssetResult(assetPath string) (*Asset, bool, error) {
+func (c *IndexedCatalog) FindAssetResult(assetPath string) (*Asset, bool, error) {
 	asset, ok, err := c.FindAssetViewResult(assetPath)
 	return cloneAsset(asset), ok, err
 }
 
-func (c *MemDBCatalog) FindAssetViewResult(assetPath string) (*Asset, bool, error) {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) FindAssetViewResult(assetPath string) (*Asset, bool, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	record, ok, err := findAssetRecord(txn, assetPath)
-	if err != nil || !ok {
-		return nil, ok, err
+	record, ok := c.assetsByPath.Get(assetPath)
+	if !ok {
+		return nil, false, nil
 	}
 	return record.Asset, true, nil
 }
 
-func (c *MemDBCatalog) FindEncodingVariant(assetPath, encoding string) (*Variant, bool) {
+func (c *IndexedCatalog) FindEncodingVariant(assetPath, encoding string) (*Variant, bool) {
 	variant, ok, err := c.FindEncodingVariantViewResult(assetPath, encoding)
 	if err != nil {
 		return nil, false
@@ -42,7 +42,7 @@ func (c *MemDBCatalog) FindEncodingVariant(assetPath, encoding string) (*Variant
 	return cloneVariant(variant), ok
 }
 
-func (c *MemDBCatalog) FindEncodingVariantView(assetPath, encoding string) (*Variant, bool) {
+func (c *IndexedCatalog) FindEncodingVariantView(assetPath, encoding string) (*Variant, bool) {
 	variant, ok, err := c.FindEncodingVariantViewResult(assetPath, encoding)
 	if err != nil {
 		return nil, false
@@ -50,23 +50,23 @@ func (c *MemDBCatalog) FindEncodingVariantView(assetPath, encoding string) (*Var
 	return variant, ok
 }
 
-func (c *MemDBCatalog) FindEncodingVariantResult(assetPath, encoding string) (*Variant, bool, error) {
+func (c *IndexedCatalog) FindEncodingVariantResult(assetPath, encoding string) (*Variant, bool, error) {
 	variant, ok, err := c.FindEncodingVariantViewResult(assetPath, encoding)
 	return cloneVariant(variant), ok, err
 }
 
-func (c *MemDBCatalog) FindEncodingVariantViewResult(assetPath, encoding string) (*Variant, bool, error) {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) FindEncodingVariantViewResult(assetPath, encoding string) (*Variant, bool, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	record, ok, err := findVariantRecord(txn, catalogVariantAssetEncodingIndex, assetPath, encoding)
-	if err != nil || !ok {
-		return nil, ok, err
+	record, ok := c.variants.findEncoding(assetPath, encoding)
+	if !ok {
+		return nil, false, nil
 	}
 	return record.Variant, true, nil
 }
 
-func (c *MemDBCatalog) FindImageVariant(assetPath, format string, width int) (*Variant, bool) {
+func (c *IndexedCatalog) FindImageVariant(assetPath, format string, width int) (*Variant, bool) {
 	variant, ok, err := c.FindImageVariantViewResult(assetPath, format, width)
 	if err != nil {
 		return nil, false
@@ -74,7 +74,7 @@ func (c *MemDBCatalog) FindImageVariant(assetPath, format string, width int) (*V
 	return cloneVariant(variant), ok
 }
 
-func (c *MemDBCatalog) FindImageVariantView(assetPath, format string, width int) (*Variant, bool) {
+func (c *IndexedCatalog) FindImageVariantView(assetPath, format string, width int) (*Variant, bool) {
 	variant, ok, err := c.FindImageVariantViewResult(assetPath, format, width)
 	if err != nil {
 		return nil, false
@@ -82,34 +82,34 @@ func (c *MemDBCatalog) FindImageVariantView(assetPath, format string, width int)
 	return variant, ok
 }
 
-func (c *MemDBCatalog) FindImageVariantResult(assetPath, format string, width int) (*Variant, bool, error) {
+func (c *IndexedCatalog) FindImageVariantResult(assetPath, format string, width int) (*Variant, bool, error) {
 	variant, ok, err := c.FindImageVariantViewResult(assetPath, format, width)
 	return cloneVariant(variant), ok, err
 }
 
-func (c *MemDBCatalog) FindImageVariantViewResult(assetPath, format string, width int) (*Variant, bool, error) {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) FindImageVariantViewResult(assetPath, format string, width int) (*Variant, bool, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	record, ok, err := findVariantRecord(txn, catalogVariantAssetFormatWidthIndex, assetPath, format, width)
-	if err != nil || !ok {
-		return nil, ok, err
+	record, ok := c.variants.findImage(assetPath, format, width)
+	if !ok {
+		return nil, false, nil
 	}
 	return record.Variant, true, nil
 }
 
-func (c *MemDBCatalog) ListVariants(assetPath string) *cxlist.List[*Variant] {
+func (c *IndexedCatalog) ListVariants(assetPath string) *cxlist.List[*Variant] {
 	return cloneVariants(c.ListVariantsView(assetPath))
 }
 
-func (c *MemDBCatalog) ListVariantsView(assetPath string) *cxlist.List[*Variant] {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) ListVariantsView(assetPath string) *cxlist.List[*Variant] {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	return variantViews(txn, catalogVariantAssetPathIndex, assetPath)
+	return variantViewsFromRecords(c.variants.listByAssetPath(assetPath))
 }
 
-func (c *MemDBCatalog) ListImageVariants(assetPath, format string) *cxlist.List[*Variant] {
+func (c *IndexedCatalog) ListImageVariants(assetPath, format string) *cxlist.List[*Variant] {
 	variants, err := c.ListImageVariantsViewResult(assetPath, format)
 	if err != nil {
 		return cxlist.NewList[*Variant]()
@@ -117,7 +117,7 @@ func (c *MemDBCatalog) ListImageVariants(assetPath, format string) *cxlist.List[
 	return cloneVariants(variants)
 }
 
-func (c *MemDBCatalog) ListImageVariantsView(assetPath, format string) *cxlist.List[*Variant] {
+func (c *IndexedCatalog) ListImageVariantsView(assetPath, format string) *cxlist.List[*Variant] {
 	variants, err := c.ListImageVariantsViewResult(assetPath, format)
 	if err != nil {
 		return cxlist.NewList[*Variant]()
@@ -125,79 +125,59 @@ func (c *MemDBCatalog) ListImageVariantsView(assetPath, format string) *cxlist.L
 	return variants
 }
 
-func (c *MemDBCatalog) ListImageVariantsViewResult(assetPath, format string) (*cxlist.List[*Variant], error) {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) ListImageVariantsViewResult(assetPath, format string) (*cxlist.List[*Variant], error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	return variantViewsResult(txn, catalogVariantAssetFormatWidthIndex+"_prefix", assetPath, format)
+	return variantViewsFromRecords(c.variants.listByImageFormat(assetPath, format)), nil
 }
 
-func (c *MemDBCatalog) ListVariantsByStage(stage string) *cxlist.List[*Variant] {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) ListVariantsByStage(stage string) *cxlist.List[*Variant] {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	return cloneVariants(variantViews(txn, catalogVariantStageIndex, stage))
+	return cloneVariants(variantViewsFromRecords(c.variants.listByStage(stage)))
 }
 
-func (c *MemDBCatalog) AllAssets() *cxlist.List[*Asset] {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) AllAssets() *cxlist.List[*Asset] {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	iter, err := txn.Get(catalogAssetsTable, "id")
-	if err != nil {
-		return cxlist.NewList[*Asset]()
-	}
-
-	out := cxlist.NewList[*Asset]()
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		record, ok, err := assetRecordFrom(raw)
-		if err != nil {
-			continue
-		}
-		if ok {
-			out.Add(cloneAsset(record.Asset))
-		}
-	}
-	return out
+	return cxlist.MapList[*assetRecord, *Asset](sortedAssetRecords(c.assetsByPath.Values()), func(_ int, record *assetRecord) *Asset {
+		return cloneAsset(record.Asset)
+	})
 }
 
-func (c *MemDBCatalog) AllVariants() *cxlist.List[*Variant] {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) AllVariants() *cxlist.List[*Variant] {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	return cloneVariants(variantViews(txn, "id"))
+	return cloneVariantRecords(c.variants.all())
 }
 
-func (c *MemDBCatalog) AssetCount() int {
-	return countRecords(c.db.Txn(false), catalogAssetsTable)
+func (c *IndexedCatalog) AssetCount() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.assetsByPath.Len()
 }
 
-func (c *MemDBCatalog) VariantCount() int {
-	return countRecords(c.db.Txn(false), catalogVariantsTable)
+func (c *IndexedCatalog) VariantCount() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.variants.count()
 }
 
-func (c *MemDBCatalog) Snapshot() *Snapshot {
-	txn := c.db.Txn(false)
-	defer txn.Abort()
+func (c *IndexedCatalog) Snapshot() *Snapshot {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	assets, err := txn.Get(catalogAssetsTable, "id")
-	if err != nil {
-		return &Snapshot{Assets: cxlist.NewList[*Entry]()}
-	}
-
-	entries := cxlist.NewList[*Entry]()
-	for raw := assets.Next(); raw != nil; raw = assets.Next() {
-		record, ok, err := assetRecordFrom(raw)
-		if err != nil {
-			continue
-		}
-		if !ok {
-			continue
-		}
-		entries.Add(&Entry{
+	entries := cxlist.MapList[*assetRecord, *Entry](sortedAssetRecords(c.assetsByPath.Values()), func(_ int, record *assetRecord) *Entry {
+		return &Entry{
 			Asset:    cloneAsset(record.Asset),
-			Variants: cloneVariants(variantViews(txn, catalogVariantAssetPathIndex, record.Path)),
-		})
-	}
+			Variants: cloneVariantRecords(c.variants.listByAssetPath(record.Path)),
+		}
+	})
 	return &Snapshot{Assets: entries}
 }

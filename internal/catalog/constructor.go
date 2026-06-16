@@ -1,21 +1,27 @@
 package catalog
 
-import "github.com/hashicorp/go-memdb"
+import (
+	"sync"
 
-type MemDBCatalog struct {
-	db *memdb.MemDB
+	cxmapping "github.com/arcgolabs/collectionx/mapping"
+)
+
+type IndexedCatalog struct {
+	mu sync.RWMutex
+
+	assetsByPath *cxmapping.Map[string, *assetRecord]
+	variants     *variantIndex
 }
 
-type InMemoryCatalog = MemDBCatalog
+type InMemoryCatalog = IndexedCatalog
 
 func NewCatalog() Catalog {
 	return NewInMemoryCatalog()
 }
 
-func NewInMemoryCatalog() *MemDBCatalog {
-	db, err := memdb.NewMemDB(newCatalogSchema())
-	if err != nil {
-		panic(err)
+func NewInMemoryCatalog() *IndexedCatalog {
+	return &IndexedCatalog{
+		assetsByPath: cxmapping.NewMap[string, *assetRecord](),
+		variants:     newVariantIndex(),
 	}
-	return &MemDBCatalog{db: db}
 }

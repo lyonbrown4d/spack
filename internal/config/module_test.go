@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,15 +143,7 @@ func TestLoadWithOptions_PrioritizesFlagsOverEnvOverFiles(t *testing.T) {
 func TestLoadWithOptions_LoadsHCLConfig(t *testing.T) {
 	t.Helper()
 
-	cases := []struct {
-		name        string
-		filename    string
-		httpPort    int
-		assetsPath  string
-		assetsRoot  string
-		loggerLevel string
-		httpPrefork bool
-	}{
+	cases := []hclConfigCase{
 		{
 			name:        "hcl",
 			filename:    "spack.hcl",
@@ -175,44 +166,7 @@ func TestLoadWithOptions_LoadsHCLConfig(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Helper()
-
-			configPath := filepath.Join(t.TempDir(), tc.filename)
-			configBody := "" +
-				"http {\n" +
-				"  port = " + fmt.Sprint(tc.httpPort) + "\n" +
-				"  prefork = " + fmt.Sprint(tc.httpPrefork) + "\n" +
-				"}\n" +
-				"assets {\n" +
-				"  path = \"" + tc.assetsPath + "\"\n" +
-				"  root = \"" + tc.assetsRoot + "\"\n" +
-				"}\n" +
-				"logger {\n" +
-				"  level = \"" + tc.loggerLevel + "\"\n" +
-				"}\n"
-			if err := os.WriteFile(configPath, []byte(configBody), 0o600); err != nil {
-				t.Fatal(err)
-			}
-
-			cfg, err := config.LoadWithOptions(config.LoadOptions{Files: []string{configPath}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if cfg.HTTP.Port != tc.httpPort {
-				t.Fatalf("expected http.port to be %d, got %d", tc.httpPort, cfg.HTTP.Port)
-			}
-			if cfg.HTTP.Prefork != tc.httpPrefork {
-				t.Fatalf("expected http.prefork to be %v, got %v", tc.httpPrefork, cfg.HTTP.Prefork)
-			}
-			if cfg.Assets.Path != tc.assetsPath {
-				t.Fatalf("expected assets.path to be %q, got %q", tc.assetsPath, cfg.Assets.Path)
-			}
-			if cfg.Assets.Root != tc.assetsRoot {
-				t.Fatalf("expected assets.root to be %q, got %q", tc.assetsRoot, cfg.Assets.Root)
-			}
-			if cfg.Logger.Level != tc.loggerLevel {
-				t.Fatalf("expected logger.level to be %q, got %q", tc.loggerLevel, cfg.Logger.Level)
-			}
+			assertLoadsHCLConfigCase(t, tc)
 		})
 	}
 }
