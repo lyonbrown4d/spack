@@ -1,10 +1,11 @@
 package catalog_test
 
 import (
+	"testing"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
-	"testing"
 )
 
 func TestFindEncodingVariantUsesAssetEncodingIndex(t *testing.T) {

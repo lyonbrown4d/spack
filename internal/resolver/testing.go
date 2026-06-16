@@ -55,6 +55,11 @@ func ParseAcceptEncodingWithSupportedForTest(header string, supported *cxlist.Li
 	return ParseAcceptEncoding(header, supported)
 }
 
+// ParseAcceptEncodingNormalizedWithSupportedForTest exposes parsing with a pre-normalized support list.
+func ParseAcceptEncodingNormalizedWithSupportedForTest(header string, supported *cxlist.List[string]) *cxlist.List[string] {
+	return ParseAcceptEncodingNormalized(header, supported)
+}
+
 // ParseAcceptImageFormatsForTest exposes image format preference parsing for external tests.
 func ParseAcceptImageFormatsForTest(header, sourceFormat string) *cxlist.List[string] {
 	return ParseAcceptImageFormats(header, sourceFormat, media.SupportedImageFormats())

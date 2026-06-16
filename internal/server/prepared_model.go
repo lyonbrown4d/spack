@@ -1,6 +1,7 @@
 package server
 
 import (
+	"sort"
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
@@ -21,7 +22,13 @@ type preparedRoute struct {
 	identity    *preparedResponse
 	encodings   *cxmapping.Map[string, *preparedResponse]
 	images      *cxmapping.Map[string, *cxlist.List[*preparedResponse]]
+	imagePicks  *cxmapping.Map[string, *preparedImagePicker]
 	imageWidths *cxmapping.Table[string, int, *preparedResponse]
+}
+
+type preparedImagePicker struct {
+	widths    []int
+	responses []*preparedResponse
 }
 
 type preparedResponse struct {
@@ -46,6 +53,7 @@ func newPreparedRoute(path string, identity *preparedResponse) *preparedRoute {
 		identity:    identity,
 		encodings:   cxmapping.NewMap[string, *preparedResponse](),
 		images:      cxmapping.NewMap[string, *cxlist.List[*preparedResponse]](),
+		imagePicks:  cxmapping.NewMap[string, *preparedImagePicker](),
 		imageWidths: cxmapping.NewTable[string, int, *preparedResponse](),
 	}
 }
@@ -74,10 +82,51 @@ func (r *preparedRoute) finalize() {
 	if r == nil {
 		return
 	}
-	r.images.Range(func(_ string, responses *cxlist.List[*preparedResponse]) bool {
+	r.images.Range(func(format string, responses *cxlist.List[*preparedResponse]) bool {
 		responses.Sort(comparePreparedImageResponses)
+		if picker := newPreparedImagePicker(responses); picker != nil {
+			r.imagePicks.Set(format, picker)
+		}
 		return true
 	})
+}
+
+func newPreparedImagePicker(responses *cxlist.List[*preparedResponse]) *preparedImagePicker {
+	if responses == nil || responses.IsEmpty() {
+		return nil
+	}
+
+	picker := &preparedImagePicker{
+		widths:    make([]int, 0, responses.Len()),
+		responses: make([]*preparedResponse, 0, responses.Len()),
+	}
+	responses.Range(func(_ int, response *preparedResponse) bool {
+		variant := response.variant()
+		if variant == nil || variant.Width < 0 {
+			return true
+		}
+		if len(picker.widths) > 0 && picker.widths[len(picker.widths)-1] == variant.Width {
+			return true
+		}
+		picker.widths = append(picker.widths, variant.Width)
+		picker.responses = append(picker.responses, response)
+		return true
+	})
+	if len(picker.widths) == 0 {
+		return nil
+	}
+	return picker
+}
+
+func (p *preparedImagePicker) closest(width int) *preparedResponse {
+	if p == nil || width <= 0 || len(p.widths) == 0 {
+		return nil
+	}
+	index := sort.SearchInts(p.widths, width)
+	if index < len(p.responses) {
+		return p.responses[index]
+	}
+	return p.responses[len(p.responses)-1]
 }
 
 func (r *preparedResponse) asset() *catalog.Asset {

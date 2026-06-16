@@ -3,14 +3,17 @@ package catalog
 import (
 	"sync"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 )
 
 type IndexedCatalog struct {
-	mu sync.RWMutex
+	mu           sync.RWMutex
+	assetCacheMu sync.RWMutex
 
-	assetsByPath *cxmapping.Map[string, *assetRecord]
-	variants     *variantIndex
+	assetsByPath     *cxmapping.Map[string, *assetRecord]
+	sortedAssetCache *cxlist.List[*assetRecord]
+	variants         *variantIndex
 }
 
 type InMemoryCatalog = IndexedCatalog

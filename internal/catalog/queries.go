@@ -143,7 +143,7 @@ func (c *IndexedCatalog) AllAssets() *cxlist.List[*Asset] {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return cxlist.MapList[*assetRecord, *Asset](sortedAssetRecords(c.assetsByPath.Values()), func(_ int, record *assetRecord) *Asset {
+	return cxlist.MapList[*assetRecord, *Asset](c.sortedAssets(), func(_ int, record *assetRecord) *Asset {
 		return cloneAsset(record.Asset)
 	})
 }
@@ -173,7 +173,7 @@ func (c *IndexedCatalog) Snapshot() *Snapshot {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	entries := cxlist.MapList[*assetRecord, *Entry](sortedAssetRecords(c.assetsByPath.Values()), func(_ int, record *assetRecord) *Entry {
+	entries := cxlist.MapList[*assetRecord, *Entry](c.sortedAssets(), func(_ int, record *assetRecord) *Entry {
 		return &Entry{
 			Asset:    cloneAsset(record.Asset),
 			Variants: cloneVariantRecords(c.variants.listByAssetPath(record.Path)),

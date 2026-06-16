@@ -7,8 +7,6 @@ import (
 )
 
 func (r *Resolver) pickVariant(asset *catalog.Asset, encodings *cxlist.List[string]) (*catalog.Variant, error) {
-	usable := newVariantUsabilityCache()
-
 	var picked *catalog.Variant
 	var pickErr error
 	encodings.Range(func(_ int, encoding string) bool {
@@ -17,7 +15,7 @@ func (r *Resolver) pickVariant(asset *catalog.Asset, encodings *cxlist.List[stri
 			pickErr = err
 			return false
 		}
-		if !ok || !usable.IsUsable(variant, asset.SourceHash) {
+		if !ok || !isUsableVariant(variant, asset.SourceHash) {
 			return true
 		}
 		picked = variant

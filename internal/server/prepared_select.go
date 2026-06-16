@@ -136,7 +136,10 @@ func (r *preparedRoute) pickImageFormat(format string, width int) *preparedRespo
 	if response, ok := r.imageWidths.GetOption(format, width).Get(); ok {
 		return response
 	}
-	return pickClosestWidthImageResponse(responses, width)
+	if picker, ok := r.imagePicks.GetOption(format).Get(); ok {
+		return picker.closest(width)
+	}
+	return nil
 }
 
 func (r *preparedRoute) selectEncodingResponse(request preparedRequest) *preparedResponse {
@@ -170,26 +173,4 @@ func pickZeroWidthImageResponse(responses *cxlist.List[*preparedResponse]) *prep
 		return false
 	})
 	return picked
-}
-
-func pickClosestWidthImageResponse(responses *cxlist.List[*preparedResponse], width int) *preparedResponse {
-	var smallestAbove *preparedResponse
-	var largestBelow *preparedResponse
-	responses.Range(func(_ int, response *preparedResponse) bool {
-		variant := response.variant()
-		if variant.Width >= width {
-			if smallestAbove == nil || variant.Width < smallestAbove.variant().Width {
-				smallestAbove = response
-			}
-			return true
-		}
-		if largestBelow == nil || variant.Width > largestBelow.variant().Width {
-			largestBelow = response
-		}
-		return true
-	})
-	if smallestAbove != nil {
-		return smallestAbove
-	}
-	return largestBelow
 }

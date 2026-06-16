@@ -9,6 +9,7 @@ func (c *IndexedCatalog) UpsertAsset(asset *Asset) error {
 	defer c.mu.Unlock()
 
 	c.assetsByPath.Set(record.Path, record)
+	c.invalidateAssetCache()
 	return nil
 }
 
@@ -35,6 +36,7 @@ func (c *IndexedCatalog) DeleteAsset(assetPath string) *cxlist.List[*Variant] {
 	defer c.mu.Unlock()
 
 	c.assetsByPath.Delete(assetPath)
+	c.invalidateAssetCache()
 	return c.variants.deleteByAssetPath(assetPath)
 }
 

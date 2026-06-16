@@ -5,7 +5,14 @@ import (
 	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	cxset "github.com/arcgolabs/collectionx/set"
+)
+
+type nameMask uint8
+
+const (
+	nameMaskBrotli nameMask = 1 << iota
+	nameMaskZstd
+	nameMaskGzip
 )
 
 func DefaultNames() *cxlist.List[string] {
@@ -13,12 +20,8 @@ func DefaultNames() *cxlist.List[string] {
 }
 
 func IsSupported(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "br", "zstd", "gzip":
-		return true
-	default:
-		return false
-	}
+	_, ok := normalizedNameMask(name)
+	return ok
 }
 
 func ParseNames(raw string) *cxlist.List[string] {
@@ -41,14 +44,43 @@ func NormalizeNames(values *cxlist.List[string]) *cxlist.List[string] {
 		return nil
 	}
 
-	names := cxlist.FilterMapList[string, string](values, func(_ int, raw string) (string, bool) {
-		name := strings.ToLower(strings.TrimSpace(raw))
-		return name, IsSupported(name)
+	seen := nameMask(0)
+	names := cxlist.NewListWithCapacity[string](values.Len())
+	values.Range(func(_ int, raw string) bool {
+		name, mask, ok := normalizedName(raw)
+		if !ok || seen.has(mask) {
+			return true
+		}
+		seen |= mask
+		names.Add(name)
+		return true
 	})
 
-	normalized := cxset.NewOrderedSet[string](names.Values()...)
-	if normalized.IsEmpty() {
+	if names.IsEmpty() {
 		return nil
 	}
-	return cxlist.NewList[string](normalized.Values()...)
+	return names
+}
+
+func normalizedName(raw string) (string, nameMask, bool) {
+	name := strings.ToLower(strings.TrimSpace(raw))
+	mask, ok := normalizedNameMask(name)
+	return name, mask, ok
+}
+
+func normalizedNameMask(name string) (nameMask, bool) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "br":
+		return nameMaskBrotli, true
+	case "zstd":
+		return nameMaskZstd, true
+	case "gzip":
+		return nameMaskGzip, true
+	default:
+		return 0, false
+	}
+}
+
+func (mask nameMask) has(value nameMask) bool {
+	return mask&value != 0
 }

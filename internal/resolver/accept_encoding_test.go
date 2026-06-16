@@ -43,6 +43,30 @@ func TestParseAcceptEncodingUsesConfiguredSupportOrder(t *testing.T) {
 	}
 }
 
+func TestParseAcceptEncodingDuplicateExplicitUsesHighestQuality(t *testing.T) {
+	got := resolver.ParseAcceptEncodingForTest("gzip;q=0.2, br;q=0.5, gzip;q=0.9")
+	if !slices.Equal(got.Values(), []string{"gzip", "br"}) {
+		t.Fatalf("unexpected encodings with duplicate explicit token: %#v", got)
+	}
+}
+
+func TestParseAcceptEncodingWildcardUsesLastQuality(t *testing.T) {
+	got := resolver.ParseAcceptEncodingForTest("*;q=0.8, *;q=0")
+	if got.Len() != 0 {
+		t.Fatalf("expected final wildcard q=0 to reject encodings, got %#v", got.Values())
+	}
+}
+
+func TestParseAcceptEncodingNormalizedKeepsIdentityWhenSupported(t *testing.T) {
+	got := resolver.ParseAcceptEncodingNormalizedWithSupportedForTest(
+		"identity;q=0.7, br;q=0.4, gzip;q=0.6",
+		stringToList("br,gzip,identity"),
+	)
+	if !slices.Equal(got.Values(), []string{"identity", "gzip", "br"}) {
+		t.Fatalf("unexpected identity-aware encodings: %#v", got)
+	}
+}
+
 func TestResolverSelectsCompressedVariant(t *testing.T) {
 	sourcePath, cat, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
 	variantPath := filepath.Join(filepath.Dir(sourcePath), "index.html.br")

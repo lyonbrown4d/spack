@@ -3,13 +3,22 @@ package resolver
 import (
 	"cmp"
 	cxlist "github.com/arcgolabs/collectionx/list"
-	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"slices"
 	"strings"
 )
 
+type imageFormatMask uint8
+
+const (
+	imageFormatMaskJPEG imageFormatMask = 1 << iota
+	imageFormatMaskPNG
+)
+
 type imagePreferences struct {
-	explicit         *cxmapping.Map[string, float64]
+	jpegQ            float64
+	pngQ             float64
+	explicit         imageFormatMask
 	wildcardImageQ   float64
 	hasWildcardImage bool
 	wildcardAnyQ     float64
@@ -38,9 +47,7 @@ func ParseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List
 }
 
 func collectImagePreferences(header string) imagePreferences {
-	prefs := imagePreferences{
-		explicit: cxmapping.NewMapWithCapacity[string, float64](4),
-	}
+	var prefs imagePreferences
 	forEachAcceptEntry(header, func(entry acceptEntry) bool {
 		applyImagePreference(&prefs, entry)
 		return true
@@ -58,61 +65,104 @@ func applyImagePreference(prefs *imagePreferences, entry acceptEntry) {
 		prefs.wildcardAnyQ = entry.q
 	default:
 		if descriptor, ok := media.LookupImageDescriptorByAcceptToken(entry.token); ok {
-			setMaxQuality(prefs.explicit, descriptor.Name, entry.q)
+			if mask, ok := imageFormatMaskForName(descriptor.Name); ok {
+				prefs.setExplicit(mask, entry.q)
+			}
 		}
 	}
 }
 
-// setMaxQuality updates key to the maximum of its current value and q (using -1 when key is absent).
-// Used for Accept-Encoding tokens and image format names.
-func setMaxQuality(values *cxmapping.Map[string, float64], key string, q float64) {
-	if q <= values.GetOrDefault(key, -1) {
+func imageFormatMaskForName(format string) (imageFormatMask, bool) {
+	switch format {
+	case "jpeg":
+		return imageFormatMaskJPEG, true
+	case "png":
+		return imageFormatMaskPNG, true
+	default:
+		return 0, false
+	}
+}
+
+func (prefs *imagePreferences) setExplicit(mask imageFormatMask, q float64) {
+	if prefs.explicit.has(mask) && q <= prefs.quality(mask) {
 		return
 	}
-	values.Set(key, q)
+	prefs.explicit |= mask
+	prefs.setQuality(mask, q)
+}
+
+func (mask imageFormatMask) has(value imageFormatMask) bool {
+	return mask&value != 0
+}
+
+func (prefs imagePreferences) quality(mask imageFormatMask) float64 {
+	switch mask {
+	case imageFormatMaskJPEG:
+		return prefs.jpegQ
+	case imageFormatMaskPNG:
+		return prefs.pngQ
+	default:
+		return 0
+	}
+}
+
+func (prefs *imagePreferences) setQuality(mask imageFormatMask, q float64) {
+	switch mask {
+	case imageFormatMaskJPEG:
+		prefs.jpegQ = q
+	case imageFormatMaskPNG:
+		prefs.pngQ = q
+	}
 }
 
 func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
-	type candidate struct {
-		format   string
-		q        float64
-		match    imagePreferenceMatch
-		priority int
-	}
-
 	supported = imageFormatCandidates(supported, sourceFormat)
-	candidates := cxlist.FilterMapList[string, candidate](supported, func(index int, format string) (candidate, bool) {
+	var stack [2]imageCandidate
+	candidates := stack[:0]
+	supported.Range(func(index int, format string) bool {
 		q, match := imageQualityForFormat(prefs, format)
 		if q <= 0 || match == imagePreferenceNone {
-			return candidate{}, false
+			return true
 		}
-		return candidate{
+		candidates = append(candidates, imageCandidate{
 			format:   format,
 			q:        q,
 			match:    match,
 			priority: imagePriority(index, format, sourceFormat),
-		}, true
+		})
+		return true
 	})
 
-	candidates.Sort(func(left, right candidate) int {
-		if left.match != right.match {
-			return cmp.Compare(int(right.match), int(left.match))
-		}
-		if left.q == right.q {
-			return cmp.Compare(left.priority, right.priority)
-		}
-		if left.q > right.q {
-			return -1
-		}
-		return 1
-	})
-
-	if candidates.IsEmpty() {
+	if len(candidates) == 0 {
 		return nil
 	}
-	return cxlist.MapList[candidate, string](candidates, func(_ int, candidate candidate) string {
-		return candidate.format
-	})
+	slices.SortFunc(candidates, compareImageCandidates)
+
+	formats := cxlist.NewListWithCapacity[string](len(candidates))
+	for _, candidate := range candidates {
+		formats.Add(candidate.format)
+	}
+	return formats
+}
+
+type imageCandidate struct {
+	format   string
+	q        float64
+	match    imagePreferenceMatch
+	priority int
+}
+
+func compareImageCandidates(left, right imageCandidate) int {
+	if left.match != right.match {
+		return cmp.Compare(int(right.match), int(left.match))
+	}
+	if left.q == right.q {
+		return cmp.Compare(left.priority, right.priority)
+	}
+	if left.q > right.q {
+		return -1
+	}
+	return 1
 }
 
 func imageFormatCandidates(supported *cxlist.List[string], sourceFormat string) *cxlist.List[string] {
@@ -127,8 +177,8 @@ func imageFormatCandidates(supported *cxlist.List[string], sourceFormat string) 
 }
 
 func imageQualityForFormat(prefs imagePreferences, format string) (float64, imagePreferenceMatch) {
-	if q, ok := prefs.explicit.Get(format); ok {
-		return q, imagePreferenceExplicit
+	if mask, ok := imageFormatMaskForName(format); ok && prefs.explicit.has(mask) {
+		return prefs.quality(mask), imagePreferenceExplicit
 	}
 	if prefs.hasWildcardImage {
 		return prefs.wildcardImageQ, imagePreferenceImageWildcard

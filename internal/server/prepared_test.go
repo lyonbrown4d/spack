@@ -94,6 +94,51 @@ func TestPreparedServiceFallsBackToEntryRoute(t *testing.T) {
 	}
 }
 
+func TestPreparedServiceWidthRequestFallsBackToZeroWidthImageVariant(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "hero.jpg")
+	variantPath := filepath.Join(root, "hero.webp")
+	writePreparedTestFile(t, assetPath, []byte("jpeg"))
+	writePreparedTestFile(t, variantPath, []byte("webp"))
+
+	cat := catalog.NewInMemoryCatalog()
+	upsertPreparedAsset(t, cat, &catalog.Asset{
+		Path:       "hero.jpg",
+		FullPath:   assetPath,
+		Size:       4,
+		MediaType:  "image/jpeg",
+		SourceHash: "hash-hero",
+		ETag:       "\"hash-hero\"",
+	})
+	upsertPreparedVariant(t, cat, &catalog.Variant{
+		ID:           "hero.jpg|format=webp",
+		AssetPath:    "hero.jpg",
+		ArtifactPath: variantPath,
+		Size:         4,
+		MediaType:    "image/webp",
+		SourceHash:   "hash-hero",
+		ETag:         "\"hash-hero-webp\"",
+		Format:       "webp",
+	})
+
+	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	if err := svc.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	selection, ok := server.ResolvePreparedForTest(svc, resolver.Request{
+		Path:  "hero.jpg",
+		Width: 640,
+	}, "webp")
+	if !ok {
+		t.Fatal("expected prepared route")
+	}
+	if selection.FilePath != variantPath {
+		t.Fatalf("expected zero-width webp fallback %q, got %q", variantPath, selection.FilePath)
+	}
+}
+
 func writePreparedTestFile(t *testing.T, path string, body []byte) {
 	t.Helper()
 	if err := os.WriteFile(path, body, 0o600); err != nil {
