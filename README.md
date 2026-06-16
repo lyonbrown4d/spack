@@ -34,6 +34,8 @@ ENV SPACK_ASSETS_FALLBACK_TARGET=index.html
 ENV SPACK_HTTP_PORT=80
 ```
 
+Release images are published to both `ghcr.io/lyonbrown4d/spack` and `lyonbrown4d/spack`.
+
 ## Local Development
 
 ```powershell
