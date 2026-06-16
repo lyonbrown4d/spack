@@ -10,11 +10,11 @@ require (
 	github.com/arcgolabs/collectionx/mapping v0.9.0
 	github.com/arcgolabs/collectionx/prefix v0.9.0
 	github.com/arcgolabs/collectionx/set v0.9.0
-	github.com/arcgolabs/configx v0.5.2
-	github.com/arcgolabs/configx/format/hcl v0.5.2
-	github.com/arcgolabs/configx/format/json v0.5.2
-	github.com/arcgolabs/configx/format/toml v0.5.2
-	github.com/arcgolabs/configx/format/yaml v0.5.2
+	github.com/arcgolabs/configx v0.6.1
+	github.com/arcgolabs/configx/format/hcl v0.6.1
+	github.com/arcgolabs/configx/format/json v0.6.1
+	github.com/arcgolabs/configx/format/toml v0.6.1
+	github.com/arcgolabs/configx/format/yaml v0.6.1
 	github.com/arcgolabs/dix v0.11.1
 	github.com/arcgolabs/eventx v0.1.2
 	github.com/arcgolabs/logx v0.1.3
@@ -38,11 +38,12 @@ require (
 	github.com/samber/slog-fiber v1.22.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	golang.org/x/net v0.55.0
+	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 )
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/hcl v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
