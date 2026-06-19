@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -28,9 +29,15 @@ func (s *LocalFS) Watch(ctx context.Context) (<-chan ChangeEvent, error) {
 }
 
 func (s *LocalFS) addWatchDirs(watcher *fsnotify.Watcher) error {
+	if err := s.validateRoot(); err != nil {
+		return err
+	}
 	if err := filepath.WalkDir(s.root, func(fullPath string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, fullPath))
 		}
 		if !entry.IsDir() {
 			return nil
@@ -98,8 +105,11 @@ func (s *LocalFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- Cha
 }
 
 func (s *LocalFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string) {
-	info, err := os.Stat(fullPath)
-	if err != nil || !info.IsDir() {
+	if !isPathWithinRoot(s.root, fullPath) {
+		return
+	}
+	info, err := os.Lstat(fullPath)
+	if err != nil || isSymlink(info) || !info.IsDir() {
 		return
 	}
 	if err := watcher.Add(fullPath); err != nil && s.logger != nil {
