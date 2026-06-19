@@ -33,15 +33,6 @@ type assetDeliveryRuntime struct {
 	resourceHints  *resourceHintService
 }
 
-type assetDeliveryRuntimeDeps struct {
-	cfg           *config.Config
-	routeRuntime  assetRouteRuntime
-	assetResolver *resolver.Resolver
-	pipelineSvc   *pipeline.Service
-	bodyCache     *assetcache.Cache
-	bus           eventx.BusRuntime
-}
-
 func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
 	if runtime == nil {
 		return
@@ -49,18 +40,25 @@ func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
 	app.Use(routePattern(runtime.mountPath), runtime.handle)
 }
 
-func newAssetDeliveryRuntime(deps assetDeliveryRuntimeDeps) *assetDeliveryRuntime {
+func newAssetDeliveryRuntime(
+	cfg *config.Config,
+	routeRuntime assetRouteRuntime,
+	assetResolver *resolver.Resolver,
+	pipelineSvc *pipeline.Service,
+	bodyCache *assetcache.Cache,
+	bus eventx.BusRuntime,
+) *assetDeliveryRuntime {
 	return &assetDeliveryRuntime{
-		mountPath:      deps.cfg.Assets.Path,
-		responsePolicy: cachepolicy.NewResponsePolicyFromConfig(deps.cfg),
-		logger:         deps.routeRuntime.logger,
-		assetResolver:  deps.assetResolver,
-		pipelineSvc:    deps.pipelineSvc,
-		bodyCache:      deps.bodyCache,
-		bus:            deps.bus,
-		prepared:       deps.routeRuntime.prepared,
-		trackDelivery:  deps.routeRuntime.trackDelivery,
-		resourceHints:  deps.routeRuntime.resourceHints,
+		mountPath:      cfg.Assets.Path,
+		responsePolicy: cachepolicy.NewResponsePolicyFromConfig(cfg),
+		logger:         routeRuntime.logger,
+		assetResolver:  assetResolver,
+		pipelineSvc:    pipelineSvc,
+		bodyCache:      bodyCache,
+		bus:            bus,
+		prepared:       routeRuntime.prepared,
+		trackDelivery:  routeRuntime.trackDelivery,
+		resourceHints:  routeRuntime.resourceHints,
 	}
 }
 

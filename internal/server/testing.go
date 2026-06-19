@@ -123,17 +123,27 @@ func newObservedAppForTest(
 	healthChecks := newHealthCheckDefinitions(cfg, cat)
 	return newServerFromDeps(cfg, dix.AppMeta{Version: "test"}, newServerRegistrations(
 		cxlist.NewList[appRegistration](
-			newMiddlewareRegistration(newMiddlewareRegistrationDeps(cfg, logger, obs, runtimeMetrics)),
-			newHealthRoutesRegistration(newHealthRoutesRegistrationDeps(cat, healthChecks, obs)),
-			newRobotsRouteRegistration(newRobotsRouteRegistrationDeps(cfg, logger, cat, bodyCache)),
-			newAssetRouteRegistration(newAssetRouteRegistrationDeps(
-				cfg,
-				newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), prepared),
-				assetResolver,
-				pipelineSvc,
-				bodyCache,
-				bus,
-			)),
+			newMiddlewareRegistration(middlewareRegistrationDeps{
+				cfg:     cfg,
+				logger:  logger,
+				obs:     obs,
+				metrics: runtimeMetrics,
+			}),
+			newHealthRoutesRegistration(cat, healthChecks, obs),
+			newRobotsRouteRegistration(robotsRouteRegistrationDeps{
+				cfg:       cfg,
+				logger:    logger,
+				cat:       cat,
+				bodyCache: bodyCache,
+			}),
+			newAssetRouteRegistration(assetRouteRegistrationDeps{
+				cfg:           cfg,
+				runtime:       newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), prepared),
+				assetResolver: assetResolver,
+				pipelineSvc:   pipelineSvc,
+				bodyCache:     bodyCache,
+				bus:           bus,
+			}),
 		),
 	))
 }

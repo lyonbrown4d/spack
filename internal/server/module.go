@@ -5,6 +5,7 @@ import (
 	"context"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/dix"
+	"github.com/arcgolabs/dix/advanced"
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/gofiber/fiber/v3"
@@ -13,6 +14,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/samber/do/v2"
 	"log/slog"
 )
 
@@ -23,20 +25,75 @@ var Module = dix.NewModule("server",
 		dix.Provider5(newPreparedService),
 		dix.Provider4(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
-		dix.Provider4(newMiddlewareRegistrationDeps),
 		dix.Provider3(newDiagnosticsRoutesRuntime),
-		dix.Provider3(newHealthRoutesRegistrationDeps),
-		dix.Provider4(newRobotsRouteRegistrationDeps),
-		dix.Provider6(newAssetRouteRegistrationDeps),
 		dix.Contribute1(newMiddlewareRegistration),
 		dix.Contribute1(newDiagnosticsRoutesRegistration),
-		dix.Contribute1(newHealthRoutesRegistration),
+		dix.Contribute3(newHealthRoutesRegistration),
 		dix.Contribute1(newRobotsRouteRegistration),
 		dix.Contribute1(newAssetRouteRegistration),
 		dix.Provider2(newEventPublisher),
 		dix.Provider3(newServerFromDeps),
 	),
 	dix.WithModuleSetups(
+		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
+			do.ProvideNamed[middlewareRegistrationDeps](
+				raw,
+				dix.TypedService[middlewareRegistrationDeps]().Name,
+				func(i do.Injector) (middlewareRegistrationDeps, error) {
+					return do.InvokeStruct[middlewareRegistrationDeps](i)
+				},
+			)
+			return nil
+		}, dix.SetupMetadata{
+			Label: "MiddlewareRegistrationDepsStruct",
+			Dependencies: dix.ServiceRefs(
+				dix.TypedService[*config.Config](),
+				dix.TypedService[*slog.Logger](),
+				dix.TypedService[observabilityx.Observability](),
+				dix.TypedService[*RuntimeMetrics](),
+			),
+			Provides: dix.ServiceRefs(dix.TypedService[middlewareRegistrationDeps]()),
+		}),
+		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
+			do.ProvideNamed[robotsRouteRegistrationDeps](
+				raw,
+				dix.TypedService[robotsRouteRegistrationDeps]().Name,
+				func(i do.Injector) (robotsRouteRegistrationDeps, error) {
+					return do.InvokeStruct[robotsRouteRegistrationDeps](i)
+				},
+			)
+			return nil
+		}, dix.SetupMetadata{
+			Label: "RobotsRouteRegistrationDepsStruct",
+			Dependencies: dix.ServiceRefs(
+				dix.TypedService[*config.Config](),
+				dix.TypedService[*slog.Logger](),
+				dix.TypedService[catalog.Catalog](),
+				dix.TypedService[*assetcache.Cache](),
+			),
+			Provides: dix.ServiceRefs(dix.TypedService[robotsRouteRegistrationDeps]()),
+		}),
+		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
+			do.ProvideNamed[assetRouteRegistrationDeps](
+				raw,
+				dix.TypedService[assetRouteRegistrationDeps]().Name,
+				func(i do.Injector) (assetRouteRegistrationDeps, error) {
+					return do.InvokeStruct[assetRouteRegistrationDeps](i)
+				},
+			)
+			return nil
+		}, dix.SetupMetadata{
+			Label: "AssetRouteRegistrationDepsStruct",
+			Dependencies: dix.ServiceRefs(
+				dix.TypedService[*config.Config](),
+				dix.TypedService[assetRouteRuntime](),
+				dix.TypedService[*resolver.Resolver](),
+				dix.TypedService[*pipeline.Service](),
+				dix.TypedService[*assetcache.Cache](),
+				dix.TypedService[eventx.BusRuntime](),
+			),
+			Provides: dix.ServiceRefs(dix.TypedService[assetRouteRegistrationDeps]()),
+		}),
 		dix.Setup(registerHealthCheckSetup),
 	),
 	dix.WithModuleHooks(
@@ -72,24 +129,10 @@ func newAppRegistration(order int, name string, apply func(*fiber.App)) appRegis
 }
 
 type middlewareRegistrationDeps struct {
-	cfg     *config.Config
-	logger  *slog.Logger
-	obs     observabilityx.Observability
-	metrics *RuntimeMetrics
-}
-
-func newMiddlewareRegistrationDeps(
-	cfg *config.Config,
-	logger *slog.Logger,
-	obs observabilityx.Observability,
-	runtimeMetrics *RuntimeMetrics,
-) middlewareRegistrationDeps {
-	return middlewareRegistrationDeps{
-		cfg:     cfg,
-		logger:  logger,
-		obs:     obs,
-		metrics: runtimeMetrics,
-	}
+	cfg     *config.Config               `do:""`
+	logger  *slog.Logger                 `do:""`
+	obs     observabilityx.Observability `do:""`
+	metrics *RuntimeMetrics              `do:""`
 }
 
 func newMiddlewareRegistration(deps middlewareRegistrationDeps) appRegistration {
@@ -104,49 +147,21 @@ func newDiagnosticsRoutesRegistration(runtime *diagnosticsRoutesRuntime) appRegi
 	})
 }
 
-type healthRoutesRegistrationDeps struct {
-	cat    catalog.Catalog
-	checks *cxlist.List[healthCheckDefinition]
-	obs    observabilityx.Observability
-}
-
-func newHealthRoutesRegistrationDeps(
+func newHealthRoutesRegistration(
 	cat catalog.Catalog,
 	checks *cxlist.List[healthCheckDefinition],
 	obs observabilityx.Observability,
-) healthRoutesRegistrationDeps {
-	return healthRoutesRegistrationDeps{
-		cat:    cat,
-		checks: checks,
-		obs:    obs,
-	}
-}
-
-func newHealthRoutesRegistration(deps healthRoutesRegistrationDeps) appRegistration {
+) appRegistration {
 	return newAppRegistration(200, "health_routes", func(app *fiber.App) {
-		registerHealthRoutes(app, deps.cat, deps.checks, deps.obs)
+		registerHealthRoutes(app, cat, checks, obs)
 	})
 }
 
 type robotsRouteRegistrationDeps struct {
-	cfg       *config.Config
-	logger    *slog.Logger
-	cat       catalog.Catalog
-	bodyCache *assetcache.Cache
-}
-
-func newRobotsRouteRegistrationDeps(
-	cfg *config.Config,
-	logger *slog.Logger,
-	cat catalog.Catalog,
-	bodyCache *assetcache.Cache,
-) robotsRouteRegistrationDeps {
-	return robotsRouteRegistrationDeps{
-		cfg:       cfg,
-		logger:    logger,
-		cat:       cat,
-		bodyCache: bodyCache,
-	}
+	cfg       *config.Config    `do:""`
+	logger    *slog.Logger      `do:""`
+	cat       catalog.Catalog   `do:""`
+	bodyCache *assetcache.Cache `do:""`
 }
 
 func newRobotsRouteRegistration(deps robotsRouteRegistrationDeps) appRegistration {
@@ -156,42 +171,24 @@ func newRobotsRouteRegistration(deps robotsRouteRegistrationDeps) appRegistratio
 }
 
 type assetRouteRegistrationDeps struct {
-	cfg           *config.Config
-	runtime       assetRouteRuntime
-	assetResolver *resolver.Resolver
-	pipelineSvc   *pipeline.Service
-	bodyCache     *assetcache.Cache
-	bus           eventx.BusRuntime
-}
-
-func newAssetRouteRegistrationDeps(
-	cfg *config.Config,
-	runtime assetRouteRuntime,
-	assetResolver *resolver.Resolver,
-	pipelineSvc *pipeline.Service,
-	bodyCache *assetcache.Cache,
-	bus eventx.BusRuntime,
-) assetRouteRegistrationDeps {
-	return assetRouteRegistrationDeps{
-		cfg:           cfg,
-		runtime:       runtime,
-		assetResolver: assetResolver,
-		pipelineSvc:   pipelineSvc,
-		bodyCache:     bodyCache,
-		bus:           bus,
-	}
+	cfg           *config.Config     `do:""`
+	runtime       assetRouteRuntime  `do:""`
+	assetResolver *resolver.Resolver `do:""`
+	pipelineSvc   *pipeline.Service  `do:""`
+	bodyCache     *assetcache.Cache  `do:""`
+	bus           eventx.BusRuntime  `do:""`
 }
 
 func newAssetRouteRegistration(deps assetRouteRegistrationDeps) appRegistration {
 	return newAppRegistration(300, "asset_route", func(app *fiber.App) {
-		registerAssetRoute(app, newAssetDeliveryRuntime(assetDeliveryRuntimeDeps{
-			cfg:           deps.cfg,
-			routeRuntime:  deps.runtime,
-			assetResolver: deps.assetResolver,
-			pipelineSvc:   deps.pipelineSvc,
-			bodyCache:     deps.bodyCache,
-			bus:           deps.bus,
-		}))
+		registerAssetRoute(app, newAssetDeliveryRuntime(
+			deps.cfg,
+			deps.runtime,
+			deps.assetResolver,
+			deps.pipelineSvc,
+			deps.bodyCache,
+			deps.bus,
+		))
 	})
 }
 
