@@ -52,3 +52,7 @@ jobs:
 
       - name: Run build
         run: task build
+
+      - name: Run container smoke test
+        if: runner.os == 'Linux'
+        run: task integration:container:smoke

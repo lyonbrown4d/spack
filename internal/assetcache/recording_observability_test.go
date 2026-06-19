@@ -3,12 +3,14 @@ package assetcache_test
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"testing"
 
 	"github.com/arcgolabs/observabilityx"
 )
 
 type recordingObservability struct {
+	mu       sync.Mutex
 	counters map[string]int64
 }
 
@@ -25,7 +27,7 @@ func (r *recordingObservability) StartSpan(
 }
 
 func (r *recordingObservability) Counter(spec observabilityx.CounterSpec) observabilityx.Counter {
-	return recordingCounter{name: spec.Name, metrics: &r.counters}
+	return recordingCounter{name: spec.Name, obs: r}
 }
 
 func (r *recordingObservability) UpDownCounter(observabilityx.UpDownCounterSpec) observabilityx.UpDownCounter {
@@ -41,15 +43,18 @@ func (r *recordingObservability) Gauge(observabilityx.GaugeSpec) observabilityx.
 }
 
 type recordingCounter struct {
-	name    string
-	metrics *map[string]int64
+	name string
+	obs  *recordingObservability
 }
 
 func (r recordingCounter) Add(_ context.Context, value int64, _ ...observabilityx.Attribute) {
-	if *r.metrics == nil {
-		*r.metrics = map[string]int64{}
+	r.obs.mu.Lock()
+	defer r.obs.mu.Unlock()
+
+	if r.obs.counters == nil {
+		r.obs.counters = map[string]int64{}
 	}
-	(*r.metrics)[r.name] += value
+	r.obs.counters[r.name] += value
 }
 
 type noopUpDownCounter struct{}
@@ -74,6 +79,9 @@ func (recordingSpan) SetAttributes(...observabilityx.Attribute) {}
 
 func assertCounterValue(t *testing.T, obs *recordingObservability, name string, want int64) {
 	t.Helper()
+
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
 
 	got := obs.counters[name]
 	if got != want {

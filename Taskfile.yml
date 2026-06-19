@@ -33,6 +33,24 @@ tasks:
     cmds:
       - go test -race ./...
 
+  test:fuzz:parsers:
+    desc: Run focused parser fuzzing for request path, Accept-Encoding, Accept, and Range handling
+    cmds:
+      - go test -run=Fuzz -fuzz=FuzzCleanDoesNotProduceEscapingPath -fuzztime=30s ./internal/requestpath
+      - go test -run=Fuzz -fuzz=FuzzParseAcceptEncoding -fuzztime=30s ./internal/resolver
+      - go test -run=Fuzz -fuzz=FuzzParseAcceptImageFormats -fuzztime=30s ./internal/resolver
+      - go test -run=Fuzz -fuzz=FuzzHTTPRangeRequest -fuzztime=30s ./internal/server
+
+  test:stress:catalog:
+    desc: Run opt-in catalog scale stress test; set SPACK_STRESS_ASSET_COUNT=1000000 for 1M files
+    cmds:
+      - go test -tags=stress -run '^TestCatalogStressScan$' ./internal/sourcecatalog
+
+  integration:container:smoke:
+    desc: Build and black-box test the container with read-only rootfs and dropped capabilities
+    cmds:
+      - bash scripts/container-smoke.sh
+
   clean:
     cmds:
       - rm -rf {{.DIST_DIR}}

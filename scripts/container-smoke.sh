@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+WORK_DIR="${SPACK_CONTAINER_SMOKE_DIR:-tmp/container-smoke}"
+IMAGE="${SPACK_CONTAINER_SMOKE_IMAGE:-spack-container-smoke:local}"
+CONTAINER="${SPACK_CONTAINER_SMOKE_CONTAINER:-spack-container-smoke-${GITHUB_RUN_ID:-local}-$$}"
+PORT="${SPACK_CONTAINER_SMOKE_PORT:-18080}"
+
+mkdir -p "$WORK_DIR/linux/amd64" "$WORK_DIR/assets"
+cat > "$WORK_DIR/assets/index.html" <<'HTML'
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>spack smoke</title></head>
+<body><script src="/app.js"></script><h1>spack smoke</h1></body>
+</html>
+HTML
+cat > "$WORK_DIR/assets/app.js" <<'JS'
+console.log("spack smoke");
+JS
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w -buildid=" -o "$WORK_DIR/linux/amd64/spack" ./cmd/spack
+docker build --build-arg TARGETPLATFORM=linux/amd64 -t "$IMAGE" -f docker/alpine.Dockerfile "$WORK_DIR"
+
+cleanup() {
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker run --rm -d \
+  --name "$CONTAINER" \
+  --read-only \
+  --cap-drop=ALL \
+  --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
+  -p "127.0.0.1:${PORT}:80" \
+  -v "$ROOT/$WORK_DIR/assets:/app:ro" \
+  -e SPACK_ASSETS_ROOT=/app \
+  -e SPACK_ASSETS_PATH=/ \
+  -e SPACK_ASSETS_ENTRY=index.html \
+  -e SPACK_ASSETS_FALLBACK_TARGET=index.html \
+  -e SPACK_HTTP_PORT=80 \
+  -e SPACK_LOGGER_CONSOLE_ENABLED=false \
+  "$IMAGE" >/dev/null
+
+for attempt in $(seq 1 30); do
+  if curl -fsS "http://127.0.0.1:${PORT}/livez" >/dev/null; then
+    break
+  fi
+  if [ "$attempt" -eq 30 ]; then
+    docker logs "$CONTAINER" >&2 || true
+    exit 1
+  fi
+  sleep 1
+done
+
+index_body="$(curl -fsS "http://127.0.0.1:${PORT}/")"
+case "$index_body" in
+  *"spack smoke"*) ;;
+  *) echo "index response did not contain smoke marker" >&2; exit 1 ;;
+esac
+
+app_body="$(curl -fsS "http://127.0.0.1:${PORT}/app.js")"
+case "$app_body" in
+  *"spack smoke"*) ;;
+  *) echo "app.js response did not contain smoke marker" >&2; exit 1 ;;
+esac
+
+range_status="$(curl -fsS -o /dev/null -w "%{http_code}" -H "Range: bytes=0-3" "http://127.0.0.1:${PORT}/app.js")"
+if [ "$range_status" != "206" ]; then
+  echo "range request expected 206, got ${range_status}" >&2
+  exit 1
+fi
+
+readonly_rootfs="$(docker inspect "$CONTAINER" --format '{{.HostConfig.ReadonlyRootfs}}')"
+if [ "$readonly_rootfs" != "true" ]; then
+  echo "container is not running with read-only root filesystem" >&2
+  exit 1
+fi
+
+cap_drop="$(docker inspect "$CONTAINER" --format '{{json .HostConfig.CapDrop}}')"
+case "$cap_drop" in
+  *"ALL"*) ;;
+  *) echo "container did not drop all capabilities: ${cap_drop}" >&2; exit 1 ;;
+esac

@@ -31,7 +31,7 @@ func (r *assetDeliveryRuntime) sendResolvedAsset(
 	}
 
 	headerPlan := newResolvedHeaderPlan(r.responsePolicy, result, requestedFormat)
-	headerPlan.Apply(c)
+	headerPlan.ApplyForRange(c, request.RangeRequested)
 	if handled := handleConditionalAssetRequest(c, request); handled {
 		return "", nil
 	}
@@ -161,7 +161,7 @@ func (r *assetDeliveryRuntime) sendResolvedAssetFile(
 	}
 
 	// Override Fiber's extension-derived headers so variant metadata stays authoritative.
-	headerPlan.ApplySendFileOverrides(c)
+	headerPlan.ApplySendFileOverrides(c, request.RangeRequested)
 	if request.RangeRequested {
 		return deliverySendFileRange, nil
 	}

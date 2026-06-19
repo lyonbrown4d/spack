@@ -16,7 +16,7 @@ func (r *assetDeliveryRuntime) sendPreparedAsset(
 	response := selection.response
 	headerPlan := lo.Ternary(selection.explicitFormat, response.explicitHeaderPlan, response.headerPlan)
 
-	headerPlan.Apply(c)
+	headerPlan.ApplyForRange(c, request.RangeRequested)
 	if handled := handleConditionalAssetRequest(c, request); handled {
 		return "", nil, nil
 	}
@@ -56,7 +56,7 @@ func (r *assetDeliveryRuntime) sendPreparedAssetFile(
 		}
 		return "", fmt.Errorf("send prepared asset file: %w", err)
 	}
-	headerPlan.ApplySendFileOverrides(c)
+	headerPlan.ApplySendFileOverrides(c, request.RangeRequested)
 	if request.RangeRequested {
 		return deliverySendFileRange, nil
 	}

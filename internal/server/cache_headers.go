@@ -54,19 +54,27 @@ func newResolvedHeaderPlan(
 }
 
 func (p resolvedHeaderPlan) Apply(c fiber.Ctx) {
+	p.ApplyForRange(c, false)
+}
+
+func (p resolvedHeaderPlan) ApplyForRange(c fiber.Ctx, rangeRequested bool) {
 	c.Set(fiber.HeaderContentType, p.contentType)
 	c.Set(fiber.HeaderVary, p.vary)
 	c.Set(fiber.HeaderCacheControl, p.cacheControl)
-	applyOptionalHeader(c, fiber.HeaderContentLength, p.contentLength)
+	if !rangeRequested {
+		applyOptionalHeader(c, fiber.HeaderContentLength, p.contentLength)
+	}
 	applyOptionalHeader(c, fiber.HeaderETag, p.etag)
 	applyOptionalHeader(c, fiber.HeaderContentEncoding, p.contentEncoding)
 	applyOptionalHeader(c, fiber.HeaderLastModified, p.lastModified)
 	applyOptionalHeader(c, fiber.HeaderExpires, p.expires)
 }
 
-func (p resolvedHeaderPlan) ApplySendFileOverrides(c fiber.Ctx) {
+func (p resolvedHeaderPlan) ApplySendFileOverrides(c fiber.Ctx, rangeRequested bool) {
 	c.Set(fiber.HeaderContentType, p.contentType)
-	applyOptionalHeader(c, fiber.HeaderContentLength, p.contentLength)
+	if !rangeRequested {
+		applyOptionalHeader(c, fiber.HeaderContentLength, p.contentLength)
+	}
 	applyOptionalHeader(c, fiber.HeaderContentEncoding, p.contentEncoding)
 	applyOptionalHeader(c, fiber.HeaderLastModified, p.lastModified)
 }

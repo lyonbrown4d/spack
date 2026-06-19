@@ -23,6 +23,9 @@ func Clean(raw string) Cleaned {
 	if strings.IndexByte(trimmed, '%') >= 0 {
 		trimmed = decode(trimmed)
 	}
+	if strings.IndexByte(trimmed, '\\') >= 0 {
+		trimmed = strings.ReplaceAll(trimmed, "\\", "/")
+	}
 	if cleaned, ok := fastClean(trimmed); ok {
 		return cleaned
 	}

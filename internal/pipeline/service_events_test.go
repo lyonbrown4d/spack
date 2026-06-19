@@ -28,9 +28,12 @@ func TestUpsertStageVariantPublishesGeneratedEvent(t *testing.T) {
 	}
 
 	bus := eventx.New()
-	var received appEvent.VariantGenerated
+	received := make(chan appEvent.VariantGenerated, 1)
 	unsubscribe, err := eventx.Subscribe(bus, func(_ context.Context, event appEvent.VariantGenerated) error {
-		received = event
+		select {
+		case received <- event:
+		default:
+		}
 		return nil
 	})
 	if err != nil {
@@ -50,18 +53,19 @@ func TestUpsertStageVariantPublishesGeneratedEvent(t *testing.T) {
 		Encoding:     "br",
 	})
 
-	deadline := time.Now().Add(2 * time.Second)
-	for received.ArtifactPath == "" && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
+	var event appEvent.VariantGenerated
+	select {
+	case event = <-received:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected generated event")
 	}
-
-	if received.ArtifactPath != "/tmp/bundle.js.br" {
-		t.Fatalf("expected generated event for artifact path, got %q", received.ArtifactPath)
+	if event.ArtifactPath != "/tmp/bundle.js.br" {
+		t.Fatalf("expected generated event for artifact path, got %q", event.ArtifactPath)
 	}
-	if received.Stage != "compression" {
-		t.Fatalf("expected generated event stage compression, got %q", received.Stage)
+	if event.Stage != "compression" {
+		t.Fatalf("expected generated event stage compression, got %q", event.Stage)
 	}
-	if received.Size != 128 {
-		t.Fatalf("expected generated event size 128, got %d", received.Size)
+	if event.Size != 128 {
+		t.Fatalf("expected generated event size 128, got %d", event.Size)
 	}
 }
