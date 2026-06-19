@@ -20,6 +20,11 @@ Start here:
 - [Cache and Performance / 缓存与性能](https://github.com/lyonbrown4d/spack/wiki/Cache-and-Performance)
 - [Development and Release / 开发与发布](https://github.com/lyonbrown4d/spack/wiki/Development-and-Release)
 
+Versioned authoritative docs live in this repository:
+
+- [Configuration](docs/configuration.md)
+- [Operations](docs/operations.md)
+
 ## Container
 
 ```dockerfile

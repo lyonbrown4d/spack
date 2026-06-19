@@ -1,6 +1,8 @@
 package config
 
 type Config struct {
+	APIVersion  string      `koanf:"apiVersion"  validate:"required,oneof=spack.io/v1alpha1"`
+	Kind        string      `koanf:"kind"        validate:"required,oneof=RuntimeConfig"`
 	HTTP        HTTP        `koanf:"http"        validate:"required"`
 	Assets      Assets      `koanf:"assets"      validate:"required"`
 	Async       Async       `koanf:"async"       validate:"required"`

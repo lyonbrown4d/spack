@@ -8,6 +8,8 @@ import (
 
 func defaultConfig() Config {
 	return Config{
+		APIVersion:  "spack.io/v1alpha1",
+		Kind:        "RuntimeConfig",
 		HTTP:        defaultHTTPConfig(),
 		Assets:      defaultAssetsConfig(),
 		Async:       defaultAsyncConfig(),
