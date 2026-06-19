@@ -23,7 +23,7 @@ services:
       SPACK_LOGGER_CONSOLE_ENABLED: "false"
 
   nginx:
-    image: nginx:alpine
+    image: nginx@sha256:d565d19ef132a5834f5897f602831ad2e40a36c26c625f2f94f9b3fdf0ed292d
     ports:
       - "127.0.0.1:18081:8080"
     volumes:
@@ -31,7 +31,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
   k6:
-    image: grafana/k6:latest
+    image: grafana/k6@sha256:632ddbc81a4a9fdc9e597da91ab1d8fcf1916dd988b43b4a4559d2f8d8e73d47
     depends_on:
       - spack
       - nginx

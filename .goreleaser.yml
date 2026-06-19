@@ -8,7 +8,7 @@ before:
 
 builds:
   - id: spack-linux
-    main: .
+    main: ./cmd/spack
     binary: spack
     flags:
       - -trimpath
@@ -23,7 +23,7 @@ builds:
       - -s -w -buildid=
 
   - id: spack-cross
-    main: .
+    main: ./cmd/spack
     binary: spack
     flags:
       - -trimpath

@@ -8,6 +8,8 @@ vars:
   GO_LDFLAGS: -s -w -buildid=
   GORELEASER_VERSION: v2.15.4
   GOVULNCHECK_VERSION: v1.4.0
+  PERF_RESULTS_DIR: tmp/perf/results
+  PERF_BENCH_COUNT: 5
   K6_HTML_PATHS: /,/index.html
   K6_JS_PATHS: /assets/app.8f3a1c2d.js,/assets/vendor.6d1e3a9b.js
   K6_CSS_PATHS: /assets/style.4b21c9aa.css
@@ -38,7 +40,7 @@ tasks:
   build:
     desc: 构建当前平台
     cmds:
-      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o {{.DIST_DIR}}/{{.BIN_NAME}} .
+      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o {{.DIST_DIR}}/{{.BIN_NAME}} ./cmd/spack
 
   build:all:
     desc: 使用 GoReleaser 构建发布覆盖的平台快照
@@ -62,6 +64,30 @@ tasks:
     cmds:
       - go test -run=TestDoesNotExist -bench='.' -benchmem -count=3 ./internal/resolver ./internal/assetcache ./internal/pipeline ./internal/server
 
+  perf:contract:pr:
+    desc: 运行 PR 级性能合同微基准并生成报告
+    cmds:
+      - mkdir -p {{.PERF_RESULTS_DIR}}
+      - go test -run=TestDoesNotExist -bench='Benchmark(Clean|ResolverResolve|CacheGetOrLoad|HTTPAssetRoute|ServiceEnqueue)' -benchmem -count={{.PERF_BENCH_COUNT}} ./internal/requestpath ./internal/resolver ./internal/assetcache ./internal/server ./internal/pipeline | tee {{.PERF_RESULTS_DIR}}/go-bench.txt
+      - go run ./cmd/perfcontract -budget performance/budgets.json -candidate {{.PERF_RESULTS_DIR}}/go-bench.txt -out {{.PERF_RESULTS_DIR}}/performance-report.md -metadata {{.PERF_RESULTS_DIR}}/metadata.json
+
+  perf:contract:main:
+    desc: 运行 main 分支性能合同并在存在 baseline 时做回归门禁
+    vars:
+      BASELINE: '{{default "performance/baselines/current/go-bench.txt" .BASELINE}}'
+    cmds:
+      - mkdir -p {{.PERF_RESULTS_DIR}}
+      - go test -run=TestDoesNotExist -bench='Benchmark(Clean|ResolverResolve|CacheGetOrLoad|HTTPAssetRoute|ServiceEnqueue)' -benchmem -count={{.PERF_BENCH_COUNT}} ./internal/requestpath ./internal/resolver ./internal/assetcache ./internal/server ./internal/pipeline | tee {{.PERF_RESULTS_DIR}}/go-bench.txt
+      - go run ./cmd/perfcontract -budget performance/budgets.json -baseline {{.BASELINE}} -candidate {{.PERF_RESULTS_DIR}}/go-bench.txt -out {{.PERF_RESULTS_DIR}}/performance-report.md -metadata {{.PERF_RESULTS_DIR}}/metadata.json
+
+  perf:contract:release:
+    desc: 运行 release 性能合同，包含 Go 微基准和 k6 固定 workload
+    cmds:
+      - task: perf:contract:main
+      - task: perf:k6:frontend
+      - task: perf:k6:split
+      - go run ./cmd/perfcontract -budget performance/budgets.json -baseline performance/baselines/current/go-bench.txt -candidate {{.PERF_RESULTS_DIR}}/go-bench.txt -k6-dir tmp/k6/results -out {{.PERF_RESULTS_DIR}}/performance-report.md -metadata {{.PERF_RESULTS_DIR}}/metadata.json
+
   perf:bench:static:
     desc: 对比 spack 与 nginx 的真实 HTTP 静态文件 benchmark（需要 Docker）
     cmds:
@@ -72,7 +98,7 @@ tasks:
     vars:
       BENCH_GOARCH: '{{default "amd64" .BENCH_GOARCH}}'
     cmds:
-      - go run ./tools/benchassets --out tmp/k6/assets --goarch {{.BENCH_GOARCH}}
+      - go run ./cmd/benchassets --out tmp/k6/assets --goarch {{.BENCH_GOARCH}}
       - task: perf:k6:build:linux
         vars:
           BENCH_GOARCH: '{{.BENCH_GOARCH}}'
@@ -87,7 +113,7 @@ tasks:
       GOOS: linux
       GOARCH: "{{.BENCH_GOARCH}}"
     cmds:
-      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o tmp/k6/linux/{{.BENCH_GOARCH}}/spack .
+      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o tmp/k6/linux/{{.BENCH_GOARCH}}/spack ./cmd/spack
 
   perf:k6:
     desc: 使用 k6 + Docker 对比 spack 与 nginx 的完整 HTTP 静态文件压测

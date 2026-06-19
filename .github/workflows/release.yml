@@ -33,6 +33,9 @@ jobs:
       - name: Run govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.4.0 ./...
 
+      - name: Install task runner
+        run: go install github.com/go-task/task/v3/cmd/task@v3.45.4
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4
 
@@ -98,3 +101,11 @@ jobs:
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: dist/*
+
+      - name: Run release performance contract
+        run: task perf:contract:release
+
+      - name: Upload performance report to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" tmp/perf/results/* tmp/k6/results/*.json --clobber

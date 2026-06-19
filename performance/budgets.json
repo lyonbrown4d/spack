@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "updated": "2026-06-20",
+  "go_benchmarks": [
+    {
+      "id": "request_path_clean_static",
+      "scenario": "small hot-cache files",
+      "benchmark": "BenchmarkCleanStaticAssetPath",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "request_path_clean_encoded",
+      "scenario": "encoded URL path normalization",
+      "benchmark": "BenchmarkCleanEncodedAssetPath",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "resolver_asset_hot",
+      "scenario": "small hot-cache files",
+      "benchmark": "BenchmarkResolverResolveAsset",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "resolver_encoding_variant",
+      "scenario": "Brotli/Zstd/Gzip hits",
+      "benchmark": "BenchmarkResolverResolveEncodingVariant",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "resolver_image_variant",
+      "scenario": "image variants",
+      "benchmark": "BenchmarkResolverResolveImageVariant",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 10 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "memory_cache_hit",
+      "scenario": "small hot-cache files",
+      "benchmark": "BenchmarkCacheGetOrLoadHit",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "memory_cache_miss",
+      "scenario": "first dynamic generation",
+      "benchmark": "BenchmarkCacheGetOrLoadMiss",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 10 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "http_route_memory_cache_hit",
+      "scenario": "small hot-cache files",
+      "benchmark": "BenchmarkHTTPAssetRouteMemoryCacheHit",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "http_route_sendfile",
+      "scenario": "large files and Range requests",
+      "benchmark": "BenchmarkHTTPAssetRouteSendfile",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "pipeline_enqueue_unique",
+      "scenario": "first dynamic generation",
+      "benchmark": "BenchmarkServiceEnqueueUnique",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 10 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "pipeline_enqueue_deduplicated",
+      "scenario": "first dynamic generation",
+      "benchmark": "BenchmarkServiceEnqueueDeduplicated",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 10 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    }
+  ],
+  "k6_scenarios": [
+    {
+      "id": "hot_cache_p99",
+      "scenario": "small hot-cache files",
+      "metric": "http_req_duration.p(99)",
+      "max_regression_percent": 8
+    },
+    {
+      "id": "frontend_page_p99",
+      "scenario": "frontend page delivery",
+      "metric": "http_req_duration.p(99)",
+      "max_regression_percent": 8
+    },
+    {
+      "id": "container_64m_no_oom",
+      "scenario": "container limits",
+      "metric": "container_oom",
+      "must_equal": 0
+    },
+    {
+      "id": "large_directory_startup",
+      "scenario": "large directory startup",
+      "metric": "startup_100k_assets_seconds",
+      "max": 30
+    }
+  ]
+}

@@ -30,7 +30,7 @@ const (
 	benchRequestTimeout = 10 * time.Second
 	benchReadyTimeout   = 15 * time.Second
 	benchWarmupRequests = 64
-	nginxImage          = "nginx:alpine"
+	nginxImage          = "nginx@sha256:d565d19ef132a5834f5897f602831ad2e40a36c26c625f2f94f9b3fdf0ed292d"
 )
 
 type staticBenchCase struct {

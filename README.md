@@ -49,7 +49,7 @@ Run the local SPA fixture:
 ```powershell
 pnpm -C test build
 $env:SPACK_ASSETS_ROOT = (Resolve-Path .\test\build\dist).Path
-go run .
+go run ./cmd/spack
 ```
 
 Run local HTTP k6 benchmarks:
@@ -58,3 +58,11 @@ Run local HTTP k6 benchmarks:
 task perf:k6:frontend
 task perf:k6:split
 ```
+
+Run the versioned performance contract:
+
+```powershell
+task perf:contract:pr
+```
+
+Budgets and release performance policy live in `performance/`.
