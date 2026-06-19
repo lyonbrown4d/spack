@@ -16,6 +16,7 @@ require (
 	github.com/arcgolabs/configx/format/toml v0.6.1
 	github.com/arcgolabs/configx/format/yaml v0.6.1
 	github.com/arcgolabs/dix v0.11.1
+	github.com/arcgolabs/dix/advanced v0.11.1
 	github.com/arcgolabs/eventx v0.1.2
 	github.com/arcgolabs/logx v0.1.3
 	github.com/arcgolabs/observabilityx v0.4.0
@@ -86,7 +87,7 @@ require (
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
-	github.com/samber/do/v2 v2.0.0 // indirect
+	github.com/samber/do/v2 v2.0.0
 	github.com/samber/go-type-to-string v1.8.0 // indirect
 	github.com/samber/slog-common v0.22.0 // indirect
 	github.com/samber/slog-zerolog/v2 v2.9.2 // indirect

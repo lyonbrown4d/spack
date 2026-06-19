@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/arcgolabs/dix"
+	"github.com/arcgolabs/dix/advanced"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
@@ -19,19 +20,32 @@ import (
 
 var Module = dix.NewModule("runtime",
 	dix.WithModuleProviders(
-		structProvider[catalogBootstrapRuntime](
-			"StructProvider[catalogBootstrapRuntime]",
-			dix.TypedService[*config.Config](),
-			dix.TypedService[sourcecatalog.Scanner](),
-			dix.TypedService[catalog.Catalog](),
-			dix.TypedService[*catalog.RuntimeMetrics](),
-			dix.TypedService[*assetcache.Cache](),
-			dix.TypedService[*pipeline.Service](),
-			dix.TypedService[*server.PreparedService](),
-			dix.TypedService[*slog.Logger](),
-		),
 		dix.Provider4(newMainHTTPRuntime),
 		dix.Provider6(newCollectorRegistration),
+	),
+	dix.Setups(
+		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
+			do.ProvideNamed[catalogBootstrapRuntime](raw, dix.TypedService[catalogBootstrapRuntime]().Name, func(i do.Injector) (catalogBootstrapRuntime, error) {
+				return do.InvokeStruct[catalogBootstrapRuntime](i)
+			})
+			return nil
+		}, dix.SetupMetadata{
+			Label: "CatalogBootstrapRuntimeStruct",
+			Dependencies: dix.ServiceRefs(
+				dix.TypedService[*config.Config](),
+				dix.TypedService[sourcecatalog.Scanner](),
+				dix.TypedService[catalog.Catalog](),
+				dix.TypedService[*catalog.RuntimeMetrics](),
+				dix.TypedService[*assetcache.Cache](),
+				dix.TypedService[*pipeline.Service](),
+				dix.TypedService[*server.PreparedService](),
+				dix.TypedService[*slog.Logger](),
+			),
+			Provides: dix.ServiceRefs(
+				dix.TypedService[catalogBootstrapRuntime](),
+			),
+			GraphMutation: true,
+		}),
 	),
 	dix.WithModuleHooks(
 		dix.OnStart(logConfigOnStart),
@@ -51,18 +65,6 @@ type catalogBootstrapRuntime struct {
 	pipelineSvc *pipeline.Service       `do:""`
 	prepared    *server.PreparedService `do:""`
 	logger      *slog.Logger            `do:""`
-}
-
-func structProvider[T any](label string, deps ...dix.ServiceRef) dix.ProviderFunc {
-	return dix.RawProviderWithMetadata(func(c *dix.Container) {
-		do.ProvideNamed[T](c.Raw(), dix.TypedService[T]().Name, func(i do.Injector) (T, error) {
-			return do.InvokeStruct[T](i)
-		})
-	}, dix.ProviderMetadata{
-		Label:        label,
-		Output:       dix.TypedService[T](),
-		Dependencies: dix.ServiceRefs(deps...),
-	})
 }
 
 type mainHTTPRuntime struct {
