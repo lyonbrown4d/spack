@@ -37,7 +37,9 @@ func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
 	if runtime == nil {
 		return
 	}
-	app.Use(routePattern(runtime.mountPath), runtime.handle)
+	for _, pattern := range requestpath.MountPatterns(runtime.mountPath) {
+		app.Use(pattern, runtime.handle)
+	}
 }
 
 func newAssetDeliveryRuntime(

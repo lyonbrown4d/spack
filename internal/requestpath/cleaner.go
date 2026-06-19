@@ -43,14 +43,36 @@ func CleanMounted(requestPath, mountPath string) Cleaned {
 	return Clean(TrimMount(requestPath, mountPath))
 }
 
+func MountPatterns(mountPath string) []string {
+	mount := cleanMountPath(mountPath)
+	if mount == "/" {
+		return []string{"/*"}
+	}
+	return []string{mount, mount + "/*"}
+}
+
 func TrimMount(requestPath, mountPath string) string {
-	mountPath = strings.TrimSpace(mountPath)
-	if mountPath == "" || mountPath == "/" {
+	mount := cleanMountPath(mountPath)
+	if mount == "/" {
 		return strings.TrimPrefix(requestPath, "/")
 	}
 
-	trimmed := strings.TrimPrefix(requestPath, strings.TrimRight(mountPath, "/"))
-	return strings.TrimPrefix(trimmed, "/")
+	if requestPath == mount {
+		return ""
+	}
+	prefix := mount + "/"
+	if strings.HasPrefix(requestPath, prefix) {
+		return requestPath[len(prefix):]
+	}
+	return strings.TrimPrefix(requestPath, "/")
+}
+
+func cleanMountPath(mountPath string) string {
+	mount := strings.TrimSpace(mountPath)
+	if mount == "" || mount == "/" {
+		return "/"
+	}
+	return "/" + strings.Trim(strings.TrimRight(mount, "/"), "/")
 }
 
 func decode(raw string) string {

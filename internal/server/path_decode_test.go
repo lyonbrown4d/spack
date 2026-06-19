@@ -64,6 +64,76 @@ func TestMissingAssetPathDoesNotFallbackToHTML(t *testing.T) {
 	}
 }
 
+func TestAssetMountPathRequiresSegmentBoundary(t *testing.T) {
+	root := t.TempDir()
+	indexPayload := []byte("<html>app</html>")
+	appPayload := []byte("console.log('app');")
+	indexPath := filepath.Join(root, "index.html")
+	appPath := filepath.Join(root, "app.js")
+	if err := os.WriteFile(indexPath, indexPayload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(appPath, appPayload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.DefaultConfigForTest()
+	cfg.Debug.Enable = false
+	cfg.Assets.Path = "/assets"
+	cfg.Assets.Root = root
+
+	cat := catalog.NewInMemoryCatalog()
+	upsertAssetForTest(t, cat, &catalog.Asset{
+		Path:       "index.html",
+		FullPath:   indexPath,
+		Size:       int64(len(indexPayload)),
+		MediaType:  "text/html; charset=utf-8",
+		SourceHash: "hash-index",
+		ETag:       "\"hash-index\"",
+	})
+	upsertAssetForTest(t, cat, &catalog.Asset{
+		Path:       "app.js",
+		FullPath:   appPath,
+		Size:       int64(len(appPayload)),
+		MediaType:  "application/javascript",
+		SourceHash: "hash-app",
+		ETag:       "\"hash-app\"",
+	})
+
+	app := newHTTPTestApp(
+		t,
+		&cfg,
+		slog.New(slog.DiscardHandler),
+		cat,
+		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
+		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
+	)
+
+	for _, tc := range []struct {
+		path string
+		want int
+	}{
+		{path: "/assets", want: http.StatusOK},
+		{path: "/assets/app.js", want: http.StatusOK},
+		{path: "/assetsx/app.js", want: http.StatusNotFound},
+		{path: "/assets2/app.js", want: http.StatusNotFound},
+		{path: "/assets-admin/app.js", want: http.StatusNotFound},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, tc.path, http.NoBody)
+			response, err := app.Test(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer closeHTTPBody(t, response)
+
+			if response.StatusCode != tc.want {
+				t.Fatalf("expected status %d for %s, got %d", tc.want, tc.path, response.StatusCode)
+			}
+		})
+	}
+}
+
 func TestUnicodeAssetPathResolvesFromEscapedURL(t *testing.T) {
 	root := t.TempDir()
 	assetName := "我的订单_inactive.js"

@@ -193,14 +193,6 @@ func requestLogMiddleware(app *fiber.App, logger *slog.Logger, cfg *config.Confi
 	app.Use(slogfiber.NewWithConfig(logger.WithGroup("server"), fiberslogcfg))
 }
 
-func routePattern(mountPath string) string {
-	mountPath = strings.TrimSpace(mountPath)
-	if mountPath == "" || mountPath == "/" {
-		return "/*"
-	}
-	return strings.TrimRight(mountPath, "/") + "*"
-}
-
 func shouldVaryAccept(sourceMediaType, explicitFormat string) bool {
 	if strings.TrimSpace(explicitFormat) != "" {
 		return false

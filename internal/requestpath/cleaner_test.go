@@ -1,6 +1,7 @@
 package requestpath_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/lyonbrown4d/spack/internal/requestpath"
@@ -26,6 +27,87 @@ func TestCleanMountedRetainsNestedAssetsPathUnderRootMount(t *testing.T) {
 	if cleaned.AllowsEntryFallback {
 		t.Fatal("expected nested static asset path not to allow entry fallback")
 	}
+}
+
+func TestTrimMountRequiresPathSegmentBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		requestPath string
+		mountPath   string
+		want        string
+	}{
+		{
+			name:        "exact mount",
+			requestPath: "/assets",
+			mountPath:   "/assets",
+			want:        "",
+		},
+		{
+			name:        "nested asset",
+			requestPath: "/assets/app.js",
+			mountPath:   "/assets",
+			want:        "app.js",
+		},
+		{
+			name:        "trailing slash mount",
+			requestPath: "/assets/app.js",
+			mountPath:   "/assets/",
+			want:        "app.js",
+		},
+		{
+			name:        "prefix asset sibling",
+			requestPath: "/assetsx/app.js",
+			mountPath:   "/assets",
+			want:        "assetsx/app.js",
+		},
+		{
+			name:        "numeric suffix sibling",
+			requestPath: "/assets2/app.js",
+			mountPath:   "/assets",
+			want:        "assets2/app.js",
+		},
+		{
+			name:        "hyphen suffix sibling",
+			requestPath: "/assets-admin/app.js",
+			mountPath:   "/assets",
+			want:        "assets-admin/app.js",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := requestpath.TrimMount(tc.requestPath, tc.mountPath); got != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestMountPatternsRequirePathSegmentBoundary(t *testing.T) {
+	patterns := requestpath.MountPatterns("/assets/")
+
+	if len(patterns) != 2 {
+		t.Fatalf("expected two mount patterns, got %#v", patterns)
+	}
+	if patterns[0] != "/assets" || patterns[1] != "/assets/*" {
+		t.Fatalf("unexpected mount patterns %#v", patterns)
+	}
+}
+
+func FuzzTrimMountRejectsPrefixSiblings(f *testing.F) {
+	f.Add("x")
+	f.Add("2")
+	f.Add("-admin")
+
+	f.Fuzz(func(t *testing.T, suffix string) {
+		if suffix == "" || strings.Contains(suffix, "/") {
+			t.Skip()
+		}
+
+		requestPath := "/assets" + suffix + "/app.js"
+		want := strings.TrimPrefix(requestPath, "/")
+		if got := requestpath.TrimMount(requestPath, "/assets"); got != want {
+			t.Fatalf("expected prefix sibling %q not to be trimmed, got %q", requestPath, got)
+		}
+	})
 }
 
 func TestCleanAllowsEntryFallbackForRouteLikePath(t *testing.T) {
