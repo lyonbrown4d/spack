@@ -25,14 +25,14 @@ var Module = dix.NewModule("server",
 		dix.Provider5(newPreparedService),
 		dix.Provider4(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
-		dix.Provider3(newDiagnosticsRoutesRuntime),
+		dix.Provider4(newDiagnosticsRoutesRuntime),
 		dix.Contribute1(newMiddlewareRegistration),
 		dix.Contribute1(newDiagnosticsRoutesRegistration),
-		dix.Contribute3(newHealthRoutesRegistration),
+		dix.Contribute2(newHealthRoutesRegistration),
 		dix.Contribute1(newRobotsRouteRegistration),
 		dix.Contribute1(newAssetRouteRegistration),
 		dix.Provider2(newEventPublisher),
-		dix.Provider3(newServerFromDeps),
+		dix.Provider4(newServerFromDeps),
 	),
 	dix.WithModuleSetups(
 		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
@@ -148,12 +148,11 @@ func newDiagnosticsRoutesRegistration(runtime *diagnosticsRoutesRuntime) appRegi
 }
 
 func newHealthRoutesRegistration(
-	cat catalog.Catalog,
 	checks *cxlist.List[healthCheckDefinition],
 	obs observabilityx.Observability,
 ) appRegistration {
 	return newAppRegistration(200, "health_routes", func(app *fiber.App) {
-		registerHealthRoutes(app, cat, checks, obs)
+		registerHealthRoutes(app, checks, obs)
 	})
 }
 
@@ -224,9 +223,10 @@ func newServerRegistrations(
 func newServerFromDeps(
 	cfg *config.Config,
 	meta dix.AppMeta,
+	logger *slog.Logger,
 	registrations *cxlist.List[appRegistration],
 ) *fiber.App {
-	app := newServerApp(cfg, meta)
+	app := newServerApp(cfg, meta, logger)
 	newServerRegistrations(registrations).
 		Where(func(_ int, registration appRegistration) bool {
 			return registration.Apply != nil

@@ -103,16 +103,12 @@ func registerHealthCheckSetup(container *dix.Container, _ dix.Lifecycle) error {
 
 func registerHealthRoutes(
 	app *fiber.App,
-	cat catalog.Catalog,
 	checks *cxlist.List[healthCheckDefinition],
 	obs observabilityx.Observability,
 ) {
 	app.Get(healthEndpoint, healthHandler(dix.HealthKindGeneral, checks, obs))
 	app.Get(livenessEndpoint, healthHandler(dix.HealthKindLiveness, checks, obs))
 	app.Get(readinessEndpoint, healthHandler(dix.HealthKindReadiness, checks, obs))
-	app.Get("/catalog", func(c fiber.Ctx) error {
-		return c.JSON(cat.Snapshot())
-	})
 }
 
 func healthHandler(kind dix.HealthKind, checks *cxlist.List[healthCheckDefinition], obs observabilityx.Observability) fiber.Handler {

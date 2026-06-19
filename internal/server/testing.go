@@ -121,7 +121,7 @@ func newObservedAppForTest(
 	prepared *PreparedService,
 ) *fiber.App {
 	healthChecks := newHealthCheckDefinitions(cfg, cat)
-	return newServerFromDeps(cfg, dix.AppMeta{Version: "test"}, newServerRegistrations(
+	return newServerFromDeps(cfg, dix.AppMeta{Version: "test"}, logger, newServerRegistrations(
 		cxlist.NewList[appRegistration](
 			newMiddlewareRegistration(middlewareRegistrationDeps{
 				cfg:     cfg,
@@ -129,7 +129,8 @@ func newObservedAppForTest(
 				obs:     obs,
 				metrics: runtimeMetrics,
 			}),
-			newHealthRoutesRegistration(cat, healthChecks, obs),
+			newDiagnosticsRoutesRegistration(newDiagnosticsRoutesRuntime(cfg, logger, nil, cat)),
+			newHealthRoutesRegistration(healthChecks, obs),
 			newRobotsRouteRegistration(robotsRouteRegistrationDeps{
 				cfg:       cfg,
 				logger:    logger,

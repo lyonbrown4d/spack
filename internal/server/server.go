@@ -48,13 +48,13 @@ var (
 	)
 )
 
-func newServerApp(cfg *config.Config, meta dix.AppMeta) *fiber.App {
+func newServerApp(cfg *config.Config, meta dix.AppMeta, logger *slog.Logger) *fiber.App {
 	return fiber.New(fiber.Config{
 		AppName:           "Spack",
 		Immutable:         true,
 		StreamRequestBody: true,
 		UnescapePath:      true,
-		ErrorHandler:      errorHandler,
+		ErrorHandler:      newErrorHandler(logger),
 		ServerHeader:      serverHeader(cfg, meta),
 		StrictRouting:     true,
 		ReduceMemoryUsage: cfg.HTTP.LowMemory,

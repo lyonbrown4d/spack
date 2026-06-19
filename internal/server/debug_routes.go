@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/gofiber/fiber/v3/middleware/pprof"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/samber/oops"
 )
@@ -20,6 +21,7 @@ type diagnosticsRoutesRuntime struct {
 	cfg            *config.Config
 	logger         *slog.Logger
 	metricsAdapter *prometheus.Adapter
+	cat            catalog.Catalog
 	statsviz       *statsviz.Server
 }
 
@@ -27,11 +29,13 @@ func newDiagnosticsRoutesRuntime(
 	cfg *config.Config,
 	logger *slog.Logger,
 	metricsAdapter *prometheus.Adapter,
+	cat catalog.Catalog,
 ) *diagnosticsRoutesRuntime {
 	runtime := &diagnosticsRoutesRuntime{
 		cfg:            cfg,
 		logger:         logger,
 		metricsAdapter: metricsAdapter,
+		cat:            cat,
 	}
 	if cfg == nil || !cfg.Debug.Enable {
 		return runtime
@@ -57,6 +61,7 @@ func registerDiagnosticsRoutes(app *fiber.App, runtime *diagnosticsRoutesRuntime
 		registerPrometheusRoute(app, runtime)
 	}
 	if runtime.cfg.Debug.Enable {
+		registerCatalogRoute(app, runtime.cat)
 		registerPprofRoutes(app, runtime.cfg)
 		registerStatsvizRoutes(app, runtime)
 	}
@@ -70,6 +75,15 @@ func registerPrometheusRoute(app *fiber.App, runtime *diagnosticsRoutesRuntime) 
 		return
 	}
 	app.Get(runtime.cfg.Metrics.Prefix, adaptor.HTTPHandler(runtime.metricsAdapter.Handler()))
+}
+
+func registerCatalogRoute(app *fiber.App, cat catalog.Catalog) {
+	app.Get("/catalog", func(c fiber.Ctx) error {
+		if cat == nil {
+			return fiber.ErrServiceUnavailable
+		}
+		return c.JSON(cat.Snapshot())
+	})
 }
 
 func registerPprofRoutes(app *fiber.App, cfg *config.Config) {

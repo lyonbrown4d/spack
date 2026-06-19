@@ -45,6 +45,37 @@ func TestHealthRoutesReturnHealthyReports(t *testing.T) {
 	assertHealthResponse(t, app, "/readyz", http.StatusOK, "readiness", "assets_root", "")
 }
 
+func TestCatalogRouteRequiresDebugEnabled(t *testing.T) {
+	root := t.TempDir()
+	cat := catalog.NewInMemoryCatalog()
+
+	disabledCfg := config.DefaultConfigForTest()
+	disabledCfg.Debug.Enable = false
+	disabledCfg.Assets.Root = root
+	disabledApp := newHTTPTestApp(
+		t,
+		&disabledCfg,
+		slog.New(slog.DiscardHandler),
+		cat,
+		assetcache.NewCacheForTest(disabledCfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
+		resolver.NewResolverForTest(&disabledCfg.Assets, cat, slog.New(slog.DiscardHandler)),
+	)
+	assertCatalogRouteStatus(t, disabledApp, http.StatusNotFound)
+
+	enabledCfg := config.DefaultConfigForTest()
+	enabledCfg.Debug.Enable = true
+	enabledCfg.Assets.Root = root
+	enabledApp := newHTTPTestApp(
+		t,
+		&enabledCfg,
+		slog.New(slog.DiscardHandler),
+		cat,
+		assetcache.NewCacheForTest(enabledCfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
+		resolver.NewResolverForTest(&enabledCfg.Assets, cat, slog.New(slog.DiscardHandler)),
+	)
+	assertCatalogRouteStatus(t, enabledApp, http.StatusOK)
+}
+
 func TestReadinessRouteReturnsUnavailableWhenAssetsRootIsMissing(t *testing.T) {
 	cfg := config.DefaultConfigForTest()
 	cfg.Debug.Enable = false
@@ -116,6 +147,29 @@ func TestHealthRoutesRecordRuntimeMetrics(t *testing.T) {
 		"kind":   "readiness",
 		"result": "error",
 	})
+}
+
+func assertCatalogRouteStatus(t *testing.T, app *fiber.App, status int) {
+	t.Helper()
+
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/catalog", http.NoBody)
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeHTTPBody(t, response)
+
+	if response.StatusCode != status {
+		t.Fatalf("expected /catalog to return %d, got %d", status, response.StatusCode)
+	}
+	if status != http.StatusOK {
+		return
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func assertHealthResponse(
