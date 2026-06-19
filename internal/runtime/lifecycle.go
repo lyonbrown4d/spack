@@ -92,8 +92,8 @@ func registerCollectorProvider(provider collectorProvider) error {
 	}
 	for _, collector := range collectors {
 		if err := prometheus.Register(collector); err != nil {
-			var alreadyRegistered prometheus.AlreadyRegisteredError
-			if errors.As(err, &alreadyRegistered) {
+			if alreadyRegistered, ok := errors.AsType[prometheus.AlreadyRegisteredError](err); ok {
+				_ = alreadyRegistered.ExistingCollector
 				continue
 			}
 			return oops.In("runtime").Owner("runtime collectors").Wrap(err)
