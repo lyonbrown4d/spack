@@ -12,7 +12,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"log/slog"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -79,7 +78,6 @@ func newServiceState(deps serviceStateDeps) *Service {
 		artifactPolicy: cachepolicy.NewArtifactPolicy(deps.cfg),
 	}
 }
-
 func (s *Service) initializeMetrics(queueSize int) {
 	if s.metrics == nil {
 		return
@@ -87,7 +85,6 @@ func (s *Service) initializeMetrics(queueSize int) {
 	s.metrics.QueueCapacity.Set(float64(queueSize))
 	s.metrics.QueueLength.Set(0)
 }
-
 func (s *Service) start(ctx context.Context, workers, queueSize int) error {
 	if !s.cfg.PipelineEnabled() {
 		s.logger.Info("Pipeline disabled")
@@ -102,7 +99,6 @@ func (s *Service) start(ctx context.Context, workers, queueSize int) error {
 	if err := os.MkdirAll(s.cfg.CacheDir, 0o750); err != nil {
 		return fmt.Errorf("create pipeline cache directory: %w", err)
 	}
-
 	s.startWorkers(ctx, workers)
 	s.logWorkersStarted(workers, queueSize)
 	s.startCleanupIfNeeded(ctx)
@@ -193,39 +189,69 @@ func (s *Service) stopWorkers(ctx context.Context) error {
 }
 
 func (s *Service) executeStageTask(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) *catalog.Variant {
-	startedAt := time.Now()
-	key := buildStageTaskKey(stage, asset, task)
-	variantValue, err, _ := s.sf.Do(key, func() (any, error) {
-		return stage.Execute(task, asset)
-	})
-	if err != nil {
-		if IsVariantSkipped(err) {
-			s.recordStageRunMetrics(ctx, stage.Name(), "skipped", startedAt)
-			return nil
-		}
-		s.recordStageRunMetrics(ctx, stage.Name(), "error", startedAt)
-		s.logStageFailure(stage, asset, err)
-		return nil
-	}
-
-	variant, ok := variantValue.(*catalog.Variant)
-	if !ok || variant == nil {
-		s.recordStageRunMetrics(ctx, stage.Name(), "empty", startedAt)
-		return nil
-	}
-	s.recordStageRunMetrics(ctx, stage.Name(), "ok", startedAt)
+	variants := s.executeStageTaskBatch(ctx, stage, asset, task)
+	variant, _ := variants.Get(0)
 	return variant
 }
 
-func buildStageTaskKey(stage Stage, asset *catalog.Asset, task Task) string {
-	return cxlist.NewList(
-		stage.Name(),
-		asset.Path,
-		asset.SourceHash,
-		task.Encoding,
-		task.Format,
-		strconv.Itoa(task.Width),
-	).Join("|")
+func (s *Service) executeStageTaskBatch(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) *cxlist.List[*catalog.Variant] {
+	startedAt := time.Now()
+	key := buildStageTaskKey(stage, asset, task)
+	variantValue, err, _ := s.sf.Do(key, func() (any, error) {
+		return executeStageTaskValue(stage, asset, task)
+	})
+	if err != nil {
+		s.recordStageTaskError(ctx, stage, asset, startedAt, err)
+		return cxlist.NewList[*catalog.Variant]()
+	}
+
+	variants := stageTaskVariants(variantValue)
+	if variants.IsEmpty() {
+		s.recordStageRunMetrics(ctx, stage.Name(), "empty", startedAt)
+		return cxlist.NewList[*catalog.Variant]()
+	}
+	s.recordStageRunMetrics(ctx, stage.Name(), "ok", startedAt)
+	return variants
+}
+
+func executeStageTaskValue(stage Stage, asset *catalog.Asset, task Task) (any, error) {
+	if batchStage, ok := stage.(BatchStage); ok {
+		variants, err := batchStage.ExecuteBatch(task, asset)
+		if err != nil {
+			return nil, fmt.Errorf("execute batch stage task: %w", err)
+		}
+		return variants, nil
+	}
+	variant, err := stage.Execute(task, asset)
+	if err != nil {
+		return nil, fmt.Errorf("execute stage task: %w", err)
+	}
+	return cxlist.NewList(variant), nil
+}
+
+func stageTaskVariants(value any) *cxlist.List[*catalog.Variant] {
+	variants, ok := value.(*cxlist.List[*catalog.Variant])
+	if !ok || variants == nil {
+		return cxlist.NewList[*catalog.Variant]()
+	}
+	return variants.Where(func(_ int, variant *catalog.Variant) bool {
+		return variant != nil
+	})
+}
+
+func (s *Service) recordStageTaskError(
+	ctx context.Context,
+	stage Stage,
+	asset *catalog.Asset,
+	startedAt time.Time,
+	err error,
+) {
+	if IsVariantSkipped(err) {
+		s.recordStageRunMetrics(ctx, stage.Name(), "skipped", startedAt)
+		return
+	}
+	s.recordStageRunMetrics(ctx, stage.Name(), "error", startedAt)
+	s.logStageFailure(stage, asset, err)
 }
 
 func (s *Service) logStageFailure(stage Stage, asset *catalog.Asset, err error) {
@@ -248,29 +274,4 @@ func (s *Service) upsertStageVariant(ctx context.Context, stage Stage, asset *ca
 	s.recordGeneratedVariantMetrics(ctx, stage.Name(), variant)
 	go s.catMetrics.SyncCatalog(s.catalog)
 	s.publishVariantGenerated(ctx, stage.Name(), variant)
-}
-
-func (s *Service) recordStageRunMetrics(ctx context.Context, stageName, result string, startedAt time.Time) {
-	if s == nil || s.obs == nil {
-		return
-	}
-	attrs := []observabilityx.Attribute{
-		observabilityx.String("stage", strings.TrimSpace(stageName)),
-		observabilityx.String("result", strings.TrimSpace(result)),
-	}
-	s.obs.Counter(pipelineStageRunsTotalSpec).Add(ctx, 1, attrs...)
-	s.obs.Histogram(pipelineStageDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs...)
-}
-
-func (s *Service) recordGeneratedVariantMetrics(ctx context.Context, stageName string, variant *catalog.Variant) {
-	if s == nil || s.obs == nil || variant == nil {
-		return
-	}
-	attrs := []observabilityx.Attribute{
-		observabilityx.String("stage", strings.TrimSpace(stageName)),
-	}
-	s.obs.Counter(pipelineVariantsGeneratedTotalSpec).Add(ctx, 1, attrs...)
-	if variant.Size > 0 {
-		s.obs.Counter(pipelineVariantsGeneratedBytesTotalSpec).Add(ctx, variant.Size, attrs...)
-	}
 }

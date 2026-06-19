@@ -16,7 +16,7 @@ import (
 var Module = dix.NewModule("pipeline",
 	dix.WithModuleProviders(
 		dix.Provider0(newMetrics),
-		dix.Provider0(newImageEngine),
+		dix.Provider2(newImageEngine),
 		dix.Provider4(newImageStage),
 		dix.Provider4(newCompressionStage),
 		dix.Contribute1(newImageStageRegistration, dix.Order(100)),

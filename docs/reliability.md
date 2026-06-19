@@ -44,6 +44,18 @@ Source rescan tests assert that file changes, deletes, and renames reconcile:
 
 The consistency rule is strict: a stale source asset must not keep a stale catalog record, memory cache entry, or generated artifact.
 
+## Image generation contract
+
+The default image engine is `builtin`: pure Go, JPEG/PNG only, and no CGO dependency in the default binary.
+
+- Image work is batched per source asset.
+- A source image is opened and decoded once per batch.
+- Width variants are generated from a pyramid so smaller widths can reuse the nearest larger resized image.
+- Source byte, pixel, width, height, per-source memory, and output variant limits are enforced before writing artifacts.
+- Generated variant metadata records source bytes, source pixels, source dimensions, output bytes, output dimensions, saved bytes, saving ratio, target format, and engine name.
+- Low-benefit variants are skipped and not written to disk.
+- Optional heavy engines such as libvips must be separate build/image flavors, not default binary dependencies.
+
 ## Bounded pipeline queue contract
 
 The lazy generation pipeline uses a bounded queue intentionally.

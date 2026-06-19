@@ -29,7 +29,7 @@ func NewCompressionStageForTest(cfg *config.Compression, store artifact.Store, c
 
 // NewImageStageForTest exposes image stage construction for external tests.
 func NewImageStageForTest(cfg *config.Image, store artifact.Store, cat catalog.Catalog) Stage {
-	return newImageStage(cfg, newImageEngine(), store, cat)
+	return newImageStage(cfg, newImageEngine(cfg, slog.New(slog.DiscardHandler)), store, cat)
 }
 
 // NormalizeEncodingsForTest exposes compression encoding normalization for external tests.

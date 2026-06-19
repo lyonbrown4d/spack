@@ -16,16 +16,27 @@ type Request struct {
 }
 
 type Task struct {
-	AssetPath string
-	Encoding  string
-	Format    string
-	Width     int
+	AssetPath     string
+	Encoding      string
+	Format        string
+	Width         int
+	ImageVariants *cxlist.List[ImageVariantTask]
+}
+
+type ImageVariantTask struct {
+	Format string
+	Width  int
 }
 
 type Stage interface {
 	Name() string
 	Plan(asset *catalog.Asset, request Request) *cxlist.List[Task]
 	Execute(task Task, asset *catalog.Asset) (*catalog.Variant, error)
+}
+
+type BatchStage interface {
+	Stage
+	ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List[*catalog.Variant], error)
 }
 
 func IsVariantSkipped(err error) bool {

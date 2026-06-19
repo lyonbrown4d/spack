@@ -6,6 +6,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"os"
 )
@@ -59,21 +60,46 @@ func shouldPlanOriginalFormatVariants(formats *cxlist.List[string], sourceFormat
 }
 
 func (s *imageStage) planTasks(asset *catalog.Asset, formats *cxlist.List[string], widths *cxlist.List[int]) *cxlist.List[Task] {
-	if formats == nil || widths == nil {
-		return nil
+	variants := s.planImageVariants(asset, formats, widths)
+	if variants.IsEmpty() {
+		return cxlist.NewList[Task]()
 	}
-	return cxlist.FlatMapList[string, Task](formats, func(_ int, format string) []Task {
-		return cxlist.FilterMapList[int, Task](widths, func(_ int, width int) (Task, bool) {
+	variants = limitImageVariantTasks(variants, s.cfg.MaxOutputVariants)
+	first, _ := variants.Get(0)
+	return cxlist.NewList(Task{
+		AssetPath:     asset.Path,
+		Format:        first.Format,
+		Width:         first.Width,
+		ImageVariants: variants,
+	})
+}
+
+func (s *imageStage) planImageVariants(
+	asset *catalog.Asset,
+	formats *cxlist.List[string],
+	widths *cxlist.List[int],
+) *cxlist.List[ImageVariantTask] {
+	if formats == nil || widths == nil {
+		return cxlist.NewList[ImageVariantTask]()
+	}
+	return cxlist.FlatMapList[string, ImageVariantTask](formats, func(_ int, format string) []ImageVariantTask {
+		return cxlist.FilterMapList[int, ImageVariantTask](widths, func(_ int, width int) (ImageVariantTask, bool) {
 			if !shouldCreateImageTask(asset, s.catalog, width, format) {
-				return Task{}, false
+				return ImageVariantTask{}, false
 			}
-			return Task{
-				AssetPath: asset.Path,
-				Format:    format,
-				Width:     width,
+			return ImageVariantTask{
+				Format: format,
+				Width:  width,
 			}, true
 		}).Values()
 	})
+}
+
+func limitImageVariantTasks(variants *cxlist.List[ImageVariantTask], limit int) *cxlist.List[ImageVariantTask] {
+	if variants == nil || variants.IsEmpty() || limit <= 0 || variants.Len() <= limit {
+		return variants
+	}
+	return cxlist.NewList(variants.Values()[:limit]...)
 }
 
 func shouldCreateImageTask(asset *catalog.Asset, cat catalog.Catalog, width int, format string) bool {
@@ -107,8 +133,63 @@ func resolveTargetFormat(task Task, asset *catalog.Asset) (string, error) {
 	return targetFormat, nil
 }
 
-func shouldSkipImageArtifact(asset *catalog.Asset, result imageGenerateResult) bool {
-	return result.Width == result.SourceWidth && result.MediaType == asset.MediaType && int64(len(result.Payload)) >= asset.Size
+func (s *imageStage) shouldSkipImageArtifact(asset *catalog.Asset, result imageGenerateResult) bool {
+	sourceBytes := asset.Size
+	if result.SourceBytes > 0 {
+		sourceBytes = result.SourceBytes
+	}
+	if sourceBytes <= 0 || len(result.Payload) == 0 {
+		return false
+	}
+	return s.shouldSkipImageArtifactBySavings(asset, result, sourceBytes)
+}
+
+func (s *imageStage) shouldSkipImageArtifactBySavings(
+	asset *catalog.Asset,
+	result imageGenerateResult,
+	sourceBytes int64,
+) bool {
+	outputBytes := int64(len(result.Payload))
+	savedBytes := sourceBytes - outputBytes
+	if savedBytes <= 0 {
+		return sameSourceImageVariant(asset, result) || imageSavingPolicyEnabled(s.cfg)
+	}
+	if belowMinSavingBytes(s.cfg, savedBytes) {
+		return true
+	}
+	if belowMinSavingRatio(s.cfg, savedBytes, sourceBytes) {
+		return true
+	}
+	return false
+}
+
+func sameSourceImageVariant(asset *catalog.Asset, result imageGenerateResult) bool {
+	return result.Width == result.SourceWidth && result.MediaType == asset.MediaType
+}
+
+func imageSavingPolicyEnabled(cfg *config.Image) bool {
+	return cfg != nil && (cfg.MinSavingBytes > 0 || cfg.MinSavingRatio > 0)
+}
+
+func belowMinSavingBytes(cfg *config.Image, savedBytes int64) bool {
+	return cfg != nil && cfg.MinSavingBytes > 0 && savedBytes < cfg.MinSavingBytes
+}
+
+func belowMinSavingRatio(cfg *config.Image, savedBytes, sourceBytes int64) bool {
+	return cfg != nil && cfg.MinSavingRatio > 0 && float64(savedBytes)/float64(sourceBytes) < cfg.MinSavingRatio
+}
+
+func imageGenerateLimitsFromConfig(cfg *config.Image) imageGenerateLimits {
+	if cfg == nil {
+		return imageGenerateLimits{}
+	}
+	return imageGenerateLimits{
+		MaxSourceBytes:  cfg.MaxSourceBytes,
+		MaxSourcePixels: cfg.MaxSourcePixels,
+		MaxWidth:        cfg.MaxWidth,
+		MaxHeight:       cfg.MaxHeight,
+		MaxMemoryBytes:  cfg.MaxMemoryBytes,
+	}
 }
 
 func hasImageVariant(variant *catalog.Variant, sourceHash string, width int, format string) bool {

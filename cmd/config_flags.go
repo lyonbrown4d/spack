@@ -78,9 +78,19 @@ func bindDebugFlags(flags *pflag.FlagSet, defaults config.Debug) {
 
 func bindImageFlags(flags *pflag.FlagSet, defaults config.Image) {
 	flags.Bool("image.enable", defaults.Enable, "Enable image variant pipeline.")
+	flags.String("image.engine", defaults.Engine, "Image engine backend. Currently supported: builtin.")
 	flags.String("image.widths", defaults.Widths, "Comma-separated responsive image widths.")
 	flags.String("image.formats", defaults.Formats, "Comma-separated additional image output formats for warmup and default generation.")
 	flags.Int("image.jpeg_quality", defaults.JPEGQuality, "JPEG encoding quality for generated variants.")
+	flags.Int64("image.max_source_bytes", defaults.MaxSourceBytes, "Maximum source image bytes accepted by the image pipeline.")
+	flags.Int64("image.max_source_pixels", defaults.MaxSourcePixels, "Maximum decoded source image pixels accepted by the image pipeline.")
+	flags.Int("image.max_width", defaults.MaxWidth, "Maximum decoded source image width accepted by the image pipeline.")
+	flags.Int("image.max_height", defaults.MaxHeight, "Maximum decoded source image height accepted by the image pipeline.")
+	flags.Int("image.max_output_variants", defaults.MaxOutputVariants, "Maximum generated image variants per source asset batch.")
+	flags.Int("image.max_concurrent_sources", defaults.MaxConcurrentSources, "Maximum number of source images decoded concurrently.")
+	flags.Int64("image.max_memory_bytes", defaults.MaxMemoryBytes, "Maximum estimated decoded image memory bytes per source image.")
+	flags.Float64("image.min_saving_ratio", defaults.MinSavingRatio, "Minimum source-byte saving ratio required before storing generated image variants.")
+	flags.Int64("image.min_saving_bytes", defaults.MinSavingBytes, "Minimum saved bytes required before storing generated image variants.")
 }
 
 func bindFrontendFlags(flags *pflag.FlagSet, defaults config.Frontend) {

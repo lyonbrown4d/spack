@@ -16,3 +16,26 @@ func TestImageParsedWidthsFiltersSortsAndDeduplicates(t *testing.T) {
 		t.Fatalf("expected widths %#v, got %#v", want, got)
 	}
 }
+
+func TestDefaultImageConfigSetsSafeBuiltinEngineLimits(t *testing.T) {
+	cfg := config.DefaultConfigForTest().Image
+
+	if cfg.Engine != "builtin" {
+		t.Fatalf("expected builtin image engine, got %q", cfg.Engine)
+	}
+	if cfg.MaxSourceBytes <= 0 {
+		t.Fatalf("expected max source bytes limit, got %d", cfg.MaxSourceBytes)
+	}
+	if cfg.MaxSourcePixels <= 0 {
+		t.Fatalf("expected max source pixels limit, got %d", cfg.MaxSourcePixels)
+	}
+	if cfg.MaxOutputVariants <= 0 {
+		t.Fatalf("expected max output variants limit, got %d", cfg.MaxOutputVariants)
+	}
+	if cfg.MinSavingRatio <= 0 {
+		t.Fatalf("expected low-benefit saving ratio, got %f", cfg.MinSavingRatio)
+	}
+	if cfg.MinSavingBytes <= 0 {
+		t.Fatalf("expected low-benefit saving byte threshold, got %d", cfg.MinSavingBytes)
+	}
+}

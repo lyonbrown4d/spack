@@ -117,9 +117,10 @@ func (s *Service) process(ctx context.Context, request Request) {
 
 	s.stages.Range(func(_ int, stage Stage) bool {
 		stage.Plan(asset, request).Range(func(_ int, task Task) bool {
-			if variant := s.executeStageTask(ctx, stage, asset, task); variant != nil {
+			s.executeStageTaskBatch(ctx, stage, asset, task).Range(func(_ int, variant *catalog.Variant) bool {
 				s.upsertStageVariant(ctx, stage, asset, variant)
-			}
+				return true
+			})
 			return true
 		})
 		return true

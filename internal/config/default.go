@@ -83,10 +83,20 @@ func defaultDebugConfig() Debug {
 
 func defaultImageConfig() Image {
 	return Image{
-		Enable:      true,
-		Widths:      "640,1280,1920",
-		Formats:     "",
-		JPEGQuality: 78,
+		Enable:               true,
+		Engine:               "builtin",
+		Widths:               "640,1280,1920",
+		Formats:              "",
+		JPEGQuality:          78,
+		MaxSourceBytes:       10 * 1024 * 1024,
+		MaxSourcePixels:      25_000_000,
+		MaxWidth:             10_000,
+		MaxHeight:            10_000,
+		MaxOutputVariants:    12,
+		MaxConcurrentSources: 2,
+		MaxMemoryBytes:       128 * 1024 * 1024,
+		MinSavingRatio:       0.05,
+		MinSavingBytes:       1024,
 	}
 }
 

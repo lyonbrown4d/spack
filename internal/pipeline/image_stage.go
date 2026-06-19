@@ -9,23 +9,29 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/samber/oops"
+	"strconv"
 	"time"
 )
 
 type imageStage struct {
-	cfg     *config.Image
-	engine  imageEngine
-	store   artifact.Store
-	catalog catalog.Catalog
+	cfg         *config.Image
+	engine      imageEngine
+	store       artifact.Store
+	catalog     catalog.Catalog
+	sourceSlots chan struct{}
 }
 
 func newImageStage(cfg *config.Image, engine imageEngine, store artifact.Store, cat catalog.Catalog) *imageStage {
-	return &imageStage{
+	stage := &imageStage{
 		cfg:     cfg,
 		engine:  engine,
 		store:   store,
 		catalog: cat,
 	}
+	if cfg != nil && cfg.MaxConcurrentSources > 0 {
+		stage.sourceSlots = make(chan struct{}, cfg.MaxConcurrentSources)
+	}
+	return stage
 }
 
 func (s *imageStage) Name() string {
@@ -40,57 +46,158 @@ func (s *imageStage) Plan(asset *catalog.Asset, request Request) *cxlist.List[Ta
 	formats := s.planFormats(asset, request)
 	widths := s.planWidths(asset, request, formats)
 	if widths.IsEmpty() || formats.IsEmpty() {
-		return nil
+		return cxlist.NewList[Task]()
 	}
 
 	return s.planTasks(asset, formats, widths)
 }
 
 func (s *imageStage) Execute(task Task, asset *catalog.Asset) (*catalog.Variant, error) {
-	targetFormat, err := resolveTargetFormat(task, asset)
+	variants, err := s.ExecuteBatch(task, asset)
 	if err != nil {
 		return nil, err
 	}
+	variant, ok := variants.Get(0)
+	if !ok {
+		return nil, ErrVariantSkipped
+	}
+	return variant, nil
+}
 
-	result, err := s.engine.Generate(imageGenerateRequest{
+func (s *imageStage) ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List[*catalog.Variant], error) {
+	requests, err := s.imageGenerateRequests(task, asset)
+	if err != nil {
+		return nil, err
+	}
+	if requests.IsEmpty() {
+		return nil, ErrVariantSkipped
+	}
+
+	release := s.acquireSourceSlot()
+	defer release()
+
+	results, err := s.engine.GenerateBatch(imageGenerateBatchRequest{
 		SourcePath:      asset.FullPath,
 		SourceMediaType: asset.MediaType,
-		TargetFormat:    targetFormat,
-		TargetWidth:     task.Width,
+		Variants:        requests,
 		Encode: imageEncodeOptions{
 			JPEGQuality: s.cfg.JPEGQuality,
 		},
+		Limits: imageGenerateLimitsFromConfig(s.cfg),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generate image artifact: %w", err)
 	}
-	if result.Width <= 0 {
+
+	variants := cxlist.NewList[*catalog.Variant]()
+	var writeErr error
+	results.Range(func(_ int, result imageGenerateResult) bool {
+		if result.Width <= 0 || s.shouldSkipImageArtifact(asset, result) {
+			return true
+		}
+		variant, err := s.writeImageVariant(asset, result)
+		if err != nil {
+			writeErr = err
+			return false
+		}
+		variants.Add(variant)
+		return true
+	})
+	if writeErr != nil {
+		return nil, writeErr
+	}
+	if variants.IsEmpty() {
 		return nil, ErrVariantSkipped
 	}
-	if shouldSkipImageArtifact(asset, result) {
-		return nil, ErrVariantSkipped
+	return variants, nil
+}
+
+func (s *imageStage) imageGenerateRequests(
+	task Task,
+	asset *catalog.Asset,
+) (*cxlist.List[imageVariantGenerateRequest], error) {
+	if task.ImageVariants != nil && !task.ImageVariants.IsEmpty() {
+		return cxlist.FilterMapList[ImageVariantTask, imageVariantGenerateRequest](
+			task.ImageVariants,
+			func(_ int, variant ImageVariantTask) (imageVariantGenerateRequest, bool) {
+				targetFormat, err := resolveImageVariantTargetFormat(variant, asset)
+				if err != nil {
+					return imageVariantGenerateRequest{}, false
+				}
+				return imageVariantGenerateRequest{
+					TargetFormat: targetFormat,
+					TargetWidth:  variant.Width,
+				}, true
+			},
+		), nil
 	}
 
-	targetPath := s.store.PathFor(asset.Path, asset.SourceHash, "image", imageVariantSuffix(result.Width, targetFormat, result.Extension))
+	targetFormat, err := resolveTargetFormat(task, asset)
+	if err != nil {
+		return nil, err
+	}
+	return cxlist.NewList(imageVariantGenerateRequest{
+		TargetFormat: targetFormat,
+		TargetWidth:  task.Width,
+	}), nil
+}
+
+func (s *imageStage) writeImageVariant(asset *catalog.Asset, result imageGenerateResult) (*catalog.Variant, error) {
+	targetPath := s.store.PathFor(asset.Path, asset.SourceHash, "image", imageVariantSuffix(result.Width, result.TargetFormat, result.Extension))
 	if err := s.store.Write(targetPath, result.Payload); err != nil {
 		return nil, oops.Wrap(fmt.Errorf("write image artifact: %w", err))
 	}
+	sourcePixels := int64(result.SourceWidth) * int64(result.SourceHeight)
+	outputBytes := int64(len(result.Payload))
+	savedBytes := max(result.SourceBytes-outputBytes, 0)
 
 	return &catalog.Variant{
-		ID:           imageVariantID(asset.Path, result.Width, targetFormat),
+		ID:           imageVariantID(asset.Path, result.Width, result.TargetFormat),
 		AssetPath:    asset.Path,
 		ArtifactPath: targetPath,
-		Size:         int64(len(result.Payload)),
+		Size:         outputBytes,
 		MediaType:    result.MediaType,
 		SourceHash:   asset.SourceHash,
-		ETag:         imageVariantETag(asset.SourceHash, result.Width, targetFormat),
-		Format:       targetFormat,
+		ETag:         imageVariantETag(asset.SourceHash, result.Width, result.TargetFormat),
+		Format:       result.TargetFormat,
 		Width:        result.Width,
 		Metadata: catalog.MetadataWithModTime(cxmapping.NewMapFrom(map[string]string{
-			"stage":   "image",
-			"backend": s.engine.Name(),
+			"stage":         "image",
+			"backend":       s.engine.Name(),
+			"source_bytes":  strconv.FormatInt(result.SourceBytes, 10),
+			"source_pixels": strconv.FormatInt(sourcePixels, 10),
+			"source_width":  strconv.Itoa(result.SourceWidth),
+			"source_height": strconv.Itoa(result.SourceHeight),
+			"output_bytes":  strconv.FormatInt(outputBytes, 10),
+			"output_width":  strconv.Itoa(result.Width),
+			"output_height": strconv.Itoa(result.Height),
+			"saved_bytes":   strconv.FormatInt(savedBytes, 10),
+			"saving_ratio":  fmt.Sprintf("%.6f", savingRatio(result.SourceBytes, outputBytes)),
+			"image_engine":  s.engine.Name(),
+			"target_format": result.TargetFormat,
 		}), time.Now()),
 	}, nil
+}
+
+func resolveImageVariantTargetFormat(variant ImageVariantTask, asset *catalog.Asset) (string, error) {
+	return resolveTargetFormat(Task{Format: variant.Format, Width: variant.Width}, asset)
+}
+
+func (s *imageStage) acquireSourceSlot() func() {
+	if s.sourceSlots == nil {
+		return func() {}
+	}
+	s.sourceSlots <- struct{}{}
+	return func() {
+		<-s.sourceSlots
+	}
+}
+
+func savingRatio(sourceBytes, outputBytes int64) float64 {
+	if sourceBytes <= 0 || outputBytes >= sourceBytes {
+		return 0
+	}
+	return float64(sourceBytes-outputBytes) / float64(sourceBytes)
 }
 
 func isResizableImage(engine imageEngine, asset *catalog.Asset) bool {
