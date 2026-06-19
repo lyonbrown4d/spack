@@ -73,7 +73,7 @@ func bindAsyncFlags(flags *pflag.FlagSet, defaults config.Async) {
 }
 
 func bindDebugFlags(flags *pflag.FlagSet, defaults config.Debug) {
-	flags.Bool("debug.enable", defaults.Enable, "Enable debug HTTP runtime.")
+	flags.Bool("debug.enable", defaults.Enable, "Enable debug endpoints.")
 	flags.String("debug.pprof_prefix", defaults.PprofPrefix, "Optional prefix prepended before Fiber /debug/pprof handlers.")
 }
 
@@ -94,6 +94,7 @@ func bindFrontendFlags(flags *pflag.FlagSet, defaults config.Frontend) {
 }
 
 func bindMetricsFlags(flags *pflag.FlagSet, defaults config.Metrics) {
+	flags.Bool("metrics.enable", defaults.Enable, "Enable Prometheus metrics endpoint and runtime collectors.")
 	flags.String("metrics.prefix", defaults.Prefix, "Metrics endpoint path.")
 }
 

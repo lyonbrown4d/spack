@@ -14,90 +14,66 @@ import (
 	"github.com/lyonbrown4d/spack/internal/server"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/task"
+	"github.com/samber/do/v2"
 )
 
 var Module = dix.NewModule("runtime",
 	dix.WithModuleProviders(
-		dix.Provider6(newCatalogBootstrapDeps),
-		dix.Provider3(newCatalogBootstrapRuntime),
-		dix.Provider4(newHTTPRuntime),
-		dix.Provider5(newDebugRuntimeDeps),
-		dix.Provider3(newDebugRuntime),
+		structProvider[catalogBootstrapRuntime](
+			"StructProvider[catalogBootstrapRuntime]",
+			dix.TypedService[*config.Config](),
+			dix.TypedService[sourcecatalog.Scanner](),
+			dix.TypedService[catalog.Catalog](),
+			dix.TypedService[*catalog.RuntimeMetrics](),
+			dix.TypedService[*assetcache.Cache](),
+			dix.TypedService[*pipeline.Service](),
+			dix.TypedService[*server.PreparedService](),
+			dix.TypedService[*slog.Logger](),
+		),
+		dix.Provider4(newMainHTTPRuntime),
+		dix.Provider6(newCollectorRegistration),
 	),
 	dix.WithModuleHooks(
 		dix.OnStart(logConfigOnStart),
 		dix.OnStart(bootstrapCatalogOnStart),
-		dix.OnStart(startHTTPRuntime),
-		dix.OnStart2(startDebugRuntime),
-		dix.OnStop(stopDebugRuntime),
-		dix.OnStop(stopHTTPRuntime),
+		dix.OnStart2(startRuntimeCollectors),
+		dix.OnStart(startMainHTTPRuntime),
+		dix.OnStop(stopMainHTTPRuntime),
 	),
 )
 
-type catalogBootstrapDeps struct {
-	scanner     sourcecatalog.Scanner
-	cat         catalog.Catalog
-	catMetrics  *catalog.RuntimeMetrics
-	bodyCache   *assetcache.Cache
-	pipelineSvc *pipeline.Service
-	prepared    *server.PreparedService
-}
-
-func newCatalogBootstrapDeps(
-	scanner sourcecatalog.Scanner,
-	cat catalog.Catalog,
-	catMetrics *catalog.RuntimeMetrics,
-	bodyCache *assetcache.Cache,
-	pipelineSvc *pipeline.Service,
-	prepared *server.PreparedService,
-) catalogBootstrapDeps {
-	return catalogBootstrapDeps{
-		scanner:     scanner,
-		cat:         cat,
-		catMetrics:  catMetrics,
-		bodyCache:   bodyCache,
-		pipelineSvc: pipelineSvc,
-		prepared:    prepared,
-	}
-}
-
 type catalogBootstrapRuntime struct {
-	cfg         *config.Config
-	scanner     sourcecatalog.Scanner
-	cat         catalog.Catalog
-	catMetrics  *catalog.RuntimeMetrics
-	bodyCache   *assetcache.Cache
-	pipelineSvc *pipeline.Service
-	prepared    *server.PreparedService
-	logger      *slog.Logger
+	cfg         *config.Config          `do:""`
+	scanner     sourcecatalog.Scanner   `do:""`
+	cat         catalog.Catalog         `do:""`
+	catMetrics  *catalog.RuntimeMetrics `do:""`
+	bodyCache   *assetcache.Cache       `do:""`
+	pipelineSvc *pipeline.Service       `do:""`
+	prepared    *server.PreparedService `do:""`
+	logger      *slog.Logger            `do:""`
 }
 
-func newCatalogBootstrapRuntime(
-	cfg *config.Config,
-	deps catalogBootstrapDeps,
-	logger *slog.Logger,
-) catalogBootstrapRuntime {
-	return catalogBootstrapRuntime{
-		cfg:         cfg,
-		scanner:     deps.scanner,
-		cat:         deps.cat,
-		catMetrics:  deps.catMetrics,
-		bodyCache:   deps.bodyCache,
-		pipelineSvc: deps.pipelineSvc,
-		prepared:    deps.prepared,
-		logger:      logger,
-	}
+func structProvider[T any](label string, deps ...dix.ServiceRef) dix.ProviderFunc {
+	return dix.RawProviderWithMetadata(func(c *dix.Container) {
+		do.ProvideNamed[T](c.Raw(), dix.TypedService[T]().Name, func(i do.Injector) (T, error) {
+			return do.InvokeStruct[T](i)
+		})
+	}, dix.ProviderMetadata{
+		Label:        label,
+		Output:       dix.TypedService[T](),
+		Dependencies: dix.ServiceRefs(deps...),
+	})
 }
 
-type httpRuntime struct {
+type mainHTTPRuntime struct {
 	app    *fiber.App
 	cfg    *config.Config
 	cat    catalog.Catalog
 	logger *slog.Logger
 }
 
-func newHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog, logger *slog.Logger) httpRuntime {
-	return httpRuntime{
+func newMainHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog, logger *slog.Logger) mainHTTPRuntime {
+	return mainHTTPRuntime{
 		app:    app,
 		cfg:    cfg,
 		cat:    cat,
@@ -105,34 +81,20 @@ func newHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog, log
 	}
 }
 
-type debugRuntimeDeps struct {
-	pipelineMetrics *pipeline.Metrics
-	catMetrics      *catalog.RuntimeMetrics
-	serverMetrics   *server.RuntimeMetrics
-	taskMetrics     *task.RuntimeMetrics
-	asyncMetrics    *asyncx.RuntimeMetrics
-}
-
-func newDebugRuntimeDeps(
+func newCollectorRegistration(
+	cfg *config.Config,
 	pipelineMetrics *pipeline.Metrics,
 	catMetrics *catalog.RuntimeMetrics,
 	serverMetrics *server.RuntimeMetrics,
 	taskMetrics *task.RuntimeMetrics,
 	asyncMetrics *asyncx.RuntimeMetrics,
-) debugRuntimeDeps {
-	return debugRuntimeDeps{
-		pipelineMetrics: pipelineMetrics,
-		catMetrics:      catMetrics,
-		serverMetrics:   serverMetrics,
-		taskMetrics:     taskMetrics,
-		asyncMetrics:    asyncMetrics,
-	}
-}
-
-func newDebugRuntime(
-	cfg *config.Config,
-	logger *slog.Logger,
-	deps debugRuntimeDeps,
-) *debugRuntime {
-	return buildDebugRuntime(cfg, logger, deps)
+) *collectorRegistration {
+	return buildCollectorRegistration(
+		cfg,
+		pipelineMetrics,
+		catMetrics,
+		serverMetrics,
+		taskMetrics,
+		asyncMetrics,
+	)
 }

@@ -12,7 +12,7 @@ func defaultConfig() Config {
 		Assets:      defaultAssetsConfig(),
 		Async:       defaultAsyncConfig(),
 		Logger:      defaultLoggerConfig(),
-		Metrics:     Metrics{Prefix: "/prometheus"},
+		Metrics:     Metrics{Enable: true, Prefix: "/prometheus"},
 		Robots:      defaultRobotsConfig(),
 		Debug:       defaultDebugConfig(),
 		Image:       defaultImageConfig(),

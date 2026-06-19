@@ -16,19 +16,19 @@ import (
 
 const statsvizRoot = "/debug/statsviz"
 
-type debugRoutesRuntime struct {
+type diagnosticsRoutesRuntime struct {
 	cfg            *config.Config
 	logger         *slog.Logger
 	metricsAdapter *prometheus.Adapter
 	statsviz       *statsviz.Server
 }
 
-func newDebugRoutesRuntime(
+func newDiagnosticsRoutesRuntime(
 	cfg *config.Config,
 	logger *slog.Logger,
 	metricsAdapter *prometheus.Adapter,
-) *debugRoutesRuntime {
-	runtime := &debugRoutesRuntime{
+) *diagnosticsRoutesRuntime {
+	runtime := &diagnosticsRoutesRuntime{
 		cfg:            cfg,
 		logger:         logger,
 		metricsAdapter: metricsAdapter,
@@ -48,17 +48,21 @@ func newDebugRoutesRuntime(
 	return runtime
 }
 
-func registerDebugRoutes(app *fiber.App, runtime *debugRoutesRuntime) {
-	if app == nil || runtime == nil || runtime.cfg == nil || !runtime.cfg.Debug.Enable {
+func registerDiagnosticsRoutes(app *fiber.App, runtime *diagnosticsRoutesRuntime) {
+	if app == nil || runtime == nil || runtime.cfg == nil {
 		return
 	}
 
-	registerPrometheusRoute(app, runtime)
-	registerPprofRoutes(app, runtime.cfg)
-	registerStatsvizRoutes(app, runtime)
+	if runtime.cfg.Metrics.Enable {
+		registerPrometheusRoute(app, runtime)
+	}
+	if runtime.cfg.Debug.Enable {
+		registerPprofRoutes(app, runtime.cfg)
+		registerStatsvizRoutes(app, runtime)
+	}
 }
 
-func registerPrometheusRoute(app *fiber.App, runtime *debugRoutesRuntime) {
+func registerPrometheusRoute(app *fiber.App, runtime *diagnosticsRoutesRuntime) {
 	if runtime.metricsAdapter == nil {
 		if runtime.logger != nil {
 			runtime.logger.Warn("Prometheus route unavailable", slog.String("err", "metrics adapter is not configured"))
@@ -74,7 +78,7 @@ func registerPprofRoutes(app *fiber.App, cfg *config.Config) {
 	}))
 }
 
-func registerStatsvizRoutes(app *fiber.App, runtime *debugRoutesRuntime) {
+func registerStatsvizRoutes(app *fiber.App, runtime *diagnosticsRoutesRuntime) {
 	if runtime.statsviz == nil {
 		return
 	}
@@ -95,7 +99,7 @@ func normalizedPprofPrefix(prefix string) string {
 	return strings.TrimRight(prefix, "/")
 }
 
-func stopDebugRoutesRuntime(_ context.Context, runtime *debugRoutesRuntime) error {
+func stopDiagnosticsRoutesRuntime(_ context.Context, runtime *diagnosticsRoutesRuntime) error {
 	if runtime == nil || runtime.statsviz == nil {
 		return nil
 	}

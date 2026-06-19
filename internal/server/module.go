@@ -24,12 +24,12 @@ var Module = dix.NewModule("server",
 		dix.Provider4(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
 		dix.Provider4(newMiddlewareRegistrationDeps),
-		dix.Provider3(newDebugRoutesRuntime),
+		dix.Provider3(newDiagnosticsRoutesRuntime),
 		dix.Provider3(newHealthRoutesRegistrationDeps),
 		dix.Provider4(newRobotsRouteRegistrationDeps),
 		dix.Provider6(newAssetRouteRegistrationDeps),
 		dix.Contribute1(newMiddlewareRegistration),
-		dix.Contribute1(newDebugRoutesRegistration),
+		dix.Contribute1(newDiagnosticsRoutesRegistration),
 		dix.Contribute1(newHealthRoutesRegistration),
 		dix.Contribute1(newRobotsRouteRegistration),
 		dix.Contribute1(newAssetRouteRegistration),
@@ -46,7 +46,7 @@ var Module = dix.NewModule("server",
 		dix.OnStop(func(ctx context.Context, svc *PreparedService) error {
 			return svc.stop(ctx)
 		}),
-		dix.OnStop(stopDebugRoutesRuntime),
+		dix.OnStop(stopDiagnosticsRoutesRuntime),
 	),
 )
 
@@ -98,9 +98,9 @@ func newMiddlewareRegistration(deps middlewareRegistrationDeps) appRegistration 
 	})
 }
 
-func newDebugRoutesRegistration(runtime *debugRoutesRuntime) appRegistration {
-	return newAppRegistration(150, "debug_routes", func(app *fiber.App) {
-		registerDebugRoutes(app, runtime)
+func newDiagnosticsRoutesRegistration(runtime *diagnosticsRoutesRuntime) appRegistration {
+	return newAppRegistration(150, "diagnostics_routes", func(app *fiber.App) {
+		registerDiagnosticsRoutes(app, runtime)
 	})
 }
 

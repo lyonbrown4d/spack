@@ -35,6 +35,7 @@ func NewRuntimeInfoMetrics(appName string, cfg *spackconfig.Config, startedAt ti
 			"logger_level":                 cfg.Logger.Level,
 			"memory_cache_enabled":         strconv.FormatBool(cfg.HTTP.MemoryCache.Enabled()),
 			"memory_cache_warmup_enabled":  strconv.FormatBool(cfg.HTTP.MemoryCache.WarmupEnabled()),
+			"metrics_enabled":              strconv.FormatBool(cfg.Metrics.Enable),
 			"robots_enabled":               strconv.FormatBool(cfg.Robots.Enable),
 		},
 	}, func() float64 {

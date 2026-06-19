@@ -305,7 +305,7 @@
       },
       "targets": [
         {
-          "expr": "count by (instance, compression_mode, compression_pipeline_enabled, image_enabled, memory_cache_enabled, memory_cache_warmup_enabled, debug_enabled, logger_level, robots_enabled) (spack_config_info{instance=~\"$instance\"})",
+          "expr": "count by (instance, compression_mode, compression_pipeline_enabled, image_enabled, memory_cache_enabled, memory_cache_warmup_enabled, metrics_enabled, debug_enabled, logger_level, robots_enabled) (spack_config_info{instance=~\"$instance\"})",
           "legendFormat": "",
           "refId": "A",
           "format": "table",

@@ -13,16 +13,16 @@ import (
 	"github.com/samber/oops"
 )
 
-type debugRuntime struct {
-	enabled bool
-	cfg     *config.Config
-	deps    debugRuntimeDeps
+type collectorRegistration struct {
+	enabled   bool
+	cfg       *config.Config
+	providers []collectorProvider
 }
 
-func startHTTPRuntime(_ context.Context, runtime httpRuntime) error {
+func startMainHTTPRuntime(_ context.Context, runtime mainHTTPRuntime) error {
 	go func() {
 		address := "127.0.0.1:" + runtime.cfg.HTTP.GetPort()
-		listenConfig := newHTTPListenConfig(runtime.cfg)
+		listenConfig := newMainHTTPListenConfig(runtime.cfg)
 		runtime.logger.Info("HTTP runtime listening",
 			slog.String("address", "http://"+address),
 			slog.String("mount_path", runtime.cfg.Assets.Path),
@@ -37,59 +37,53 @@ func startHTTPRuntime(_ context.Context, runtime httpRuntime) error {
 	return nil
 }
 
-func newHTTPListenConfig(cfg *config.Config) fiber.ListenConfig {
+func newMainHTTPListenConfig(cfg *config.Config) fiber.ListenConfig {
 	return fiber.ListenConfig{
 		DisableStartupMessage: true,
 		EnablePrefork:         cfg.HTTP.Prefork,
 	}
 }
 
-func stopHTTPRuntime(ctx context.Context, runtime httpRuntime) error {
-	runtime.logger.Info("stop http runtime")
+func stopMainHTTPRuntime(ctx context.Context, runtime mainHTTPRuntime) error {
+	runtime.logger.Info("Stop main HTTP runtime")
 	if err := runtime.app.ShutdownWithContext(ctx); err != nil {
 		return oops.In("runtime").Owner("http runtime").Wrap(err)
 	}
 	return nil
 }
 
-func buildDebugRuntime(
+func buildCollectorRegistration(
 	cfg *config.Config,
-	logger *slog.Logger,
-	deps debugRuntimeDeps,
-) *debugRuntime {
-	if !cfg.Debug.Enable {
-		return &debugRuntime{}
+	providers ...collectorProvider,
+) *collectorRegistration {
+	if !cfg.Metrics.Enable {
+		return &collectorRegistration{}
 	}
-	return &debugRuntime{
-		enabled: true,
-		cfg:     cfg,
-		deps:    deps,
+	return &collectorRegistration{
+		enabled:   true,
+		cfg:       cfg,
+		providers: providers,
 	}
 }
 
-type debugCollectorProvider interface {
+type collectorProvider interface {
 	Collectors() []prometheus.Collector
 }
 
-func registerDebugRuntimeCollectors(cfg *config.Config, deps debugRuntimeDeps) error {
-	providers := []debugCollectorProvider{
-		deps.pipelineMetrics,
-		deps.catMetrics,
-		deps.serverMetrics,
-		deps.taskMetrics,
-		deps.asyncMetrics,
+func registerRuntimeCollectors(cfg *config.Config, providers []collectorProvider) error {
+	providers = append(providers,
 		metrics.NewBuildInfoMetrics("spack"),
 		metrics.NewRuntimeInfoMetrics("spack", cfg, time.Now().UTC()),
-	}
+	)
 	for _, provider := range providers {
-		if err := registerDebugCollectors(provider); err != nil {
+		if err := registerCollectorProvider(provider); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func registerDebugCollectors(provider debugCollectorProvider) error {
+func registerCollectorProvider(provider collectorProvider) error {
 	if provider == nil {
 		return nil
 	}
@@ -103,28 +97,22 @@ func registerDebugCollectors(provider debugCollectorProvider) error {
 			if errors.As(err, &alreadyRegistered) {
 				continue
 			}
-			return oops.In("runtime").Owner("debug collectors").Wrap(err)
+			return oops.In("runtime").Owner("runtime collectors").Wrap(err)
 		}
 	}
 	return nil
 }
 
-func startDebugRuntime(_ context.Context, logger *slog.Logger, runtime *debugRuntime) error {
-	if runtime == nil || !runtime.enabled {
+func startRuntimeCollectors(_ context.Context, logger *slog.Logger, registration *collectorRegistration) error {
+	if registration == nil || !registration.enabled {
 		return nil
 	}
-	if err := registerDebugRuntimeCollectors(runtime.cfg, runtime.deps); err != nil {
-		logger.Error("Debug runtime collector registration failed", slog.String("err", err.Error()))
+	if err := registerRuntimeCollectors(registration.cfg, registration.providers); err != nil {
+		logger.Error("Runtime collector registration failed", slog.String("err", err.Error()))
 		return nil
 	}
-	logger.Info("Debug runtime collectors registered",
-		slog.String("metrics", runtime.cfg.Metrics.Prefix),
-		slog.String("pprof", "/debug/pprof"),
-		slog.String("statsviz", "/debug/statsviz"),
+	logger.Info("Runtime collectors registered",
+		slog.String("metrics", registration.cfg.Metrics.Prefix),
 	)
-	return nil
-}
-
-func stopDebugRuntime(ctx context.Context, runtime *debugRuntime) error {
 	return nil
 }

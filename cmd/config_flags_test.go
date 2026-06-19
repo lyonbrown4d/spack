@@ -17,6 +17,7 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 		"--http.expose_server_header=true",
 		"--http.expose_server_version=true",
 		"--debug.enable=false",
+		"--metrics.enable=false",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -40,5 +41,8 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 	}
 	if loaded.Debug.Enable {
 		t.Fatal("expected parsed debug.enable=false flag")
+	}
+	if loaded.Metrics.Enable {
+		t.Fatal("expected parsed metrics.enable=false flag")
 	}
 }

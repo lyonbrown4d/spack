@@ -177,6 +177,7 @@ func configLogAttrs(cfg *config.Config) *cxlist.List[slog.Attr] {
 		slog.Bool("frontend_resource_hints_early_hints", cfg.Frontend.ResourceHints.EarlyHints),
 		slog.Bool("frontend_immutable_cache_enable", cfg.Frontend.ImmutableCache.Enable),
 		slog.Bool("debug_enable", cfg.Debug.Enable),
+		slog.Bool("metrics_enable", cfg.Metrics.Enable),
 		slog.String("metrics_prefix", cfg.Metrics.Prefix),
 		slog.String("logger_level", cfg.Logger.Level),
 	)

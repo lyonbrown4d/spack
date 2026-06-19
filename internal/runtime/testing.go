@@ -32,6 +32,6 @@ func CatalogReadyAttrsForTest(
 	return catalogReadyAttrs(cfg, cat, bodyCache, cacheStats, totalBytes, duration)
 }
 
-func HTTPListenConfigForTest(cfg *config.Config) fiber.ListenConfig {
-	return newHTTPListenConfig(cfg)
+func MainHTTPListenConfigForTest(cfg *config.Config) fiber.ListenConfig {
+	return newMainHTTPListenConfig(cfg)
 }
