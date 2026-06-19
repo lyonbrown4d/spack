@@ -27,24 +27,24 @@ var (
 	httpRequestsTotalSpec = observabilityx.NewCounterSpec(
 		"http_requests_total",
 		observabilityx.WithDescription("Total number of HTTP requests handled by the Fiber server."),
-		observabilityx.WithLabelKeys("method", "path", "status"),
+		observabilityx.WithLabelKeys("method", "route", "status"),
 	)
 	httpRequestDurationSpec = observabilityx.NewHistogramSpec(
 		"http_request_duration_seconds",
 		observabilityx.WithDescription("HTTP request duration in seconds."),
 		observabilityx.WithUnit("s"),
-		observabilityx.WithLabelKeys("method", "path", "status"),
+		observabilityx.WithLabelKeys("method", "route", "status"),
 	)
 	httpAssetDeliveryTotalSpec = observabilityx.NewCounterSpec(
 		"http_asset_delivery_total",
 		observabilityx.WithDescription("Total number of asset delivery responses by delivery path."),
-		observabilityx.WithLabelKeys("method", "path", "status", "delivery"),
+		observabilityx.WithLabelKeys("method", "route", "status", "delivery"),
 	)
 	httpAssetDeliveryDurationSpec = observabilityx.NewHistogramSpec(
 		"http_asset_delivery_duration_seconds",
 		observabilityx.WithDescription("Asset delivery request duration in seconds."),
 		observabilityx.WithUnit("s"),
-		observabilityx.WithLabelKeys("method", "path", "status", "delivery"),
+		observabilityx.WithLabelKeys("method", "route", "status", "delivery"),
 	)
 )
 

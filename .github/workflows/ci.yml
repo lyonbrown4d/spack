@@ -22,10 +22,10 @@ jobs:
           - windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Go 1.26
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -41,6 +41,14 @@ jobs:
 
       - name: Run tests
         run: task test
+
+      - name: Run race tests
+        if: runner.os == 'Linux'
+        run: task test:race
+
+      - name: Run govulncheck
+        if: runner.os == 'Linux'
+        run: task security:govulncheck
 
       - name: Run build
         run: task build

@@ -7,6 +7,7 @@ vars:
   DIST_DIR: dist
   GO_LDFLAGS: -s -w -buildid=
   GORELEASER_VERSION: v2.15.4
+  GOVULNCHECK_VERSION: v1.4.0
   K6_HTML_PATHS: /,/index.html
   K6_JS_PATHS: /assets/app.8f3a1c2d.js,/assets/vendor.6d1e3a9b.js
   K6_CSS_PATHS: /assets/style.4b21c9aa.css
@@ -25,6 +26,10 @@ tasks:
   test:
     cmds:
       - go test ./...
+
+  test:race:
+    cmds:
+      - go test -race ./...
 
   clean:
     cmds:
@@ -47,6 +52,10 @@ tasks:
   lint:
     cmds:
       - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4 run ./...
+
+  security:govulncheck:
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
 
   perf:bench:
     desc: 运行关键路径性能基线 benchmark

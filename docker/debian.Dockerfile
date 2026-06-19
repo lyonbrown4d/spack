@@ -1,4 +1,5 @@
-FROM debian:stable-slim AS debian
+# Digest locked from Docker Hub library/debian:stable-slim on 2026-06-20.
+FROM debian@sha256:34363c20bd149e41365fc77b086da067ed13ab2dff4cd0612788e12e6d52c44c AS debian
 
 ARG TARGETPLATFORM
 
