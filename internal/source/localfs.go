@@ -14,12 +14,12 @@ import (
 	"github.com/samber/oops"
 )
 
-type localFS struct {
+type LocalFS struct {
 	root   string
 	logger *slog.Logger
 }
 
-func newLocalFS(cfg *config.Assets, logger *slog.Logger) (Source, error) {
+func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
 	root := strings.TrimSpace(cfg.Root)
 	if root == "" {
 		return nil, oops.Owner("source").Wrap(errors.New("assets root is required"))
@@ -34,16 +34,15 @@ func newLocalFS(cfg *config.Assets, logger *slog.Logger) (Source, error) {
 	}
 
 	logger.Info("Source configured",
-		slog.String("backend", string(cfg.NormalizedBackend())),
 		slog.String("root", cfg.Root),
 	)
-	return &localFS{
+	return &LocalFS{
 		root:   root,
 		logger: logger,
 	}, nil
 }
 
-func (s *localFS) Walk(walkFn func(File) error) error {
+func (s *LocalFS) Walk(walkFn func(File) error) error {
 	if err := filepath.WalkDir(s.root, func(fullPath string, entry fs.DirEntry, err error) error {
 		file, fileErr := buildWalkFile(s.root, fullPath, entry, err)
 		if fileErr != nil {
@@ -56,7 +55,7 @@ func (s *localFS) Walk(walkFn func(File) error) error {
 	return nil
 }
 
-func (s *localFS) FindFile(path string) (File, bool, error) {
+func (s *LocalFS) FindFile(path string) (File, bool, error) {
 	trimmedPath := strings.TrimSpace(filepath.Clean(path))
 	if trimmedPath == "" {
 		return File{}, false, nil

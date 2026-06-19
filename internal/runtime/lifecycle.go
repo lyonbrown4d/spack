@@ -3,26 +3,20 @@ package runtime
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
-	"github.com/arl/statsviz"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/samber/mo"
 	"github.com/samber/oops"
 )
 
 type debugRuntime struct {
-	enabled    bool
-	server     *http.Server
-	liveURL    string
-	metricsURL string
-	statsviz   string
+	enabled bool
+	cfg     *config.Config
+	deps    debugRuntimeDeps
 }
 
 func startHTTPRuntime(_ context.Context, runtime httpRuntime) error {
@@ -66,33 +60,10 @@ func buildDebugRuntime(
 	if !cfg.Debug.Enable {
 		return &debugRuntime{}
 	}
-
-	mux := http.NewServeMux()
-	if err := registerDebugRuntimeCollectors(cfg, deps); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-	if deps.metricsAdapter == nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", "metrics adapter is not configured"))
-		return &debugRuntime{}
-	}
-	mux.Handle(cfg.Metrics.Prefix, deps.metricsAdapter.Handler())
-	if err := statsviz.Register(mux); err != nil {
-		logger.Error("Debug runtime registration failed", slog.String("err", err.Error()))
-		return &debugRuntime{}
-	}
-
-	address := fmt.Sprintf(cfg.Debug.Address+":%d", cfg.Debug.LivePort)
 	return &debugRuntime{
 		enabled: true,
-		server: &http.Server{
-			Addr:              address,
-			Handler:           mux,
-			ReadHeaderTimeout: 5 * time.Second,
-		},
-		liveURL:    fmt.Sprintf("http://127.0.0.1:%d", cfg.Debug.LivePort),
-		metricsURL: fmt.Sprintf("http://127.0.0.1:%d%s", cfg.Debug.LivePort, cfg.Metrics.Prefix),
-		statsviz:   fmt.Sprintf("http://127.0.0.1:%d/debug/statsviz", cfg.Debug.LivePort),
+		cfg:     cfg,
+		deps:    deps,
 	}
 }
 
@@ -139,38 +110,21 @@ func registerDebugCollectors(provider debugCollectorProvider) error {
 }
 
 func startDebugRuntime(_ context.Context, logger *slog.Logger, runtime *debugRuntime) error {
-	server, ok := debugServer(runtime).Get()
-	if !ok {
+	if runtime == nil || !runtime.enabled {
 		return nil
 	}
-
-	go func() {
-		logger.Info("Debug runtime listening",
-			slog.String("address", runtime.liveURL),
-			slog.String("metrics", runtime.metricsURL),
-			slog.String("statsviz", runtime.statsviz),
-		)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("Debug runtime stopped", slog.String("err", err.Error()))
-		}
-	}()
+	if err := registerDebugRuntimeCollectors(runtime.cfg, runtime.deps); err != nil {
+		logger.Error("Debug runtime collector registration failed", slog.String("err", err.Error()))
+		return nil
+	}
+	logger.Info("Debug runtime collectors registered",
+		slog.String("metrics", runtime.cfg.Metrics.Prefix),
+		slog.String("pprof", "/debug/pprof"),
+		slog.String("statsviz", "/debug/statsviz"),
+	)
 	return nil
 }
 
 func stopDebugRuntime(ctx context.Context, runtime *debugRuntime) error {
-	server, ok := debugServer(runtime).Get()
-	if !ok {
-		return nil
-	}
-	if err := server.Shutdown(ctx); err != nil {
-		return oops.In("runtime").Owner("debug runtime").Wrap(err)
-	}
 	return nil
-}
-
-func debugServer(runtime *debugRuntime) mo.Option[*http.Server] {
-	if runtime == nil || !runtime.enabled || runtime.server == nil {
-		return mo.None[*http.Server]()
-	}
-	return mo.Some(runtime.server)
 }

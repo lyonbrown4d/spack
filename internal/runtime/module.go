@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/arcgolabs/dix"
-	obsprom "github.com/arcgolabs/observabilityx/prometheus"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
@@ -22,7 +21,7 @@ var Module = dix.NewModule("runtime",
 		dix.Provider6(newCatalogBootstrapDeps),
 		dix.Provider3(newCatalogBootstrapRuntime),
 		dix.Provider4(newHTTPRuntime),
-		dix.Provider6(newDebugRuntimeDeps),
+		dix.Provider5(newDebugRuntimeDeps),
 		dix.Provider3(newDebugRuntime),
 	),
 	dix.WithModuleHooks(
@@ -112,7 +111,6 @@ type debugRuntimeDeps struct {
 	serverMetrics   *server.RuntimeMetrics
 	taskMetrics     *task.RuntimeMetrics
 	asyncMetrics    *asyncx.RuntimeMetrics
-	metricsAdapter  *obsprom.Adapter
 }
 
 func newDebugRuntimeDeps(
@@ -121,7 +119,6 @@ func newDebugRuntimeDeps(
 	serverMetrics *server.RuntimeMetrics,
 	taskMetrics *task.RuntimeMetrics,
 	asyncMetrics *asyncx.RuntimeMetrics,
-	metricsAdapter *obsprom.Adapter,
 ) debugRuntimeDeps {
 	return debugRuntimeDeps{
 		pipelineMetrics: pipelineMetrics,
@@ -129,7 +126,6 @@ func newDebugRuntimeDeps(
 		serverMetrics:   serverMetrics,
 		taskMetrics:     taskMetrics,
 		asyncMetrics:    asyncMetrics,
-		metricsAdapter:  metricsAdapter,
 	}
 }
 

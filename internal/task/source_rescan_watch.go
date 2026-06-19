@@ -2,7 +2,6 @@ package task
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -20,10 +19,6 @@ func startSourceRescanWatcher(ctx context.Context, watcher *sourceRescanWatcher)
 
 	watchCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	changes, err := watcher.runtime.scanner.Watch(watchCtx)
-	if errors.Is(err, source.ErrWatchUnsupported) {
-		cancel()
-		return nil
-	}
 	if err != nil {
 		cancel()
 		watcher.runtime.logger.Warn("Task source rescan watcher unavailable", slog.String("err", err.Error()))

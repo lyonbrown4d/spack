@@ -70,19 +70,18 @@ func TestScannerLeavesDisabledEncodingSidecarsAsAssets(t *testing.T) {
 }
 
 func TestScannerReusesUnchangedAssetFromCatalog(t *testing.T) {
-	modTime := time.Unix(1_720_000_321, 123_000_000).UTC()
-	src := fakeSource{files: []source.File{{
-		Path:     "app.js",
-		FullPath: "/missing/app.js",
-		Size:     17,
-		ModTime:  modTime,
-	}}}
-	scanner := newScannerFromSource(src, config.DefaultConfigForTest().Compression.NormalizedEncodings())
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "app.js")
+	assetBody := []byte("console.log('ok');")
+	writeSourceFile(t, assetPath, assetBody)
+	modTime := setFileModTimeForTest(t, assetPath, time.Unix(1_720_000_321, 123_000_000).UTC())
+
+	scanner := newScannerForTest(t, root, config.DefaultConfigForTest().Compression.NormalizedEncodings())
 	cat := catalog.NewInMemoryCatalog()
 	if err := cat.UpsertAsset(&catalog.Asset{
 		Path:       "app.js",
-		FullPath:   "/missing/app.js",
-		Size:       17,
+		FullPath:   assetPath,
+		Size:       int64(len(assetBody)),
 		MediaType:  "application/javascript",
 		SourceHash: "hash-app",
 		ETag:       "\"hash-app\"",
@@ -106,39 +105,35 @@ func TestScannerReusesUnchangedAssetFromCatalog(t *testing.T) {
 }
 
 func TestScannerReusesUnchangedSourceSidecarFromCatalog(t *testing.T) {
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "app.js")
+	sidecarPath := filepath.Join(root, "app.js.br")
+	assetBody := []byte("console.log('ok');")
+	sidecarBody := []byte("compressed")
+	writeSourceFile(t, assetPath, assetBody)
+	writeSourceFile(t, sidecarPath, sidecarBody)
 	modTime := time.Unix(1_720_000_322, 456_000_000).UTC()
-	src := fakeSource{files: []source.File{
-		{
-			Path:     "app.js",
-			FullPath: "/missing/app.js",
-			Size:     17,
-			ModTime:  modTime,
-		},
-		{
-			Path:     "app.js.br",
-			FullPath: "/missing/app.js.br",
-			Size:     10,
-			ModTime:  modTime,
-		},
-	}}
-	scanner := newScannerFromSource(src, config.DefaultConfigForTest().Compression.NormalizedEncodings())
+	assetModTime := setFileModTimeForTest(t, assetPath, modTime)
+	sidecarModTime := setFileModTimeForTest(t, sidecarPath, modTime)
+
+	scanner := newScannerForTest(t, root, config.DefaultConfigForTest().Compression.NormalizedEncodings())
 	cat := catalog.NewInMemoryCatalog()
 	if err := cat.UpsertAsset(&catalog.Asset{
 		Path:       "app.js",
-		FullPath:   "/missing/app.js",
-		Size:       17,
+		FullPath:   assetPath,
+		Size:       int64(len(assetBody)),
 		MediaType:  "application/javascript",
 		SourceHash: "hash-app",
 		ETag:       "\"hash-app\"",
-		Metadata:   catalog.MetadataWithModTime(cxmapping.NewMap[string, string](), modTime),
+		Metadata:   catalog.MetadataWithModTime(cxmapping.NewMap[string, string](), assetModTime),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := cat.UpsertVariant(&catalog.Variant{
 		ID:           "app.js.br",
 		AssetPath:    "app.js",
-		ArtifactPath: "/missing/app.js.br",
-		Size:         10,
+		ArtifactPath: sidecarPath,
+		Size:         int64(len(sidecarBody)),
 		MediaType:    "application/javascript",
 		SourceHash:   "hash-app",
 		ETag:         "\"hash-sidecar\"",
@@ -146,7 +141,7 @@ func TestScannerReusesUnchangedSourceSidecarFromCatalog(t *testing.T) {
 		Metadata: catalog.MetadataWithModTime(cxmapping.NewMapFrom(map[string]string{
 			"stage":  sourcecatalog.SourceSidecarStage,
 			"source": "app.js.br",
-		}), modTime),
+		}), sidecarModTime),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +163,7 @@ func TestScannerReusesUnchangedSourceSidecarFromCatalog(t *testing.T) {
 func newScannerForTest(t *testing.T, root string, encodings *cxlist.List[string]) sourcecatalog.Scanner {
 	t.Helper()
 
-	src, err := source.NewLocalFSForTest(&config.Assets{Root: root}, slog.New(slog.DiscardHandler))
+	src, err := source.NewLocalFS(&config.Assets{Root: root}, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,26 +171,13 @@ func newScannerForTest(t *testing.T, root string, encodings *cxlist.List[string]
 	return newScannerFromSource(src, encodings)
 }
 
-func newScannerFromSource(src source.Source, encodings *cxlist.List[string]) sourcecatalog.Scanner {
+func newScannerFromSource(src *source.LocalFS, encodings *cxlist.List[string]) sourcecatalog.Scanner {
 	cfg := config.DefaultConfigForTest()
 	return sourcecatalog.NewScanner(src, contentcoding.NewRegistry(contentcoding.Options{
 		BrotliQuality: cfg.Compression.BrotliQuality,
 		GzipLevel:     cfg.Compression.GzipLevel,
 		ZstdLevel:     cfg.Compression.ZstdLevel,
 	}, encodings))
-}
-
-type fakeSource struct {
-	files []source.File
-}
-
-func (s fakeSource) Walk(walkFn func(source.File) error) error {
-	for _, file := range s.files {
-		if err := walkFn(file); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func writeSourceFile(t *testing.T, path string, body []byte) {
@@ -206,4 +188,16 @@ func writeSourceFile(t *testing.T, path string, body []byte) {
 	if err := os.WriteFile(path, body, 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func setFileModTimeForTest(t *testing.T, path string, modTime time.Time) time.Time {
+	t.Helper()
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info.ModTime()
 }

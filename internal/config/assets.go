@@ -1,25 +1,8 @@
 // Package config loads and exposes runtime configuration.
 package config
 
-import (
-	"strings"
-
-	cxlist "github.com/arcgolabs/collectionx/list"
-	cxset "github.com/arcgolabs/collectionx/set"
-)
-
 // FallbackOn defines the condition under which a fallback file is served.
 type FallbackOn string
-
-// SourceBackend defines the asset source backend type.
-type SourceBackend string
-
-const (
-	// SourceBackendLocal serves assets from a local filesystem root.
-	SourceBackendLocal SourceBackend = "local"
-)
-
-var supportedSourceBackends = cxset.NewOrderedSet[SourceBackend](SourceBackendLocal)
 
 const (
 	// FallbackOnNotFound indicates that the fallback target
@@ -52,14 +35,6 @@ type Assets struct {
 	// This path is matched before any filesystem lookup occurs.
 	Path string `koanf:"path" validate:"required,startswith=/"`
 
-	// Backend selects the source backend implementation.
-	//
-	// Supported values:
-	//   - "local": scan assets from a local filesystem root
-	//
-	// Unknown values are rejected during source initialization.
-	Backend SourceBackend `koanf:"backend" validate:"required,oneof=local"`
-
 	// Root is the filesystem directory used as the source of static assets.
 	//
 	// All files under this directory will be scanned at startup
@@ -89,35 +64,6 @@ type Assets struct {
 	// If no fallback behavior is desired, this field should be left
 	// empty in the configuration.
 	Fallback Fallback `koanf:"fallback" validate:"required"`
-}
-
-func NormalizeSourceBackend(raw SourceBackend) SourceBackend {
-	normalized := SourceBackend(strings.ToLower(strings.TrimSpace(string(raw))))
-	switch normalized {
-	case "", SourceBackendLocal:
-		return SourceBackendLocal
-	default:
-		return normalized
-	}
-}
-
-func SupportedSourceBackends() *cxlist.List[SourceBackend] {
-	return cxlist.NewList[SourceBackend](supportedSourceBackends.Values()...)
-}
-
-func SupportedSourceBackendNames() *cxlist.List[string] {
-	return cxlist.MapList[SourceBackend, string](SupportedSourceBackends(), func(_ int, backend SourceBackend) string {
-		return string(backend)
-	})
-}
-
-func IsSupportedSourceBackend(backend SourceBackend) bool {
-	return supportedSourceBackends.Contains(backend)
-}
-
-// NormalizedBackend returns the effective source backend name.
-func (a Assets) NormalizedBackend() SourceBackend {
-	return NormalizeSourceBackend(a.Backend)
 }
 
 // Fallback defines the rules for serving a fallback asset

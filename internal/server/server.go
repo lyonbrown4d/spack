@@ -14,7 +14,6 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/etag"
 	expvarmw "github.com/gofiber/fiber/v3/middleware/expvar"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
-	"github.com/gofiber/fiber/v3/middleware/pprof"
 	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/responsetime"
@@ -91,7 +90,6 @@ func registerMiddleware(
 	}))
 	if cfg.Debug.Enable {
 		app.Use(expvarmw.New())
-		app.Use(pprof.New(pprof.Config{Prefix: cfg.Debug.PprofPrefix}))
 	}
 
 	recoverConfig := recoverer.ConfigDefault

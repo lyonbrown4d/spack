@@ -61,7 +61,6 @@ func bindHTTPFlags(flags *pflag.FlagSet, defaults config.HTTP) {
 }
 
 func bindAssetFlags(flags *pflag.FlagSet, defaults config.Assets) {
-	flags.String("assets.backend", string(defaults.NormalizedBackend()), "Asset source backend.")
 	flags.String("assets.path", defaults.Path, "HTTP mount path for assets.")
 	flags.String("assets.root", defaults.Root, "Filesystem root containing static assets.")
 	flags.String("assets.entry", defaults.Entry, "Default entry file for directory requests.")
@@ -75,8 +74,7 @@ func bindAsyncFlags(flags *pflag.FlagSet, defaults config.Async) {
 
 func bindDebugFlags(flags *pflag.FlagSet, defaults config.Debug) {
 	flags.Bool("debug.enable", defaults.Enable, "Enable debug HTTP runtime.")
-	flags.String("debug.pprof_prefix", defaults.PprofPrefix, "Mount prefix for Fiber pprof handlers.")
-	flags.Int("debug.live_port", defaults.LivePort, "Debug runtime listen port.")
+	flags.String("debug.pprof_prefix", defaults.PprofPrefix, "Optional prefix prepended before Fiber /debug/pprof handlers.")
 }
 
 func bindImageFlags(flags *pflag.FlagSet, defaults config.Image) {

@@ -12,10 +12,10 @@ import (
 	"log/slog"
 )
 
-func newLocalSourceForTest(t *testing.T, root string) source.Source {
+func newLocalSourceForTest(t *testing.T, root string) *source.LocalFS {
 	t.Helper()
 
-	src, err := source.NewLocalFSForTest(&config.Assets{Root: root}, slog.New(slog.DiscardHandler))
+	src, err := source.NewLocalFS(&config.Assets{Root: root}, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}

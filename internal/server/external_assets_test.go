@@ -31,7 +31,7 @@ func TestEscapedUnicodeJavaScriptAssetFromExternalBuild(t *testing.T) {
 	cfg.Debug.Enable = false
 	cfg.Assets.Root = root
 
-	src, err := source.NewLocalFSForTest(&cfg.Assets, logger)
+	src, err := source.NewLocalFS(&cfg.Assets, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

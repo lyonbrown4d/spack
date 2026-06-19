@@ -17,7 +17,7 @@ import (
 // SyncSourceCatalogForTest exposes source/catalog reconciliation for black-box tests.
 func SyncSourceCatalogForTest(
 	ctx context.Context,
-	src source.Source,
+	src *source.LocalFS,
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	changes ...source.ChangeEvent,

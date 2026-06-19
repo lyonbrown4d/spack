@@ -104,14 +104,8 @@ func TestLoadIntoDefaultConfigPreservesNestedDefaultsWithPartialDotenv(t *testin
 	if cfg.Assets.Entry != "index.html" {
 		t.Fatalf("expected default assets entry to be preserved, got %q", cfg.Assets.Entry)
 	}
-	if cfg.Assets.NormalizedBackend() != config.SourceBackendLocal {
-		t.Fatalf("expected default assets backend %q, got %q", config.SourceBackendLocal, cfg.Assets.NormalizedBackend())
-	}
 	if cfg.Assets.Fallback.On != config.FallbackOnNotFound {
 		t.Fatalf("expected default fallback mode %q, got %q", config.FallbackOnNotFound, cfg.Assets.Fallback.On)
-	}
-	if cfg.Debug.LivePort != 8080 {
-		t.Fatalf("expected default debug live port 8080, got %d", cfg.Debug.LivePort)
 	}
 	if cfg.Compression.CacheDir == "" {
 		t.Fatal("expected default compression cache dir to be preserved")
@@ -178,7 +172,6 @@ func unsetPriorityPrecedenceEnv(t *testing.T) {
 	unsetEnvForTest(t, "SPACK_HTTP_LOW_MEMORY")
 	unsetEnvForTest(t, "SPACK_HTTP_PREFORK")
 	unsetEnvForTest(t, "SPACK_ASSETS_PATH")
-	unsetEnvForTest(t, "SPACK_ASSETS_BACKEND")
 	unsetEnvForTest(t, "SPACK_LOGGER_LEVEL")
 }
 
@@ -216,9 +209,8 @@ func newPriorityPrecedenceFlagSet(t *testing.T) *pflag.FlagSet {
 	flags.Int("http.port", 0, "")
 	flags.Bool("http.low_memory", true, "")
 	flags.Bool("http.prefork", false, "")
-	flags.String("assets.backend", "", "")
 	flags.String("logger.level", "", "")
-	if err := flags.Parse([]string{"--http.port=8088", "--http.low_memory=false", "--http.prefork=false", "--assets.backend=local", "--logger.level=debug"}); err != nil {
+	if err := flags.Parse([]string{"--http.port=8088", "--http.low_memory=false", "--http.prefork=false", "--logger.level=debug"}); err != nil {
 		t.Fatal(err)
 	}
 	return flags
@@ -241,9 +233,6 @@ func assertPriorityPrecedenceConfig(t *testing.T, cfg *config.Config) {
 	}
 	if cfg.Assets.Root != "/env-root" {
 		t.Fatalf("expected env to override assets.root, got %q", cfg.Assets.Root)
-	}
-	if cfg.Assets.NormalizedBackend() != config.SourceBackendLocal {
-		t.Fatalf("expected flag to set assets.backend to %q, got %q", config.SourceBackendLocal, cfg.Assets.NormalizedBackend())
 	}
 	if cfg.Logger.Level != "debug" {
 		t.Fatalf("expected flag to override logger.level, got %q", cfg.Logger.Level)

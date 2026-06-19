@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewLocalFSRequiresRoot(t *testing.T) {
-	_, err := source.NewLocalFSForTest(&config.Assets{}, slog.New(slog.DiscardHandler))
+	_, err := source.NewLocalFS(&config.Assets{}, slog.New(slog.DiscardHandler))
 	if err == nil {
 		t.Fatal("expected error for empty root")
 	}
@@ -30,7 +30,7 @@ func TestNewLocalFSRequiresDirectory(t *testing.T) {
 		}
 	}()
 
-	_, err = source.NewLocalFSForTest(&config.Assets{Root: file.Name()}, slog.New(slog.DiscardHandler))
+	_, err = source.NewLocalFS(&config.Assets{Root: file.Name()}, slog.New(slog.DiscardHandler))
 	if err == nil {
 		t.Fatal("expected error for file root")
 	}
@@ -38,19 +38,15 @@ func TestNewLocalFSRequiresDirectory(t *testing.T) {
 
 func TestLocalFSWatchReportsFileChanges(t *testing.T) {
 	root := t.TempDir()
-	src, err := source.NewLocalFSForTest(&config.Assets{Root: root}, slog.New(slog.DiscardHandler))
+	src, err := source.NewLocalFS(&config.Assets{Root: root}, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
-	}
-	watcher, ok := src.(source.Watcher)
-	if !ok {
-		t.Fatal("expected local filesystem source to support watching")
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	changes, err := watcher.Watch(ctx)
+	changes, err := src.Watch(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -25,7 +25,6 @@ func NewRuntimeInfoMetrics(appName string, cfg *spackconfig.Config, startedAt ti
 		Help: "Effective low-cardinality runtime configuration for the current spack instance.",
 		ConstLabels: prometheus.Labels{
 			"app":                          normalizeBuildInfoLabel(appName, "spack"),
-			"assets_backend":               string(cfg.Assets.NormalizedBackend()),
 			"compression_mode":             cfg.Compression.NormalizedMode(),
 			"compression_pipeline_enabled": strconv.FormatBool(cfg.Compression.PipelineEnabled()),
 			"debug_enabled":                strconv.FormatBool(cfg.Debug.Enable),

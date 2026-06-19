@@ -12,7 +12,7 @@ import (
 	"github.com/samber/oops"
 )
 
-func (s *localFS) Watch(ctx context.Context) (<-chan ChangeEvent, error) {
+func (s *LocalFS) Watch(ctx context.Context) (<-chan ChangeEvent, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, oops.Wrap(err)
@@ -27,7 +27,7 @@ func (s *localFS) Watch(ctx context.Context) (<-chan ChangeEvent, error) {
 	return changes, nil
 }
 
-func (s *localFS) addWatchDirs(watcher *fsnotify.Watcher) error {
+func (s *LocalFS) addWatchDirs(watcher *fsnotify.Watcher) error {
 	if err := filepath.WalkDir(s.root, func(fullPath string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -42,7 +42,7 @@ func (s *localFS) addWatchDirs(watcher *fsnotify.Watcher) error {
 	return nil
 }
 
-func (s *localFS) watchLoop(ctx context.Context, watcher *fsnotify.Watcher, changes chan<- ChangeEvent) {
+func (s *LocalFS) watchLoop(ctx context.Context, watcher *fsnotify.Watcher, changes chan<- ChangeEvent) {
 	defer close(changes)
 	defer s.closeWatcher(watcher)
 
@@ -63,13 +63,13 @@ func (s *localFS) watchLoop(ctx context.Context, watcher *fsnotify.Watcher, chan
 	}
 }
 
-func (s *localFS) closeWatcher(watcher *fsnotify.Watcher) {
+func (s *LocalFS) closeWatcher(watcher *fsnotify.Watcher) {
 	if err := watcher.Close(); err != nil && s.logger != nil {
 		s.logger.Debug("Close source watcher failed", slog.String("err", err.Error()))
 	}
 }
 
-func (s *localFS) handleWatchError(err error, ok bool) bool {
+func (s *LocalFS) handleWatchError(err error, ok bool) bool {
 	if !ok {
 		return false
 	}
@@ -79,7 +79,7 @@ func (s *localFS) handleWatchError(err error, ok bool) bool {
 	return true
 }
 
-func (s *localFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- ChangeEvent, event fsnotify.Event) {
+func (s *LocalFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- ChangeEvent, event fsnotify.Event) {
 	if event.Op.Has(fsnotify.Create) {
 		s.addCreatedWatchDir(watcher, event.Name)
 	}
@@ -97,7 +97,7 @@ func (s *localFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- Cha
 	}
 }
 
-func (s *localFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string) {
+func (s *LocalFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string) {
 	info, err := os.Stat(fullPath)
 	if err != nil || !info.IsDir() {
 		return
@@ -110,7 +110,7 @@ func (s *localFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string)
 	}
 }
 
-func (s *localFS) changeEvent(event fsnotify.Event) (ChangeEvent, bool) {
+func (s *LocalFS) changeEvent(event fsnotify.Event) (ChangeEvent, bool) {
 	rel, err := filepath.Rel(s.root, event.Name)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return ChangeEvent{}, false

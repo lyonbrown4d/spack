@@ -157,7 +157,6 @@ func configLogAttrs(cfg *config.Config) *cxlist.List[slog.Attr] {
 		slog.String("http_memory_cache_ttl", cfg.HTTP.MemoryCache.ParsedTTL().String()),
 		slog.String("assets_root", cfg.Assets.Root),
 		slog.String("assets_path", cfg.Assets.Path),
-		slog.String("assets_backend", string(cfg.Assets.NormalizedBackend())),
 		slog.String("assets_entry", cfg.Assets.Entry),
 		slog.String("fallback_on", string(cfg.Assets.Fallback.On)),
 		slog.String("fallback_target", cfg.Assets.Fallback.Target),
@@ -178,7 +177,6 @@ func configLogAttrs(cfg *config.Config) *cxlist.List[slog.Attr] {
 		slog.Bool("frontend_resource_hints_early_hints", cfg.Frontend.ResourceHints.EarlyHints),
 		slog.Bool("frontend_immutable_cache_enable", cfg.Frontend.ImmutableCache.Enable),
 		slog.Bool("debug_enable", cfg.Debug.Enable),
-		slog.Int("debug_live_port", cfg.Debug.LivePort),
 		slog.String("metrics_prefix", cfg.Metrics.Prefix),
 		slog.String("logger_level", cfg.Logger.Level),
 	)

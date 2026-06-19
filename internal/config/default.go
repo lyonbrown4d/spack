@@ -42,7 +42,6 @@ func defaultHTTPConfig() HTTP {
 
 func defaultAssetsConfig() Assets {
 	return Assets{
-		Backend:  SourceBackendLocal,
 		Path:     "/",
 		Entry:    "index.html",
 		Fallback: Fallback{On: FallbackOnNotFound, Target: "index.html"},
@@ -77,9 +76,7 @@ func defaultRobotsConfig() Robots {
 func defaultDebugConfig() Debug {
 	return Debug{
 		Enable:      true,
-		PprofPrefix: "/pprof",
-		LivePort:    8080,
-		Address:     "0.0.0.0",
+		PprofPrefix: "",
 	}
 }
 

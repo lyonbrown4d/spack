@@ -1,12 +1,6 @@
 package source
 
-import (
-	"context"
-	"errors"
-	"time"
-)
-
-var ErrWatchUnsupported = errors.New("source watch unsupported")
+import "time"
 
 type File struct {
 	Path     string
@@ -16,20 +10,8 @@ type File struct {
 	ModTime  time.Time
 }
 
-type Source interface {
-	Walk(func(File) error) error
-}
-
-type FileFinder interface {
-	FindFile(path string) (File, bool, error)
-}
-
 type ChangeEvent struct {
 	Path     string
 	FullPath string
 	Op       string
-}
-
-type Watcher interface {
-	Watch(context.Context) (<-chan ChangeEvent, error)
 }
