@@ -49,7 +49,6 @@ func newConfigFlagSet() *pflag.FlagSet {
 func bindHTTPFlags(flags *pflag.FlagSet, defaults config.HTTP) {
 	flags.Int("http.port", defaults.Port, "HTTP listen port.")
 	flags.Bool("http.low_memory", defaults.LowMemory, "Reduce Fiber memory usage.")
-	flags.Bool("http.prefork", defaults.Prefork, "Enable Fiber prefork mode.")
 	flags.Bool("http.expose_server_header", defaults.ExposeServerHeader, "Expose the HTTP Server header with the application version.")
 	flags.Bool("http.expose_server_version", defaults.ExposeServerVersion, "Expose version suffix in the HTTP Server header.")
 	flags.Bool("http.memory_cache.enable", defaults.MemoryCache.Enable, "Enable in-memory asset cache.")

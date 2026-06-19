@@ -16,7 +16,6 @@ type hclConfigCase struct {
 	assetsPath  string
 	assetsRoot  string
 	loggerLevel string
-	httpPrefork bool
 }
 
 func assertLoadsHCLConfigCase(t *testing.T, tc hclConfigCase) {
@@ -38,7 +37,6 @@ func hclConfigBody(tc hclConfigCase) string {
 	return "" +
 		"http {\n" +
 		"  port = " + strconv.Itoa(tc.httpPort) + "\n" +
-		"  prefork = " + strconv.FormatBool(tc.httpPrefork) + "\n" +
 		"}\n" +
 		"assets {\n" +
 		"  path = \"" + tc.assetsPath + "\"\n" +
@@ -54,9 +52,6 @@ func assertLoadedHCLConfig(t *testing.T, cfg *config.Config, tc hclConfigCase) {
 
 	if cfg.HTTP.Port != tc.httpPort {
 		t.Fatalf("expected http.port to be %d, got %d", tc.httpPort, cfg.HTTP.Port)
-	}
-	if cfg.HTTP.Prefork != tc.httpPrefork {
-		t.Fatalf("expected http.prefork to be %v, got %v", tc.httpPrefork, cfg.HTTP.Prefork)
 	}
 	if cfg.Assets.Path != tc.assetsPath {
 		t.Fatalf("expected assets.path to be %q, got %q", tc.assetsPath, cfg.Assets.Path)

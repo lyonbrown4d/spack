@@ -79,13 +79,6 @@ func TestMemoryCacheWarmupEnabled(t *testing.T) {
 	}
 }
 
-func TestDefaultHTTPPreforkDisabled(t *testing.T) {
-	cfg := config.DefaultConfigForTest()
-	if cfg.HTTP.Prefork {
-		t.Fatal("expected HTTP prefork to be disabled by default")
-	}
-}
-
 func TestDefaultHTTPServerHeaderHidden(t *testing.T) {
 	cfg := config.DefaultConfigForTest()
 	if cfg.HTTP.ExposeServerHeader {

@@ -145,7 +145,6 @@ func TestLoadWithOptions_LoadsHCLConfig(t *testing.T) {
 			assetsPath:  "/from-hcl",
 			assetsRoot:  "/hcl-root",
 			loggerLevel: "debug",
-			httpPrefork: false,
 		},
 		{
 			name:        "tf",
@@ -154,7 +153,6 @@ func TestLoadWithOptions_LoadsHCLConfig(t *testing.T) {
 			assetsPath:  "/from-tf",
 			assetsRoot:  "/tf-root",
 			loggerLevel: "warn",
-			httpPrefork: true,
 		},
 	}
 
@@ -170,7 +168,6 @@ func unsetPriorityPrecedenceEnv(t *testing.T) {
 
 	unsetEnvForTest(t, "SPACK_HTTP_PORT")
 	unsetEnvForTest(t, "SPACK_HTTP_LOW_MEMORY")
-	unsetEnvForTest(t, "SPACK_HTTP_PREFORK")
 	unsetEnvForTest(t, "SPACK_ASSETS_PATH")
 	unsetEnvForTest(t, "SPACK_LOGGER_LEVEL")
 }
@@ -183,7 +180,6 @@ func writePriorityPrecedenceConfig(t *testing.T) string {
 	configBody := "" +
 		"http:\n" +
 		"  port: 7001\n" +
-		"  prefork: false\n" +
 		"assets:\n" +
 		"  path: /from-file\n" +
 		"  root: /file-root\n" +
@@ -199,7 +195,6 @@ func configurePriorityPrecedenceEnv(t *testing.T) {
 	t.Helper()
 
 	t.Setenv("SPACK_ASSETS_ROOT", "/env-root")
-	t.Setenv("SPACK_HTTP_PREFORK", "true")
 }
 
 func newPriorityPrecedenceFlagSet(t *testing.T) *pflag.FlagSet {
@@ -208,9 +203,8 @@ func newPriorityPrecedenceFlagSet(t *testing.T) *pflag.FlagSet {
 	flags := pflag.NewFlagSet("spack-test", pflag.ContinueOnError)
 	flags.Int("http.port", 0, "")
 	flags.Bool("http.low_memory", true, "")
-	flags.Bool("http.prefork", false, "")
 	flags.String("logger.level", "", "")
-	if err := flags.Parse([]string{"--http.port=8088", "--http.low_memory=false", "--http.prefork=false", "--logger.level=debug"}); err != nil {
+	if err := flags.Parse([]string{"--http.port=8088", "--http.low_memory=false", "--logger.level=debug"}); err != nil {
 		t.Fatal(err)
 	}
 	return flags
@@ -224,9 +218,6 @@ func assertPriorityPrecedenceConfig(t *testing.T, cfg *config.Config) {
 	}
 	if cfg.HTTP.LowMemory {
 		t.Fatal("expected flag to override http.low_memory to false")
-	}
-	if cfg.HTTP.Prefork {
-		t.Fatal("expected flag to override http.prefork to false")
 	}
 	if cfg.Assets.Path != "/from-file" {
 		t.Fatalf("expected config file to set assets.path, got %q", cfg.Assets.Path)

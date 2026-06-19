@@ -111,20 +111,12 @@ func assertCountAttr(t *testing.T, attrs *cxmapping.Map[string, any], attrKey, c
 	}
 }
 
-func TestHTTPListenConfigUsesPreforkSetting(t *testing.T) {
-	cfg := config.DefaultConfigForTest()
-
-	listenCfg := runtime.MainHTTPListenConfigForTest(&cfg)
+func TestHTTPListenConfigDisablesPrefork(t *testing.T) {
+	listenCfg := runtime.MainHTTPListenConfigForTest()
 	if listenCfg.EnablePrefork {
-		t.Fatal("expected prefork to be disabled by default")
+		t.Fatal("expected prefork to be disabled")
 	}
 	if !listenCfg.DisableStartupMessage {
 		t.Fatal("expected startup message to stay disabled")
-	}
-
-	cfg.HTTP.Prefork = true
-	listenCfg = runtime.MainHTTPListenConfigForTest(&cfg)
-	if !listenCfg.EnablePrefork {
-		t.Fatal("expected prefork to be enabled when configured")
 	}
 }

@@ -12,29 +12,6 @@ services:
       SPACK_ASSETS_PATH: /
       SPACK_ASSETS_ENTRY: index.html
       SPACK_HTTP_PORT: "80"
-      SPACK_HTTP_PREFORK: "false"
-      SPACK_HTTP_MEMORY_CACHE_ENABLE: "${SPACK_MEMORY_CACHE_ENABLE:-true}"
-      SPACK_HTTP_MEMORY_CACHE_WARMUP: "${SPACK_MEMORY_CACHE_WARMUP:-true}"
-      SPACK_COMPRESSION_ENABLE: "false"
-      SPACK_COMPRESSION_MODE: off
-      SPACK_IMAGE_ENABLE: "false"
-      SPACK_FRONTEND_RESOURCE_HINTS_ENABLE: "false"
-      SPACK_DEBUG_ENABLE: "false"
-      SPACK_LOGGER_LEVEL: error
-      SPACK_LOGGER_CONSOLE_ENABLED: "false"
-
-  spack-prefork:
-    image: spack-k6-bench:local
-    ports:
-      - "127.0.0.1:18082:80"
-    volumes:
-      - ../../tmp/k6/assets:/app:ro
-    environment:
-      SPACK_ASSETS_ROOT: /app
-      SPACK_ASSETS_PATH: /
-      SPACK_ASSETS_ENTRY: index.html
-      SPACK_HTTP_PORT: "80"
-      SPACK_HTTP_PREFORK: "true"
       SPACK_HTTP_MEMORY_CACHE_ENABLE: "${SPACK_MEMORY_CACHE_ENABLE:-true}"
       SPACK_HTTP_MEMORY_CACHE_WARMUP: "${SPACK_MEMORY_CACHE_WARMUP:-true}"
       SPACK_COMPRESSION_ENABLE: "false"
@@ -57,7 +34,6 @@ services:
     image: grafana/k6:latest
     depends_on:
       - spack
-      - spack-prefork
       - nginx
     volumes:
       - ./k6:/scripts:ro

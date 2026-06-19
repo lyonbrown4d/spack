@@ -92,13 +92,11 @@ tasks:
       - task: perf:k6:run:static
         vars: { BENCH_NAME: spack, TARGET_URL: "http://spack:80", SUMMARY: spack.json, BENCH_PATHS: "{{.K6_FRONTEND_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
       - task: perf:k6:run:static
-        vars: { BENCH_NAME: spack-prefork, TARGET_URL: "http://spack-prefork:80", SUMMARY: spack-prefork.json, BENCH_PATHS: "{{.K6_FRONTEND_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
-      - task: perf:k6:run:static
         vars: { BENCH_NAME: nginx, TARGET_URL: "http://nginx:8080", SUMMARY: nginx.json, BENCH_PATHS: "{{.K6_FRONTEND_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
       - task: perf:k6:down
 
   perf:k6:frontend:
-    desc: 使用 k6 模拟完整前端页面加载，并比较 spack、spack-prefork、nginx
+    desc: 使用 k6 模拟完整前端页面加载，并比较 spack、nginx
     vars:
       K6_VUS: '{{default "64" .K6_VUS}}'
       K6_DURATION: '{{default "30s" .K6_DURATION}}'
@@ -108,8 +106,6 @@ tasks:
       - task: perf:k6:up
       - task: perf:k6:run:frontend
         vars: { BENCH_NAME: spack, TARGET_URL: "http://spack:80", SUMMARY: spack-frontend.json, K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
-      - task: perf:k6:run:frontend
-        vars: { BENCH_NAME: spack-prefork, TARGET_URL: "http://spack-prefork:80", SUMMARY: spack-prefork-frontend.json, K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
       - task: perf:k6:run:frontend
         vars: { BENCH_NAME: nginx, TARGET_URL: "http://nginx:8080", SUMMARY: nginx-frontend.json, K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
       - task: perf:k6:down
@@ -138,7 +134,7 @@ tasks:
   perf:k6:up:
     internal: true
     cmds:
-      - docker compose -f deploy/bench/docker-compose.k6.yml up -d spack spack-prefork nginx
+      - docker compose -f deploy/bench/docker-compose.k6.yml up -d spack nginx
 
   perf:k6:run:frontend:
     internal: true
@@ -178,8 +174,6 @@ tasks:
     cmds:
       - task: perf:k6:run:static
         vars: { BENCH_NAME: spack, TARGET_URL: "http://spack:80", SUMMARY: "spack-{{.GROUP}}.json", BENCH_PATHS: "{{.BENCH_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
-      - task: perf:k6:run:static
-        vars: { BENCH_NAME: spack-prefork, TARGET_URL: "http://spack-prefork:80", SUMMARY: "spack-prefork-{{.GROUP}}.json", BENCH_PATHS: "{{.BENCH_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
       - task: perf:k6:run:static
         vars: { BENCH_NAME: nginx, TARGET_URL: "http://nginx:8080", SUMMARY: "nginx-{{.GROUP}}.json", BENCH_PATHS: "{{.BENCH_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
 

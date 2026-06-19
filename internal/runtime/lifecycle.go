@@ -22,13 +22,12 @@ type collectorRegistration struct {
 func startMainHTTPRuntime(_ context.Context, runtime mainHTTPRuntime) error {
 	go func() {
 		address := "127.0.0.1:" + runtime.cfg.HTTP.GetPort()
-		listenConfig := newMainHTTPListenConfig(runtime.cfg)
+		listenConfig := newMainHTTPListenConfig()
 		runtime.logger.Info("HTTP runtime listening",
 			slog.String("address", "http://"+address),
 			slog.String("mount_path", runtime.cfg.Assets.Path),
 			slog.Int("assets", runtime.cat.AssetCount()),
 			slog.Int("variants", runtime.cat.VariantCount()),
-			slog.Bool("prefork", listenConfig.EnablePrefork),
 		)
 		if err := runtime.app.Listen(":"+runtime.cfg.HTTP.GetPort(), listenConfig); err != nil {
 			runtime.logger.Error("HTTP runtime stopped", slog.String("err", err.Error()))
@@ -37,10 +36,10 @@ func startMainHTTPRuntime(_ context.Context, runtime mainHTTPRuntime) error {
 	return nil
 }
 
-func newMainHTTPListenConfig(cfg *config.Config) fiber.ListenConfig {
+func newMainHTTPListenConfig() fiber.ListenConfig {
 	return fiber.ListenConfig{
 		DisableStartupMessage: true,
-		EnablePrefork:         cfg.HTTP.Prefork,
+		EnablePrefork:         false,
 	}
 }
 

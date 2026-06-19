@@ -25,7 +25,6 @@ func defaultHTTPConfig() HTTP {
 	return HTTP{
 		Port:                80,
 		LowMemory:           true,
-		Prefork:             false,
 		ExposeServerHeader:  false,
 		ExposeServerVersion: false,
 		MemoryCache: MemoryCache{
