@@ -9,8 +9,9 @@ import (
 )
 
 type configCommandOptions struct {
-	files  []string
-	redact bool
+	files      []string
+	redact     bool
+	sourceInfo bool
 }
 
 func newConfigCommand() *cobra.Command {
@@ -54,7 +55,15 @@ func newConfigPrintEffectiveCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			body, err := yaml.Marshal(config.EffectiveMap(cfg, options.redact))
+			effective := config.EffectiveMap(cfg, options.redact)
+			if options.sourceInfo {
+				sourceInfo, sourceErr := effectiveSourceInfo(cfg.Assets.Root, options.redact)
+				if sourceErr != nil {
+					return sourceErr
+				}
+				effective["source_info"] = sourceInfo
+			}
+			body, err := yaml.Marshal(effective)
 			if err != nil {
 				return fmt.Errorf("marshal effective config: %w", err)
 			}
@@ -64,6 +73,7 @@ func newConfigPrintEffectiveCommand() *cobra.Command {
 	}
 	command.Flags().StringSliceVar(&options.files, "file", nil, "Config file path(s). Later files override earlier ones.")
 	command.Flags().BoolVar(&options.redact, "redact", false, "Redact local filesystem paths.")
+	command.Flags().BoolVar(&options.sourceInfo, "source-info", false, "Resolve assets.root and include source metadata.")
 	return command
 }
 
