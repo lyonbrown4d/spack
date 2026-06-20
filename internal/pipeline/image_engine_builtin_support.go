@@ -32,6 +32,49 @@ func builtinSourceBytes(path string, limits imageGenerateLimits) (int64, error) 
 	return size, nil
 }
 
+func readBuiltinSourceImageConfig(
+	path string,
+	limits imageGenerateLimits,
+	variants *cxlist.List[imageVariantGenerateRequest],
+) (builtinSourceImage, int64, error) {
+	sourceBytes, err := builtinSourceBytes(path, limits)
+	if err != nil {
+		return builtinSourceImage{}, 0, err
+	}
+	width, height, err := decodeBuiltinSourceImageConfig(path)
+	if err != nil {
+		return builtinSourceImage{}, 0, err
+	}
+	source := builtinSourceImage{
+		width:  width,
+		height: height,
+		bytes:  sourceBytes,
+	}
+	if err := validateBuiltinSourceImage(source, limits); err != nil {
+		return builtinSourceImage{}, 0, err
+	}
+	return source, estimateBuiltinBatchMemoryBytes(source, variants), nil
+}
+
+func decodeBuiltinSourceImageConfig(path string) (_, _ int, err error) {
+	// #nosec G304 -- path comes from scanned assets rooted under configured sources.
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, 0, fmt.Errorf("open source image config: %w", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("close source image config: %w", closeErr)
+		}
+	}()
+
+	cfg, _, err := image.DecodeConfig(file)
+	if err != nil {
+		return 0, 0, fmt.Errorf("decode source image config: %w", err)
+	}
+	return cfg.Width, cfg.Height, nil
+}
+
 func validateBuiltinSourceImage(source builtinSourceImage, limits imageGenerateLimits) error {
 	if source.width <= 0 || source.height <= 0 {
 		return fmt.Errorf(
@@ -79,6 +122,32 @@ func validateBuiltinPixelLimits(source builtinSourceImage, limits imageGenerateL
 		)
 	}
 	return nil
+}
+
+func estimateBuiltinBatchMemoryBytes(
+	source builtinSourceImage,
+	variants *cxlist.List[imageVariantGenerateRequest],
+) int64 {
+	totalBytes := imageRawMemoryBytes(source.width, source.height)
+	if variants == nil || variants.IsEmpty() {
+		return totalBytes
+	}
+	widths := uniqueBuiltinOutputWidths(source.width, variants)
+	for _, width := range widths {
+		if width == source.width {
+			continue
+		}
+		height := max(1, source.height*width/source.width)
+		totalBytes += imageRawMemoryBytes(width, height)
+	}
+	return totalBytes
+}
+
+func imageRawMemoryBytes(width, height int) int64 {
+	if width <= 0 || height <= 0 {
+		return 0
+	}
+	return int64(width) * int64(height) * 4
 }
 
 func buildBuiltinPyramid(

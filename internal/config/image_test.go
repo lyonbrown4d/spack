@@ -17,12 +17,9 @@ func TestImageParsedWidthsFiltersSortsAndDeduplicates(t *testing.T) {
 	}
 }
 
-func TestDefaultImageConfigSetsSafeBuiltinEngineLimits(t *testing.T) {
+func TestDefaultImageConfigSetsSafeImageLimits(t *testing.T) {
 	cfg := config.DefaultConfigForTest().Image
 
-	if cfg.Engine != "builtin" {
-		t.Fatalf("expected builtin image engine, got %q", cfg.Engine)
-	}
 	if cfg.MaxSourceBytes <= 0 {
 		t.Fatalf("expected max source bytes limit, got %d", cfg.MaxSourceBytes)
 	}

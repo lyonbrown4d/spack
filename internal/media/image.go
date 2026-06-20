@@ -30,6 +30,18 @@ var (
 			Extension:    ".png",
 			AcceptTokens: cxlist.NewList[string]("image/png"),
 		},
+		ImageFormatDescriptor{
+			Name:         "webp",
+			MediaType:    "image/webp",
+			Extension:    ".webp",
+			AcceptTokens: cxlist.NewList[string]("image/webp"),
+		},
+		ImageFormatDescriptor{
+			Name:         "avif",
+			MediaType:    "image/avif",
+			Extension:    ".avif",
+			AcceptTokens: cxlist.NewList[string]("image/avif"),
+		},
 	)
 	imageDescriptorsByName = cxmapping.AssociateList[ImageFormatDescriptor, string, ImageFormatDescriptor](
 		imageFormatDescriptors,

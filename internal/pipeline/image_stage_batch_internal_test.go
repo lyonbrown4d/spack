@@ -70,7 +70,6 @@ func TestImageStageExecuteBatchWritesMultipleVariantsWithOneEngineBatch(t *testi
 	}
 	stage := newImageStage(&config.Image{
 		Enable:         true,
-		Engine:         "builtin",
 		JPEGQuality:    70,
 		MinSavingRatio: 0.01,
 	}, engine, batchTestStore{root: filepath.Join(root, "cache")}, cat)
@@ -106,7 +105,6 @@ func TestImageStagePlanLimitsOutputVariants(t *testing.T) {
 
 	stage := newImageStage(&config.Image{
 		Enable:            true,
-		Engine:            "builtin",
 		MaxOutputVariants: 1,
 	}, &recordingImageEngine{}, batchTestStore{root: t.TempDir()}, cat)
 
@@ -129,7 +127,6 @@ func TestImageStageExecuteBatchSkipsLowBenefitVariants(t *testing.T) {
 
 	stage := newImageStage(&config.Image{
 		Enable:         true,
-		Engine:         "builtin",
 		MinSavingRatio: 0.10,
 		MinSavingBytes: 10,
 		JPEGQuality:    70,

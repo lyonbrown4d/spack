@@ -20,7 +20,6 @@ func EffectiveMap(cfg *Config, redact bool) map[string]any {
 		},
 		"image": map[string]any{
 			"enable":                 cfg.Image.Enable,
-			"engine":                 cfg.Image.Engine,
 			"widths":                 cfg.Image.Widths,
 			"formats":                cfg.Image.Formats,
 			"jpeg_quality":           cfg.Image.JPEGQuality,

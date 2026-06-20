@@ -18,7 +18,6 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 		"--http.expose_server_version=true",
 		"--debug.enable=false",
 		"--metrics.enable=false",
-		"--image.engine=builtin",
 		"--image.max_source_bytes=2048",
 		"--image.max_source_pixels=4096",
 		"--image.max_output_variants=3",
@@ -67,9 +66,6 @@ func assertParsedCoreCommandConfig(t *testing.T, loaded *config.Config) {
 func assertParsedImageCommandConfig(t *testing.T, image config.Image) {
 	t.Helper()
 
-	if image.Engine != "builtin" {
-		t.Fatalf("expected parsed image.engine=builtin flag, got %q", image.Engine)
-	}
 	if image.MaxSourceBytes != 2048 {
 		t.Fatalf("expected parsed image.max_source_bytes=2048, got %d", image.MaxSourceBytes)
 	}

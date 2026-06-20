@@ -16,7 +16,7 @@ import (
 var Module = dix.NewModule("pipeline",
 	dix.WithModuleProviders(
 		dix.Provider0(newMetrics),
-		dix.Provider2(newImageEngine),
+		dix.Provider3(newImageEngine),
 		dix.Provider4(newImageStage),
 		dix.Provider4(newCompressionStage),
 		dix.Contribute1(newImageStageRegistration, dix.Order(100)),
@@ -27,6 +27,7 @@ var Module = dix.NewModule("pipeline",
 	),
 	dix.WithModuleHooks(
 		dix.OnStart(startServiceLifecycle),
+		dix.OnStop(stopImageEngine),
 		dix.OnStop(func(ctx context.Context, svc *Service) error {
 			return svc.stop(ctx)
 		}),

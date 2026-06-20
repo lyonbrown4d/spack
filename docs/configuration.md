@@ -35,7 +35,6 @@ The default image backend is `builtin`. It is pure Go, supports JPEG/PNG input a
 ```yaml
 image:
   enable: true
-  engine: builtin
   widths: "640,1280,1920"
   formats: ""
   jpeg_quality: 78
@@ -52,7 +51,11 @@ image:
 
 Image generation is batched per source asset: SPACK decodes a source image once, builds a width pyramid, and encodes the requested width/format variants from that batch. Variants that do not meet the saving thresholds are not written to the artifact cache.
 
-Future heavy backends such as libvips should ship as separate build and image flavors rather than as dependencies of the default `builtin` runtime.
+`max_memory_bytes` is a global estimated decoded image memory budget shared by image generation work in the engine instance. A batch estimates source and pyramid memory before full decode and waits for budget capacity; if one batch exceeds the budget it is skipped.
+
+The active image engine is selected by the build artifact, not by runtime configuration. The default artifact injects the `builtin` engine. A libvips flavor must be built separately with CGO enabled, libvips development files available through `pkg-config`, and the `libvips` build tag enabled; runtime configuration does not switch between engines.
+
+The `builtin` engine supports JPEG and PNG. The `libvips` build flavor supports JPEG, PNG, WebP, and AVIF when the linked libvips installation provides those codecs.
 
 ## Deployment checks
 

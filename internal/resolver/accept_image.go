@@ -13,11 +13,15 @@ type imageFormatMask uint8
 const (
 	imageFormatMaskJPEG imageFormatMask = 1 << iota
 	imageFormatMaskPNG
+	imageFormatMaskWebP
+	imageFormatMaskAVIF
 )
 
 type imagePreferences struct {
 	jpegQ            float64
 	pngQ             float64
+	webpQ            float64
+	avifQ            float64
 	explicit         imageFormatMask
 	wildcardImageQ   float64
 	hasWildcardImage bool
@@ -78,6 +82,10 @@ func imageFormatMaskForName(format string) (imageFormatMask, bool) {
 		return imageFormatMaskJPEG, true
 	case "png":
 		return imageFormatMaskPNG, true
+	case "webp":
+		return imageFormatMaskWebP, true
+	case "avif":
+		return imageFormatMaskAVIF, true
 	default:
 		return 0, false
 	}
@@ -101,6 +109,10 @@ func (prefs imagePreferences) quality(mask imageFormatMask) float64 {
 		return prefs.jpegQ
 	case imageFormatMaskPNG:
 		return prefs.pngQ
+	case imageFormatMaskWebP:
+		return prefs.webpQ
+	case imageFormatMaskAVIF:
+		return prefs.avifQ
 	default:
 		return 0
 	}
@@ -112,12 +124,16 @@ func (prefs *imagePreferences) setQuality(mask imageFormatMask, q float64) {
 		prefs.jpegQ = q
 	case imageFormatMaskPNG:
 		prefs.pngQ = q
+	case imageFormatMaskWebP:
+		prefs.webpQ = q
+	case imageFormatMaskAVIF:
+		prefs.avifQ = q
 	}
 }
 
 func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
 	supported = imageFormatCandidates(supported, sourceFormat)
-	var stack [2]imageCandidate
+	var stack [4]imageCandidate
 	candidates := stack[:0]
 	supported.Range(func(index int, format string) bool {
 		q, match := imageQualityForFormat(prefs, format)

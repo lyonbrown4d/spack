@@ -48,6 +48,8 @@ func FuzzParseAcceptImageFormats(f *testing.F) {
 		assertUniqueSupportedValues(t, resolver.ParseAcceptImageFormatsForTest(header, sourceFormat).Values(), map[string]struct{}{
 			"jpeg": {},
 			"png":  {},
+			"webp": {},
+			"avif": {},
 		})
 	})
 }

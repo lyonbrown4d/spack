@@ -9,7 +9,6 @@ import (
 
 type Image struct {
 	Enable               bool    `koanf:"enable"`
-	Engine               string  `koanf:"engine"                 validate:"required,oneof=builtin"`
 	Widths               string  `koanf:"widths"                 validate:"omitempty,spack_widths"`
 	Formats              string  `koanf:"formats"`
 	JPEGQuality          int     `koanf:"jpeg_quality"           validate:"gte=1,lte=100"`
