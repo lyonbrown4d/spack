@@ -54,7 +54,7 @@ Run the local SPA fixture:
 ```powershell
 pnpm -C test build
 $env:SPACK_ASSETS_ROOT = (Resolve-Path .\test\build\dist).Path
-go run ./cmd/spack
+go run ./cmd/spack-runtime
 ```
 
 Run local HTTP k6 benchmarks:

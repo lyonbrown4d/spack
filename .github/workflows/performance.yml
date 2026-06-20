@@ -27,6 +27,12 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install libvips dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libvips-dev
+          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
+
       - name: Install task runner
         run: go install github.com/go-task/task/v3/cmd/task@v3.45.4
 

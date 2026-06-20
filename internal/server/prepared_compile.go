@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
@@ -139,7 +138,7 @@ func (c preparedCompiler) compileBody(result *resolver.Result) ([]byte, bool) {
 	if c.memoryPolicy == nil || !c.memoryPolicy.ShouldServe(request) {
 		return nil, false
 	}
-	body, err := os.ReadFile(result.FilePath)
+	body, err := readServerAssetFile(result.FilePath)
 	if err != nil {
 		if c.logger != nil {
 			c.logger.Debug("Compile prepared response body failed",

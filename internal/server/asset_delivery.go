@@ -1,10 +1,8 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 
@@ -14,6 +12,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/samber/lo"
 )
 
@@ -147,6 +146,9 @@ func (r *assetDeliveryRuntime) sendResolvedAssetFile(
 	result *resolver.Result,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
+	if spackbundle.IsReference(result.FilePath) {
+		return r.sendResolvedBundleAsset(c, request, result, headerPlan)
+	}
 	if err := c.SendFile(result.FilePath, fiber.SendFile{ByteRange: true}); err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr
@@ -288,7 +290,7 @@ func (e *missingResolvedVariantError) Unwrap() error {
 }
 
 func newMissingResolvedVariantError(result *resolver.Result, err error) error {
-	if result == nil || result.Variant == nil || err == nil || !errors.Is(err, os.ErrNotExist) {
+	if result == nil || result.Variant == nil || err == nil || !isMissingServerAsset(err) {
 		return nil
 	}
 	return &missingResolvedVariantError{

@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -14,6 +15,9 @@ import (
 )
 
 func (s *LocalFS) Watch(ctx context.Context) (<-chan ChangeEvent, error) {
+	if s.bundle != nil {
+		return nil, oops.Owner("source").Wrap(errors.New("source bundle cannot be watched"))
+	}
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, oops.Wrap(err)

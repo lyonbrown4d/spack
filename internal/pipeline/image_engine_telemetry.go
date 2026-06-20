@@ -1,3 +1,5 @@
+//go:build spack_libvips
+
 package pipeline
 
 import (

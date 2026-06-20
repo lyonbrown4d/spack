@@ -3,6 +3,7 @@ package sourcecatalog
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
@@ -27,19 +28,38 @@ type assetBuildResult struct {
 }
 
 func BuildAsset(file source.File) (*catalog.Asset, error) {
-	sourceHash, err := pkg.HashFile(file.FullPath)
+	sourceHash, err := sourceFileHash(file)
 	if err != nil {
-		return nil, oops.In("sourcecatalog").Owner("asset").With("asset_path", file.Path).Wrap(err)
+		return nil, err
+	}
+	etag := strings.TrimSpace(file.ETag)
+	if etag == "" {
+		etag = fmt.Sprintf("%q", sourceHash)
+	}
+	mediaType := strings.TrimSpace(file.MediaType)
+	if mediaType == "" {
+		mediaType = string(pkg.DetectMIME(file.FullPath))
 	}
 	return &catalog.Asset{
 		Path:       file.Path,
 		FullPath:   file.FullPath,
 		Size:       file.Size,
-		MediaType:  string(pkg.DetectMIME(file.FullPath)),
+		MediaType:  mediaType,
 		SourceHash: sourceHash,
-		ETag:       fmt.Sprintf("%q", sourceHash),
+		ETag:       etag,
 		Metadata:   assetMetadata(file),
 	}, nil
+}
+
+func sourceFileHash(file source.File) (string, error) {
+	if sourceHash := strings.TrimSpace(file.SourceHash); sourceHash != "" {
+		return sourceHash, nil
+	}
+	sourceHash, err := pkg.HashFile(file.FullPath)
+	if err != nil {
+		return "", oops.In("sourcecatalog").Owner("asset").With("asset_path", file.Path).Wrap(err)
+	}
+	return sourceHash, nil
 }
 
 func buildAssets(

@@ -1,24 +1,8 @@
-//go:build libvips && cgo
+//go:build spack_libvips
 
 package pipeline
 
-import (
-	"context"
-	"log/slog"
-)
-
-func logLibvipsImageGenerationError(logger *slog.Logger, message string, err error, attrs []any) {
-	level := slog.LevelWarn
-	if IsVariantSkipped(err) {
-		level = slog.LevelDebug
-	}
-	logger.Log(
-		context.Background(),
-		level,
-		message,
-		mergeBuiltinImageLogAttrs(attrs, slog.String("err", err.Error()))...,
-	)
-}
+import "log/slog"
 
 func logCompletedLibvipsBatch(
 	logger *slog.Logger,
@@ -27,7 +11,7 @@ func logCompletedLibvipsBatch(
 	generatedVariants int,
 ) {
 	logger.Debug("Libvips image generation completed",
-		mergeBuiltinImageLogAttrs(batchAttrs,
+		mergeImageLogAttrs(batchAttrs,
 			slog.Int("generated_variants", generatedVariants),
 			slog.Int("source_width", source.width),
 			slog.Int("source_height", source.height),

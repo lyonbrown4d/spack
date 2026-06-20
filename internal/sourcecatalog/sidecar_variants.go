@@ -156,9 +156,9 @@ func BuildSourceSidecarVariant(
 	match SidecarMatch,
 	asset *catalog.Asset,
 ) (*catalog.Variant, error) {
-	hash, err := pkg.HashFile(sidecar.FullPath)
+	etag, err := sidecarETag(sidecar)
 	if err != nil {
-		return nil, oops.In("sourcecatalog").Owner("variant").With("artifact_path", sidecar.FullPath).Wrap(err)
+		return nil, err
 	}
 
 	return &catalog.Variant{
@@ -168,10 +168,21 @@ func BuildSourceSidecarVariant(
 		Size:         sidecar.Size,
 		MediaType:    asset.MediaType,
 		SourceHash:   asset.SourceHash,
-		ETag:         fmt.Sprintf("%q", hash),
+		ETag:         etag,
 		Encoding:     match.Encoding,
 		Metadata:     sidecarMetadata(sidecar, match.AssetPath),
 	}, nil
+}
+
+func sidecarETag(sidecar source.File) (string, error) {
+	if etag := strings.TrimSpace(sidecar.ETag); etag != "" {
+		return etag, nil
+	}
+	hash, err := pkg.HashFile(sidecar.FullPath)
+	if err != nil {
+		return "", oops.In("sourcecatalog").Owner("variant").With("artifact_path", sidecar.FullPath).Wrap(err)
+	}
+	return fmt.Sprintf("%q", hash), nil
 }
 
 func sidecarMetadata(sidecar source.File, sourcePath string) *cxmapping.Map[string, string] {

@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"os"
 	"strings"
 	"time"
@@ -214,8 +215,11 @@ func checkAssetsRoot(root string) error {
 	if err != nil {
 		return fmt.Errorf("stat assets root %q: %w", root, err)
 	}
-	if !info.IsDir() {
-		return fmt.Errorf("assets root %q is not a directory", root)
+	if info.IsDir() {
+		return nil
 	}
-	return nil
+	if info.Mode().IsRegular() && spackbundle.IsBundlePath(root) {
+		return nil
+	}
+	return fmt.Errorf("assets root %q is not a directory or .spack bundle", root)
 }

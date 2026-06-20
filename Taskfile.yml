@@ -3,7 +3,8 @@
 version: '3'
 
 vars:
-  BIN_NAME: spack
+  BIN_NAME: spack-runtime
+  COMPILER_BIN_NAME: spack-compiler
   DIST_DIR: dist
   GO_LDFLAGS: -s -w -buildid=
   GORELEASER_VERSION: v2.15.4
@@ -28,6 +29,10 @@ tasks:
   test:
     cmds:
       - go test ./...
+
+  test:libvips:
+    cmds:
+      - go test -tags=spack_libvips ./internal/pipeline
 
   test:race:
     cmds:
@@ -56,9 +61,16 @@ tasks:
       - rm -rf {{.DIST_DIR}}
 
   build:
-    desc: 构建当前平台
+    desc: 构建当前平台 runtime
     cmds:
-      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o {{.DIST_DIR}}/{{.BIN_NAME}} ./cmd/spack
+      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o {{.DIST_DIR}}/{{.BIN_NAME}} ./cmd/spack-runtime
+
+  build:compiler:
+    desc: 构建当前平台 compiler（需要 libvips/cgo）
+    env:
+      CGO_ENABLED: "1"
+    cmds:
+      - go build -tags=spack_libvips -trimpath -ldflags="{{.GO_LDFLAGS}}" -o {{.DIST_DIR}}/{{.COMPILER_BIN_NAME}} ./cmd/spack-compiler
 
   build:all:
     desc: 使用 GoReleaser 构建发布覆盖的平台快照
@@ -120,7 +132,7 @@ tasks:
       - task: perf:k6:build:linux
         vars:
           BENCH_GOARCH: '{{.BENCH_GOARCH}}'
-      - docker build --build-arg TARGETPLATFORM=linux/{{.BENCH_GOARCH}} -t spack-k6-bench:local -f docker/alpine.Dockerfile tmp/k6
+      - docker build --build-arg TARGETPLATFORM=linux/{{.BENCH_GOARCH}} -t spack-k6-bench:local -f docker/debian.Dockerfile tmp/k6
 
   perf:k6:build:linux:
     internal: true
@@ -131,7 +143,7 @@ tasks:
       GOOS: linux
       GOARCH: "{{.BENCH_GOARCH}}"
     cmds:
-      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o tmp/k6/linux/{{.BENCH_GOARCH}}/spack ./cmd/spack
+      - go build -trimpath -ldflags="{{.GO_LDFLAGS}}" -o tmp/k6/linux/{{.BENCH_GOARCH}}/spack-runtime ./cmd/spack-runtime
 
   perf:k6:
     desc: 使用 k6 + Docker 对比 spack 与 nginx 的完整 HTTP 静态文件压测

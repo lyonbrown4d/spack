@@ -1,4 +1,4 @@
-//go:build libvips && cgo
+//go:build spack_libvips
 
 package pipeline
 
@@ -44,12 +44,12 @@ func (engine libvipsImageEngine) exportLibvipsVariant(
 	batchAttrs []any,
 	variant imageVariantGenerateRequest,
 ) (imageGenerateResult, error) {
-	width := normalizedBuiltinOutputWidth(source.width, variant.TargetWidth)
-	variantAttrs := mergeBuiltinImageLogAttrs(batchAttrs, builtinVariantLogAttrs(variant, width)...)
+	width := normalizedImageOutputWidth(source.width, variant.TargetWidth)
+	variantAttrs := mergeImageLogAttrs(batchAttrs, imageVariantLogAttrs(variant, width)...)
 	output, ok := pyramid[width]
 	if !ok {
 		err := fmt.Errorf("missing libvips image pyramid width %d", width)
-		logLibvipsImageGenerationError(logger, "Libvips image variant failed", err, variantAttrs)
+		logImageGenerationError(logger, "Libvips image variant failed", err, variantAttrs)
 		engine.telemetry.recordOperation(engine.Name(), "encode", "error", time.Now())
 		return imageGenerateResult{}, err
 	}
@@ -58,7 +58,7 @@ func (engine libvipsImageEngine) exportLibvipsVariant(
 	payload, ext, mediaType, err := exportLibvipsImage(output, variant.TargetFormat, request.Encode)
 	engine.telemetry.recordOperation(engine.Name(), "encode", imageEngineResult(err), encodeStartedAt)
 	if err != nil {
-		logLibvipsImageGenerationError(logger, "Libvips image variant failed", err, variantAttrs)
+		logImageGenerationError(logger, "Libvips image variant failed", err, variantAttrs)
 		return imageGenerateResult{}, err
 	}
 
@@ -89,7 +89,7 @@ func exportLibvipsImagePayload(image *vips.ImageRef, format string, opts imageEn
 	switch format {
 	case "jpeg":
 		params := vips.NewJpegExportParams()
-		params.Quality = clampJPEGQuality(opts.JPEGQuality)
+		params.Quality = clampImageQuality(opts.JPEGQuality)
 		params.StripMetadata = true
 		payload, _, err := image.ExportJpeg(params)
 		return payload, wrapLibvipsExportError("jpeg", err)
@@ -100,13 +100,13 @@ func exportLibvipsImagePayload(image *vips.ImageRef, format string, opts imageEn
 		return payload, wrapLibvipsExportError("png", err)
 	case "webp":
 		params := vips.NewWebpExportParams()
-		params.Quality = clampJPEGQuality(opts.JPEGQuality)
+		params.Quality = clampImageQuality(opts.JPEGQuality)
 		params.StripMetadata = true
 		payload, _, err := image.ExportWebp(params)
 		return payload, wrapLibvipsExportError("webp", err)
 	case "avif":
 		params := vips.NewAvifExportParams()
-		params.Quality = clampJPEGQuality(opts.JPEGQuality)
+		params.Quality = clampImageQuality(opts.JPEGQuality)
 		params.Effort = 4
 		params.StripMetadata = true
 		payload, _, err := image.ExportAvif(params)
@@ -139,7 +139,7 @@ func logGeneratedLibvipsImageVariant(
 	result imageGenerateResult,
 ) {
 	logger.Debug("Libvips image variant generated",
-		mergeBuiltinImageLogAttrs(variantAttrs,
+		mergeImageLogAttrs(variantAttrs,
 			slog.Int("output_width", result.Width),
 			slog.Int("output_height", result.Height),
 			slog.Int("output_bytes", len(result.Payload)),

@@ -18,7 +18,7 @@ const (
 
 // Assets defines the static asset serving configuration.
 // It represents a single mount point that maps an HTTP URL path
-// prefix to a filesystem root directory.
+// prefix to a filesystem root directory or a .spack bundle.
 //
 // The design assumes:
 //   - one process serves one asset mount
@@ -35,9 +35,9 @@ type Assets struct {
 	// This path is matched before any filesystem lookup occurs.
 	Path string `koanf:"path" validate:"required,startswith=/"`
 
-	// Root is the filesystem directory used as the source of static assets.
+	// Root is the filesystem directory or .spack bundle used as the source of static assets.
 	//
-	// All files under this directory will be scanned at startup
+	// All files under this directory or bundle will be scanned at startup
 	// and registered into the in-memory asset registry.
 	//
 	// This path should point to an existing directory and is

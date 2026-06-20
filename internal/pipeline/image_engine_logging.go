@@ -1,3 +1,5 @@
+//go:build spack_libvips
+
 package pipeline
 
 import (
@@ -7,14 +9,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/media"
 )
 
-func (engine builtinImageEngine) log() *slog.Logger {
-	if engine.logger == nil {
-		return normalizeImageEngineLogger(nil).With(slog.String("engine", "builtin"))
-	}
-	return engine.logger
-}
-
-func builtinImageBatchLogAttrs(request imageGenerateBatchRequest) []any {
+func imageBatchLogAttrs(request imageGenerateBatchRequest) []any {
 	variants := 0
 	if request.Variants != nil {
 		variants = request.Variants.Len()
@@ -26,15 +21,7 @@ func builtinImageBatchLogAttrs(request imageGenerateBatchRequest) []any {
 	}
 }
 
-func builtinSourceLogAttrs(source builtinSourceImage) []any {
-	return []any{
-		slog.Int("source_width", source.width),
-		slog.Int("source_height", source.height),
-		slog.Int64("source_bytes", source.bytes),
-	}
-}
-
-func builtinVariantLogAttrs(variant imageVariantGenerateRequest, width int) []any {
+func imageVariantLogAttrs(variant imageVariantGenerateRequest, width int) []any {
 	return []any{
 		slog.String("target_format", media.NormalizeImageFormat(variant.TargetFormat)),
 		slog.Int("target_width", variant.TargetWidth),
@@ -42,7 +29,7 @@ func builtinVariantLogAttrs(variant imageVariantGenerateRequest, width int) []an
 	}
 }
 
-func logBuiltinImageGenerationError(logger *slog.Logger, message string, err error, attrs []any) {
+func logImageGenerationError(logger *slog.Logger, message string, err error, attrs []any) {
 	level := slog.LevelWarn
 	if IsVariantSkipped(err) {
 		level = slog.LevelDebug
@@ -51,11 +38,11 @@ func logBuiltinImageGenerationError(logger *slog.Logger, message string, err err
 		context.Background(),
 		level,
 		message,
-		mergeBuiltinImageLogAttrs(attrs, slog.String("err", err.Error()))...,
+		mergeImageLogAttrs(attrs, slog.String("err", err.Error()))...,
 	)
 }
 
-func mergeBuiltinImageLogAttrs(base []any, extra ...any) []any {
+func mergeImageLogAttrs(base []any, extra ...any) []any {
 	attrs := make([]any, 0, len(base)+len(extra))
 	attrs = append(attrs, base...)
 	attrs = append(attrs, extra...)

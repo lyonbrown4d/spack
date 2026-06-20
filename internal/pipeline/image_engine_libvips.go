@@ -1,4 +1,4 @@
-//go:build libvips && cgo
+//go:build spack_libvips
 
 package pipeline
 
@@ -96,13 +96,13 @@ func (engine libvipsImageEngine) GenerateBatch(
 ) (*cxlist.List[imageGenerateResult], error) {
 	logger := engine.log()
 	startedAt := time.Now()
-	batchAttrs := builtinImageBatchLogAttrs(request)
+	batchAttrs := imageBatchLogAttrs(request)
 	if err := engine.startupErr; err != nil {
 		engine.recordLibvipsBatchError(logger, startedAt, err, batchAttrs)
 		return nil, fmt.Errorf("start libvips image engine: %w", err)
 	}
 	if request.Variants == nil || request.Variants.IsEmpty() {
-		logger.Debug("Libvips image generation skipped", mergeBuiltinImageLogAttrs(
+		logger.Debug("Libvips image generation skipped", mergeImageLogAttrs(
 			batchAttrs,
 			slog.String("reason", "no_variants"),
 		)...)
@@ -143,7 +143,7 @@ func (engine libvipsImageEngine) recordLibvipsBatchError(
 	err error,
 	attrs []any,
 ) {
-	logLibvipsImageGenerationError(logger, "Libvips image generation failed", err, attrs)
+	logImageGenerationError(logger, "Libvips image generation failed", err, attrs)
 	engine.telemetry.recordOperation(engine.Name(), "batch", imageEngineResult(err), startedAt)
 	engine.telemetry.recordSkip(engine.Name(), imageEngineSkipReason(err))
 }

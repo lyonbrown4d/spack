@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/samber/lo"
 )
 
@@ -50,6 +51,9 @@ func (r *assetDeliveryRuntime) sendPreparedAssetFile(
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
 	response := selection.response
+	if spackbundle.IsReference(response.filePath()) {
+		return r.sendPreparedBundleAssetFile(c, request, response, headerPlan)
+	}
 	if err := c.SendFile(response.filePath(), fiber.SendFile{ByteRange: true}); err != nil {
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr

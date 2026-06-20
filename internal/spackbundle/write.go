@@ -1,0 +1,285 @@
+package spackbundle
+
+import (
+	"archive/zip"
+	"cmp"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+)
+
+// File describes one source file to embed in a bundle.
+type File struct {
+	Path       string
+	FullPath   string
+	Kind       string
+	Size       int64
+	MediaType  string
+	SourceHash string
+	ETag       string
+	AssetPath  string
+	Encoding   string
+}
+
+// WriteOptions configures bundle writing.
+type WriteOptions struct {
+	Output string
+	Root   string
+	Files  []File
+	Now    func() time.Time
+}
+
+// WriteSummary describes a completed bundle write.
+type WriteSummary struct {
+	Output string
+	Files  int
+	Bytes  int64
+}
+
+// Write creates a SPACK bundle at options.Output.
+func Write(ctx context.Context, options WriteOptions) (WriteSummary, error) {
+	output, root, files, err := normalizeWriteInputs(options)
+	if err != nil {
+		return WriteSummary{}, err
+	}
+
+	index := buildIndex(files, options.Now)
+	temp, err := os.CreateTemp(filepath.Dir(output), filepath.Base(output)+".tmp-*")
+	if err != nil {
+		return WriteSummary{}, fmt.Errorf("create bundle temp file: %w", err)
+	}
+	return writeBundleToTemp(ctx, output, root, temp, index, files)
+}
+
+func normalizeWriteInputs(options WriteOptions) (string, string, []File, error) {
+	output, err := normalizedOutputPath(options.Output)
+	if err != nil {
+		return "", "", nil, err
+	}
+	root, err := normalizedRootPath(options.Root)
+	if err != nil {
+		return "", "", nil, err
+	}
+	files, err := normalizeFiles(root, options.Files)
+	if err != nil {
+		return "", "", nil, err
+	}
+	return output, root, files, nil
+}
+
+func writeBundleToTemp(
+	ctx context.Context,
+	output string,
+	root string,
+	temp *os.File,
+	index Index,
+	files []File,
+) (WriteSummary, error) {
+	_ = root
+	tempPath := temp.Name()
+	committed := false
+	defer cleanupTempBundle(tempPath, &committed)
+
+	zipWriter := zip.NewWriter(temp)
+	if indexErr := writeBundleIndex(zipWriter, index); indexErr != nil {
+		return WriteSummary{}, closeBundleWriters(zipWriter, temp, indexErr)
+	}
+	totalBytes, err := writeBundleFiles(ctx, zipWriter, files)
+	if err != nil {
+		return WriteSummary{}, closeBundleWriters(zipWriter, temp, err)
+	}
+	if err := zipWriter.Close(); err != nil {
+		return WriteSummary{}, closeBundleFile(temp, fmt.Errorf("close bundle zip writer: %w", err))
+	}
+	if err := temp.Close(); err != nil {
+		return WriteSummary{}, fmt.Errorf("close bundle temp file: %w", err)
+	}
+	if err := os.Rename(tempPath, output); err != nil {
+		return WriteSummary{}, fmt.Errorf("publish bundle: %w", err)
+	}
+	committed = true
+
+	return WriteSummary{
+		Output: output,
+		Files:  len(files),
+		Bytes:  totalBytes,
+	}, nil
+}
+
+func normalizedOutputPath(output string) (string, error) {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return "", errors.New("bundle output path is required")
+	}
+	absolute, err := filepath.Abs(filepath.Clean(output))
+	if err != nil {
+		return "", fmt.Errorf("resolve bundle output path: %w", err)
+	}
+	return absolute, nil
+}
+
+func normalizedRootPath(root string) (string, error) {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return "", errors.New("bundle root path is required")
+	}
+	absolute, err := filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return "", fmt.Errorf("resolve bundle root path: %w", err)
+	}
+	info, err := os.Lstat(absolute)
+	if err != nil {
+		return "", fmt.Errorf("stat bundle root: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("bundle root must be a directory: %s", absolute)
+	}
+	return absolute, nil
+}
+
+func normalizeFiles(root string, files []File) ([]File, error) {
+	normalized := make([]File, 0, len(files))
+	seen := map[string]struct{}{}
+	for index := range files {
+		file, err := normalizeFile(root, files[index], seen)
+		if err != nil {
+			return nil, err
+		}
+		normalized = append(normalized, file)
+	}
+	slices.SortFunc(normalized, func(left, right File) int {
+		return cmp.Compare(left.Path, right.Path)
+	})
+	return normalized, nil
+}
+
+func normalizeFile(root string, file File, seen map[string]struct{}) (File, error) {
+	path, err := cleanBundlePath(file.Path)
+	if err != nil {
+		return File{}, err
+	}
+	if _, ok := seen[path]; ok {
+		return File{}, fmt.Errorf("bundle path %q is duplicated", path)
+	}
+	fullPath, info, err := statBundleFile(root, file)
+	if err != nil {
+		return File{}, err
+	}
+	file.Path = path
+	file.FullPath = fullPath
+	file.Size = info.Size()
+	seen[path] = struct{}{}
+	return file, nil
+}
+
+func statBundleFile(root string, file File) (string, os.FileInfo, error) {
+	fullPath, err := filepath.Abs(filepath.Clean(file.FullPath))
+	if err != nil {
+		return "", nil, fmt.Errorf("resolve bundle file %q: %w", file.Path, err)
+	}
+	if !isPathInside(root, fullPath) {
+		return "", nil, fmt.Errorf("bundle file %q escapes root", file.Path)
+	}
+	info, err := os.Lstat(fullPath)
+	if err != nil {
+		return "", nil, fmt.Errorf("stat bundle file %q: %w", file.Path, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", nil, fmt.Errorf("bundle file %q is a symlink", file.Path)
+	}
+	if info.IsDir() {
+		return "", nil, fmt.Errorf("bundle file %q is a directory", file.Path)
+	}
+	return fullPath, info, nil
+}
+
+func buildIndex(files []File, now func() time.Time) Index {
+	if now == nil {
+		now = time.Now
+	}
+	index := Index{
+		CreatedAt: now().UTC(),
+		Files:     make([]IndexFile, 0, len(files)),
+	}
+	for fileIndex := range files {
+		file := files[fileIndex]
+		index.Files = append(index.Files, IndexFile{
+			Path:       file.Path,
+			Kind:       file.Kind,
+			Size:       file.Size,
+			MediaType:  file.MediaType,
+			SourceHash: file.SourceHash,
+			ETag:       file.ETag,
+			AssetPath:  file.AssetPath,
+			Encoding:   file.Encoding,
+		})
+	}
+	return index
+}
+
+func writeBundleIndex(zipWriter *zip.Writer, index Index) error {
+	body, err := marshalIndex(index)
+	if err != nil {
+		return err
+	}
+	header := &zip.FileHeader{
+		Name:   IndexPath,
+		Method: zip.Deflate,
+	}
+	header.SetMode(0o600)
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return fmt.Errorf("create bundle index: %w", err)
+	}
+	if _, err := writer.Write(body); err != nil {
+		return fmt.Errorf("write bundle index: %w", err)
+	}
+	return nil
+}
+
+func writeBundleFiles(ctx context.Context, zipWriter *zip.Writer, files []File) (int64, error) {
+	totalBytes := int64(0)
+	for index := range files {
+		if err := ctx.Err(); err != nil {
+			return 0, fmt.Errorf("write bundle canceled: %w", err)
+		}
+		file := files[index]
+		written, err := writeBundleFile(zipWriter, file)
+		if err != nil {
+			return 0, err
+		}
+		totalBytes += written
+	}
+	return totalBytes, nil
+}
+
+func writeBundleFile(zipWriter *zip.Writer, file File) (int64, error) {
+	source, err := os.Open(file.FullPath)
+	if err != nil {
+		return 0, fmt.Errorf("open bundle file %q: %w", file.Path, err)
+	}
+	defer func() {
+		discardError(source.Close())
+	}()
+
+	header := &zip.FileHeader{
+		Name:   file.Path,
+		Method: zip.Deflate,
+	}
+	header.SetMode(0o600)
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return 0, fmt.Errorf("create bundle file %q: %w", file.Path, err)
+	}
+	written, err := io.Copy(writer, source)
+	if err != nil {
+		return 0, fmt.Errorf("write bundle file %q: %w", file.Path, err)
+	}
+	return written, nil
+}

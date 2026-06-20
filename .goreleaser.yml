@@ -7,35 +7,47 @@ before:
     - go mod tidy -diff
 
 builds:
-  - id: spack-linux
-    main: ./cmd/spack
-    binary: spack
+  - id: spack-runtime-linux
+    main: ./cmd/spack-runtime
+    binary: spack-runtime
     flags:
       - -trimpath
     goos:
       - linux
     goarch:
       - amd64
-      - arm64
     env:
       - CGO_ENABLED=0
     ldflags:
       - -s -w -buildid=
-
-  - id: spack-cross
-    main: ./cmd/spack
-    binary: spack
+  - id: spack-compiler-linux
+    main: ./cmd/spack-compiler
+    binary: spack-compiler
     flags:
       - -trimpath
+    tags:
+      - spack_libvips
     goos:
-      - darwin
-      - windows
+      - linux
     goarch:
       - amd64
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     ldflags:
       - -s -w -buildid=
+
+upx:
+  - enabled: true
+    ids:
+      - spack-runtime-linux
+      - spack-compiler-linux
+    goos:
+      - linux
+    goarch:
+      - amd64
+    compress: best
+    lzma: true
+    brute: true
 
 release:
   prerelease: auto
@@ -50,8 +62,8 @@ changelog:
 
 archives:
   - ids:
-      - spack-linux
-      - spack-cross
+      - spack-runtime-linux
+      - spack-compiler-linux
     formats:
       - tar.gz
     format_overrides:
@@ -78,26 +90,15 @@ snapshot:
   version_template: "{{ .Version }}-snapshot"
 
 dockers_v2:
-  - id: alpine
+  - id: debian
     ids:
-      - spack-linux
-    dockerfile: docker/alpine.Dockerfile
+      - spack-runtime-linux
+    dockerfile: docker/debian.Dockerfile
     images:
       - ghcr.io/lyonbrown4d/spack
       - lyonbrown4d/spack
     tags:
       - "{{ .Version }}"
       - latest
-      - alpine
-      - alpine-{{ .Version }}
-
-  - id: debian
-    ids:
-      - spack-linux
-    dockerfile: docker/debian.Dockerfile
-    images:
-      - ghcr.io/lyonbrown4d/spack
-      - lyonbrown4d/spack
-    tags:
       - debian
       - debian-{{ .Version }}

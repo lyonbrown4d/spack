@@ -30,7 +30,7 @@ func NewCompressionStageForTest(cfg *config.Compression, store artifact.Store, c
 // NewImageStageForTest exposes image stage construction for external tests.
 func NewImageStageForTest(cfg *config.Image, store artifact.Store, cat catalog.Catalog) Stage {
 	logger := slog.New(slog.DiscardHandler)
-	engine := newBuiltinImageEngine(cfg, normalizeImageEngineLogger(logger), newImageEngineTelemetry(logger, nil))
+	engine := newImageEngine(cfg, logger, nil)
 	return newImageStage(cfg, engine, store, cat)
 }
 

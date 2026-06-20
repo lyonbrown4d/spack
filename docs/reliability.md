@@ -46,7 +46,7 @@ The consistency rule is strict: a stale source asset must not keep a stale catal
 
 ## Image generation contract
 
-The default image engine is `builtin`: pure Go, JPEG/PNG only, and no CGO dependency in the default binary.
+The image engine is libvips. SPACK requires CGO and native libvips libraries for image generation.
 
 - Image work is batched per source asset.
 - A source image is opened and decoded once per batch.
@@ -54,7 +54,7 @@ The default image engine is `builtin`: pure Go, JPEG/PNG only, and no CGO depend
 - Source byte, pixel, width, height, global estimated decoded-memory budget, and output variant limits are enforced before writing artifacts.
 - Generated variant metadata records source bytes, source pixels, source dimensions, output bytes, output dimensions, saved bytes, saving ratio, target format, and engine name.
 - Low-benefit variants are skipped and not written to disk.
-- Optional heavy engines such as libvips are separate build/image flavors selected by build tags, not runtime configuration or default binary dependencies. The libvips flavor must provide its native libvips runtime libraries at build and runtime.
+- Native libvips runtime libraries must be available at build and runtime.
 
 ## Bounded pipeline queue contract
 

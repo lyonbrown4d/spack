@@ -1,4 +1,4 @@
-//go:build libvips && cgo
+//go:build spack_libvips
 
 package pipeline
 
@@ -20,7 +20,9 @@ var (
 
 func startLibvips() error {
 	libvipsStartupOnce.Do(func() {
-		libvipsStartupErr = vips.Startup(nil)
+		if err := vips.Startup(nil); err != nil {
+			libvipsStartupErr = fmt.Errorf("start libvips: %w", err)
+		}
 	})
 	return libvipsStartupErr
 }
@@ -28,7 +30,7 @@ func startLibvips() error {
 func (engine libvipsImageEngine) loadSourceImage(
 	request imageGenerateBatchRequest,
 ) (_ libvipsSourceImage, _ func(), err error) {
-	sourceBytes, err := builtinSourceBytes(request.SourcePath, request.Limits)
+	sourceBytes, err := imageSourceBytes(request.SourcePath, request.Limits)
 	if err != nil {
 		return libvipsSourceImage{}, noopMemoryRelease, err
 	}
@@ -50,13 +52,13 @@ func (engine libvipsImageEngine) loadSourceImage(
 		height: ref.Height(),
 		bytes:  sourceBytes,
 	}
-	if err := validateBuiltinSourceImage(builtinSourceImage{
+	if validationErr := validateImageSourceLimits(imageSourceSnapshot{
 		width:  source.width,
 		height: source.height,
 		bytes:  source.bytes,
-	}, request.Limits); err != nil {
+	}, request.Limits); validationErr != nil {
 		closeLibvipsImage(ref)
-		return libvipsSourceImage{}, noopMemoryRelease, err
+		return libvipsSourceImage{}, noopMemoryRelease, validationErr
 	}
 
 	releaseMemory, err := engine.acquireSourceMemory(request, source)
@@ -79,26 +81,6 @@ func (engine libvipsImageEngine) acquireSourceMemory(
 	return releaseMemory, err
 }
 
-func estimateImageBatchMemoryBytes(
-	sourceWidth int,
-	sourceHeight int,
-	variants *cxlist.List[imageVariantGenerateRequest],
-) int64 {
-	totalBytes := imageRawMemoryBytes(sourceWidth, sourceHeight)
-	if variants == nil || variants.IsEmpty() {
-		return totalBytes
-	}
-	widths := uniqueBuiltinOutputWidths(sourceWidth, variants)
-	for _, width := range widths {
-		if width == sourceWidth {
-			continue
-		}
-		height := max(1, sourceHeight*width/sourceWidth)
-		totalBytes += imageRawMemoryBytes(width, height)
-	}
-	return totalBytes
-}
-
 func (engine libvipsImageEngine) generateLibvipsVariants(
 	logger *slog.Logger,
 	request imageGenerateBatchRequest,
@@ -119,7 +101,7 @@ func buildLibvipsPyramid(
 	source libvipsSourceImage,
 	variants *cxlist.List[imageVariantGenerateRequest],
 ) (map[int]*vips.ImageRef, error) {
-	widths := uniqueBuiltinOutputWidths(source.width, variants)
+	widths := uniqueImageOutputWidths(source.width, variants)
 	pyramid := map[int]*vips.ImageRef{source.width: source.ref}
 	current := source.ref
 	currentWidth := source.width
@@ -143,7 +125,7 @@ func buildLibvipsPyramid(
 	return pyramid, nil
 }
 
-func resizeLibvipsImage(source *vips.ImageRef, sourceWidth int, width int) (*vips.ImageRef, error) {
+func resizeLibvipsImage(source *vips.ImageRef, sourceWidth, width int) (*vips.ImageRef, error) {
 	resized, err := source.Copy()
 	if err != nil {
 		return nil, fmt.Errorf("copy libvips image: %w", err)

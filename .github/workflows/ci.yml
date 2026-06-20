@@ -42,6 +42,13 @@ jobs:
       - name: Run tests
         run: task test
 
+      - name: Run libvips image tests
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libvips-dev
+          CGO_ENABLED=1 task test:libvips
+
       - name: Run race tests
         if: runner.os == 'Linux'
         run: task test:race

@@ -30,7 +30,7 @@ assets:
 
 ## Image pipeline
 
-The default image backend is `builtin`. It is pure Go, supports JPEG/PNG input and output, and does not add CGO dependencies to the default binary.
+The image pipeline uses libvips. SPACK requires CGO, libvips runtime libraries, and libvips development metadata available through `pkg-config` when image support is built.
 
 ```yaml
 image:
@@ -53,9 +53,7 @@ Image generation is batched per source asset: SPACK decodes a source image once,
 
 `max_memory_bytes` is a global estimated decoded image memory budget shared by image generation work in the engine instance. A batch estimates source and pyramid memory before full decode and waits for budget capacity; if one batch exceeds the budget it is skipped.
 
-The active image engine is selected by the build artifact, not by runtime configuration. The default artifact injects the `builtin` engine. A libvips flavor must be built separately with CGO enabled, libvips development files available through `pkg-config`, and the `libvips` build tag enabled; runtime configuration does not switch between engines.
-
-The `builtin` engine supports JPEG and PNG. The `libvips` build flavor supports JPEG, PNG, WebP, and AVIF when the linked libvips installation provides those codecs.
+The image engine is not runtime-configurable. SPACK uses libvips for JPEG, PNG, WebP, and AVIF when the linked libvips installation provides those codecs.
 
 ## Deployment checks
 

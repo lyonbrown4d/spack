@@ -1,3 +1,5 @@
+//go:build spack_libvips
+
 package pipeline_test
 
 import (
@@ -69,7 +71,7 @@ func TestImageStagePlanSchedulesFormatVariant(t *testing.T) {
 	}
 }
 
-func TestImageStagePlanIgnoresUnsupportedModernFormatVariant(t *testing.T) {
+func TestImageStagePlanIgnoresUnsupportedFormatVariant(t *testing.T) {
 	cat := catalog.NewInMemoryCatalog()
 	asset := &catalog.Asset{
 		Path:       "hero.png",
@@ -88,10 +90,10 @@ func TestImageStagePlanIgnoresUnsupportedModernFormatVariant(t *testing.T) {
 
 	tasks := stage.Plan(asset, pipeline.Request{
 		AssetPath:        asset.Path,
-		PreferredFormats: cxlist.NewList("webp"),
+		PreferredFormats: cxlist.NewList("gif"),
 	})
 	if tasks.Len() != 0 {
-		t.Fatalf("expected unsupported webp format to be ignored, got %#v", tasks.Values())
+		t.Fatalf("expected unsupported gif format to be ignored, got %#v", tasks.Values())
 	}
 }
 

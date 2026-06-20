@@ -21,7 +21,8 @@ import (
 var container *dix.App
 
 var rootCmd = &cobra.Command{
-	Use: "spack",
+	Use:   "spack",
+	Short: "Serve optimized frontend assets from a local filesystem source.",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		dixInstance, err := createContainer(
 			configLoadOptions(cmd),
@@ -53,6 +54,35 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() error {
+	return executeRoot(commandProfile{
+		use:   "spack",
+		short: "Serve optimized frontend assets from a local filesystem source.",
+	})
+}
+
+func ExecuteRuntime() error {
+	return executeRoot(commandProfile{
+		use:   "spack-runtime",
+		short: "Serve optimized frontend assets from a local directory or SPACK artifact.",
+	})
+}
+
+func ExecuteCompiler() error {
+	rootCmd.AddCommand(newCompileCommand())
+	return executeRoot(commandProfile{
+		use:   "spack-compiler",
+		short: "Compile frontend assets into SPACK artifacts.",
+	})
+}
+
+type commandProfile struct {
+	use   string
+	short string
+}
+
+func executeRoot(profile commandProfile) error {
+	rootCmd.Use = profile.use
+	rootCmd.Short = profile.short
 	if err := rootCmd.Execute(); err != nil {
 		return oops.In("command").Wrap(fmt.Errorf("execute root command: %w", err))
 	}

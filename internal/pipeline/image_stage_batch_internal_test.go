@@ -1,9 +1,6 @@
 package pipeline
 
 import (
-	"image"
-	"image/color"
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -143,40 +140,6 @@ func TestImageStageExecuteBatchSkipsLowBenefitVariants(t *testing.T) {
 	}
 }
 
-func TestBuiltinImageEngineRejectsSourceByteLimit(t *testing.T) {
-	root := t.TempDir()
-	sourcePath := writeInternalTempBytes(t, root, make([]byte, 128))
-
-	_, err := builtinImageEngine{}.GenerateBatch(imageGenerateBatchRequest{
-		SourcePath: sourcePath,
-		Variants: cxlist.NewList(imageVariantGenerateRequest{
-			TargetFormat: "png",
-			TargetWidth:  16,
-		}),
-		Limits: imageGenerateLimits{MaxSourceBytes: 64},
-	})
-	if !IsVariantSkipped(err) {
-		t.Fatalf("expected byte-limited source to be skipped, got %v", err)
-	}
-}
-
-func TestBuiltinImageEngineRejectsSourcePixelLimit(t *testing.T) {
-	root := t.TempDir()
-	sourcePath := writeInternalPNGFixture(t, root, 4, 4)
-
-	_, err := builtinImageEngine{}.GenerateBatch(imageGenerateBatchRequest{
-		SourcePath: sourcePath,
-		Variants: cxlist.NewList(imageVariantGenerateRequest{
-			TargetFormat: "png",
-			TargetWidth:  2,
-		}),
-		Limits: imageGenerateLimits{MaxSourcePixels: 8},
-	})
-	if !IsVariantSkipped(err) {
-		t.Fatalf("expected pixel-limited source to be skipped, got %v", err)
-	}
-}
-
 func imageBatchAssetForTest(t *testing.T, root string, size int64) *catalog.Asset {
 	t.Helper()
 
@@ -219,48 +182,6 @@ func upsertImageBatchAssetForTest(t *testing.T, cat catalog.Catalog, asset *cata
 	if err := cat.UpsertAsset(asset); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func writeInternalPNGFixture(t *testing.T, root string, width, height int) string {
-	t.Helper()
-
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	for y := range height {
-		for x := range width {
-			img.Set(x, y, color.RGBA{R: uint8(x), G: uint8(y), B: uint8(x + y), A: 255})
-		}
-	}
-	file, err := os.CreateTemp(root, "image-*.png")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			t.Fatal(closeErr)
-		}
-	}()
-	if err := png.Encode(file, img); err != nil {
-		t.Fatal(err)
-	}
-	return file.Name()
-}
-
-func writeInternalTempBytes(t *testing.T, root string, body []byte) string {
-	t.Helper()
-
-	file, err := os.CreateTemp(root, "source-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			t.Fatal(closeErr)
-		}
-	}()
-	if _, err := file.Write(body); err != nil {
-		t.Fatal(err)
-	}
-	return file.Name()
 }
 
 type batchTestStore struct {

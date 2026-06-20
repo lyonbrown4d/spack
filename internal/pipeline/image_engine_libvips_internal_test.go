@@ -1,4 +1,4 @@
-//go:build libvips && cgo
+//go:build spack_libvips
 
 package pipeline
 

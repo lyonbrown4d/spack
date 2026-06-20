@@ -21,7 +21,7 @@ cat > "$WORK_DIR/assets/app.js" <<'JS'
 console.log("spack smoke");
 JS
 
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w -buildid=" -o "$WORK_DIR/linux/amd64/spack" ./cmd/spack
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w -buildid=" -o "$WORK_DIR/linux/amd64/spack-runtime" ./cmd/spack-runtime
 docker build --build-arg TARGETPLATFORM=linux/amd64 -t "$IMAGE" -f docker/alpine.Dockerfile "$WORK_DIR"
 
 cleanup() {
