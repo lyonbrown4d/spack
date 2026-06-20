@@ -13,10 +13,6 @@ type configCommandOptions struct {
 	redact bool
 }
 
-func init() {
-	rootCmd.AddCommand(newConfigCommand())
-}
-
 func newConfigCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "config",
@@ -31,10 +27,13 @@ func newConfigValidateCommand() *cobra.Command {
 	options := configCommandOptions{}
 	command := &cobra.Command{
 		Use:   "validate",
-		Short: "Validate configuration without starting the server",
+		Short: "Validate configuration and asset source without starting the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := loadConfigForCommand(cmd, options.files)
+			cfg, err := loadConfigForCommand(cmd, options.files)
 			if err != nil {
+				return err
+			}
+			if err := validateConfiguredAssetsRoot(cfg.Assets.Root); err != nil {
 				return err
 			}
 			cmd.Println("configuration is valid")
@@ -69,15 +68,13 @@ func newConfigPrintEffectiveCommand() *cobra.Command {
 }
 
 func loadConfigForCommand(cmd *cobra.Command, files []string) (*config.Config, error) {
-	_ = cmd
-	return resolveConfigWithDix(configCommandLoadOptions(files))
+	return resolveConfigWithDix(configCommandLoadOptions(cmd, files))
 }
 
-func configCommandLoadOptions(files []string) config.LoadOptions {
-	mergedFiles := append([]string(nil), configFiles...)
+func configCommandLoadOptions(cmd *cobra.Command, files []string) config.LoadOptions {
+	loadOptions := configLoadOptions(cmd)
+	mergedFiles := append([]string(nil), loadOptions.Files...)
 	mergedFiles = append(mergedFiles, files...)
-	return config.LoadOptions{
-		Files:   mergedFiles,
-		FlagSet: configFlagSet,
-	}
+	loadOptions.Files = mergedFiles
+	return loadOptions
 }

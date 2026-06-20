@@ -6,24 +6,19 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var (
-	configFiles   []string
-	configFlagSet = newConfigFlagSet()
-)
-
-func init() {
-	bindConfigFlags(rootCmd)
-}
-
 func bindConfigFlags(cmd *cobra.Command) {
 	flags := cmd.PersistentFlags()
-	flags.StringSliceVarP(&configFiles, "config", "c", nil, "Config file path(s). Later files override earlier ones.")
-	flags.AddFlagSet(configFlagSet)
+	flags.StringSliceP("config", "c", nil, "Config file path(s). Later files override earlier ones.")
+	flags.AddFlagSet(newConfigFlagSet())
 }
 
 func configLoadOptions(cmd *cobra.Command) config.LoadOptions {
+	files, err := cmd.Flags().GetStringSlice("config")
+	if err != nil {
+		files = nil
+	}
 	return config.LoadOptions{
-		Files:   append([]string(nil), configFiles...),
+		Files:   append([]string(nil), files...),
 		FlagSet: cmd.Flags(),
 	}
 }

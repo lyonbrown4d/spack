@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/spf13/cobra"
 )
 
@@ -21,14 +23,27 @@ type inspectOptions struct {
 
 type inspectReport struct {
 	AssetsRoot           string                        `json:"assets_root"`
+	SourceType           string                        `json:"source_type"`
 	AssetCount           int                           `json:"asset_count"`
 	SourceSidecarCount   int                           `json:"source_sidecar_count"`
 	TotalAssetBytes      int64                         `json:"total_asset_bytes"`
 	TotalSourceBytes     int64                         `json:"total_source_bytes"`
+	Bundle               *bundleSummary                `json:"bundle,omitempty"`
 	Compression          map[string]compressionSummary `json:"compression"`
 	ImageVariants        imageVariantSummary           `json:"image_variants"`
 	EstimatedMemoryCache memoryCacheSummary            `json:"estimated_memory_cache"`
 	PotentialIssues      []string                      `json:"potential_issues,omitempty"`
+}
+
+type bundleSummary struct {
+	FormatVersion       string    `json:"format_version"`
+	IndexKind           string    `json:"index_kind"`
+	CreatedAt           time.Time `json:"created_at"`
+	FileCount           int       `json:"file_count"`
+	AssetCount          int       `json:"asset_count"`
+	SourceSidecarCount  int       `json:"source_sidecar_count"`
+	CompressedFileCount int       `json:"compressed_file_count"`
+	TotalBytes          int64     `json:"total_bytes"`
 }
 
 type compressionSummary struct {
@@ -54,17 +69,13 @@ type memoryCacheSummary struct {
 	EstimatedWarmBytes int64 `json:"estimated_warm_bytes"`
 }
 
-func init() {
-	rootCmd.AddCommand(newInspectCommand())
-}
-
 func newInspectCommand() *cobra.Command {
 	options := inspectOptions{}
 	command := &cobra.Command{
 		Use:   "inspect",
-		Short: "Inspect an asset directory without starting the server",
+		Short: "Inspect an asset directory or .spack bundle without starting the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := resolveConfigWithDix(configCommandLoadOptions(nil))
+			cfg, err := resolveConfigWithDix(configCommandLoadOptions(cmd, nil))
 			if err != nil {
 				return err
 			}
@@ -83,7 +94,7 @@ func newInspectCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&options.assets, "assets", "", "Asset directory to inspect.")
+	command.Flags().StringVar(&options.assets, "assets", "", "Asset directory or .spack bundle to inspect.")
 	return command
 }
 
@@ -99,12 +110,22 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 	if err != nil {
 		return inspectReport{}, fmt.Errorf("scan assets: %w", err)
 	}
+	bundle, hasBundle, err := inspectBundle(cfg.Assets.Root)
+	if err != nil {
+		return inspectReport{}, err
+	}
+	var bundlePointer *bundleSummary
+	if hasBundle {
+		bundlePointer = &bundle
+	}
 
 	report := inspectReport{
 		AssetsRoot:           filepath.Clean(cfg.Assets.Root),
+		SourceType:           inspectSourceType(hasBundle),
 		AssetCount:           snapshot.Assets.Len(),
 		SourceSidecarCount:   snapshot.Variants.Len(),
 		TotalSourceBytes:     snapshot.TotalBytes,
+		Bundle:               bundlePointer,
 		Compression:          map[string]compressionSummary{},
 		ImageVariants:        inspectImageVariants(cfg.Image, snapshot),
 		EstimatedMemoryCache: inspectMemoryCache(cfg.HTTP.MemoryCache, snapshot),
@@ -113,6 +134,42 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 	report.TotalAssetBytes = sumAssetBytes(snapshot)
 	report.Compression = inspectCompression(snapshot)
 	return report, nil
+}
+
+func inspectBundle(root string) (bundleSummary, bool, error) {
+	if !spackbundle.IsBundlePath(root) {
+		return bundleSummary{}, false, nil
+	}
+	index, err := spackbundle.ReadIndex(root)
+	if err != nil {
+		return bundleSummary{}, false, fmt.Errorf("read bundle index: %w", err)
+	}
+	summary := bundleSummary{
+		FormatVersion: index.APIVersion,
+		IndexKind:     index.Kind,
+		CreatedAt:     index.CreatedAt,
+		FileCount:     len(index.Files),
+	}
+	for _, file := range index.Files {
+		summary.TotalBytes += file.Size
+		switch file.Kind {
+		case "asset", "":
+			summary.AssetCount++
+		case "source_sidecar":
+			summary.SourceSidecarCount++
+		}
+		if strings.TrimSpace(file.Encoding) != "" {
+			summary.CompressedFileCount++
+		}
+	}
+	return summary, true, nil
+}
+
+func inspectSourceType(hasBundle bool) string {
+	if hasBundle {
+		return "bundle"
+	}
+	return "directory"
 }
 
 func sumAssetBytes(snapshot sourcecatalog.Snapshot) int64 {

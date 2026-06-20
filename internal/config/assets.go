@@ -40,8 +40,9 @@ type Assets struct {
 	// All files under this directory or bundle will be scanned at startup
 	// and registered into the in-memory asset registry.
 	//
-	// This path should point to an existing directory and is
-	// typically resolved to an absolute path during initialization.
+	// This path should point to an existing directory or readable
+	// .spack bundle, and is typically resolved to an absolute path
+	// during initialization.
 	Root string `koanf:"root" validate:"required"`
 
 	// Entry is the default entry file name used for directory requests.

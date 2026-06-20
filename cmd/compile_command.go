@@ -3,6 +3,7 @@ package cmd
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -19,13 +20,14 @@ func newCompileCommand() *cobra.Command {
 	var output string
 
 	command := &cobra.Command{
-		Use:   "compile <assets-root>",
-		Short: "Compile frontend assets into a SPACK artifact",
+		Use:   "compile <assets-dir>",
+		Short: "Compile frontend assets into a SPACK bundle",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			summary, err := compileBundle(cmd.Context(), compileOptions{
-				assetsRoot: args[0],
-				output:     output,
+				assetsRoot:  args[0],
+				output:      output,
+				loadOptions: configLoadOptions(cmd),
 			})
 			if err != nil {
 				return err
@@ -34,18 +36,22 @@ func newCompileCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "app.spack", "Output .spack artifact path.")
+	command.Flags().StringVarP(&output, "output", "o", "app.spack", "Output .spack bundle path.")
 
 	return command
 }
 
 type compileOptions struct {
-	assetsRoot string
-	output     string
+	assetsRoot  string
+	output      string
+	loadOptions config.LoadOptions
 }
 
 func compileBundle(ctx context.Context, options compileOptions) (spackbundle.WriteSummary, error) {
-	loadOptions, err := compileLoadOptions(options.assetsRoot)
+	if err := validateCompileInput(options.assetsRoot); err != nil {
+		return spackbundle.WriteSummary{}, err
+	}
+	loadOptions, err := compileLoadOptions(options.assetsRoot, options.loadOptions)
 	if err != nil {
 		return spackbundle.WriteSummary{}, err
 	}
@@ -72,8 +78,15 @@ func compileBundle(ctx context.Context, options compileOptions) (spackbundle.Wri
 	return summary, nil
 }
 
-func compileLoadOptions(assetsRoot string) (config.LoadOptions, error) {
-	flags, err := cloneVisitedConfigFlags(configFlagSet)
+func validateCompileInput(root string) error {
+	if spackbundle.IsBundlePath(root) {
+		return errors.New("compile input must be an asset directory; .spack bundles are runtime sources, not compile inputs")
+	}
+	return nil
+}
+
+func compileLoadOptions(assetsRoot string, base config.LoadOptions) (config.LoadOptions, error) {
+	flags, err := cloneVisitedConfigFlags(base.FlagSet)
 	if err != nil {
 		return config.LoadOptions{}, err
 	}
@@ -81,7 +94,7 @@ func compileLoadOptions(assetsRoot string) (config.LoadOptions, error) {
 		return config.LoadOptions{}, fmt.Errorf("set compile assets root: %w", err)
 	}
 	return config.LoadOptions{
-		Files:   append([]string(nil), configFiles...),
+		Files:   append([]string(nil), base.Files...),
 		FlagSet: flags,
 	}, nil
 }

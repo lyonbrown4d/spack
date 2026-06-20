@@ -20,10 +20,6 @@ type healthcheckOptions struct {
 	client  *http.Client
 }
 
-func init() {
-	rootCmd.AddCommand(newHealthcheckCommand())
-}
-
 func newHealthcheckCommand() *cobra.Command {
 	options := healthcheckOptions{
 		url:     defaultHealthcheckURL,
