@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
-	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/samber/lo"
@@ -149,6 +148,9 @@ func (r *assetDeliveryRuntime) sendResolvedAssetFile(
 	if spackbundle.IsReference(result.FilePath) {
 		return r.sendResolvedBundleAsset(c, request, result, headerPlan)
 	}
+	if request.RangeRequested {
+		return r.sendResolvedAssetFileRange(c, result, headerPlan)
+	}
 	if err := c.SendFile(result.FilePath, fiber.SendFile{ByteRange: true}); err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr
@@ -247,27 +249,6 @@ func hotResponseCacheKey(result *resolver.Result, requestedFormat string) string
 		strconv.FormatInt(size, 10),
 		requestedFormat,
 	).Join("|")
-}
-
-func nonNegativeSize(size int64) (int64, bool) {
-	if size < 0 {
-		return 0, false
-	}
-	return size, true
-}
-
-func variantSize(variant *catalog.Variant) (int64, bool) {
-	if variant == nil {
-		return 0, false
-	}
-	return nonNegativeSize(variant.Size)
-}
-
-func assetSize(asset *catalog.Asset) (int64, bool) {
-	if asset == nil {
-		return 0, false
-	}
-	return nonNegativeSize(asset.Size)
 }
 
 type missingResolvedVariantError struct {

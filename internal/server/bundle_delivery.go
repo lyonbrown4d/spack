@@ -84,7 +84,7 @@ func sendBundleRangeBody(
 ) (string, error) {
 	byteRange, ok := parseSingleHTTPRange(rangeHeader, int64(len(body)))
 	if !ok {
-		sendUnsatisfiedRange(c, len(body), headerPlan)
+		sendUnsatisfiedRange(c, int64(len(body)), headerPlan)
 		return deliverySendFileRange, nil
 	}
 
@@ -98,7 +98,7 @@ func sendBundleRangeBody(
 	return deliverySendFileRange, nil
 }
 
-func sendUnsatisfiedRange(c fiber.Ctx, size int, headerPlan resolvedHeaderPlan) {
+func sendUnsatisfiedRange(c fiber.Ctx, size int64, headerPlan resolvedHeaderPlan) {
 	c.Status(fiber.StatusRequestedRangeNotSatisfiable)
 	c.Set(fiber.HeaderContentRange, fmt.Sprintf("bytes */%d", size))
 	c.Set(fiber.HeaderContentLength, "0")
