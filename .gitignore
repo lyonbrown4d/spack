@@ -44,7 +44,6 @@ gen
 *.dylib
 *.test
 *.out
-go.work
 Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db
