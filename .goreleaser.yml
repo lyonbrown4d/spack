@@ -5,6 +5,8 @@ project_name: spack
 before:
   hooks:
     - go mod tidy -diff
+    - go -C build mod tidy -diff
+    - go work sync
 
 builds:
   - id: spack-runtime-linux
@@ -98,7 +100,7 @@ dockers_v2:
       - ghcr.io/lyonbrown4d/spack
       - lyonbrown4d/spack
     tags:
-      - "{{ .Version }}"
+      - "{{ .Tag }}"
       - latest
       - debian
-      - debian-{{ .Version }}
+      - debian-{{ .Tag }}

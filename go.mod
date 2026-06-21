@@ -19,7 +19,7 @@ require (
 	github.com/arcgolabs/dix/advanced v0.11.1
 	github.com/arcgolabs/eventx v0.1.2
 	github.com/arcgolabs/logx v0.1.3
-	github.com/arcgolabs/mapper v0.2.0
+	github.com/arcgolabs/mapper v0.2.1
 	github.com/arcgolabs/observabilityx v0.4.0
 	github.com/arl/statsviz v0.8.0
 	github.com/davidbyttow/govips/v2 v2.18.0
@@ -54,7 +54,7 @@ require (
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.1 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.0 // indirect
-	golang.org/x/image v0.38.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
 )
 
 require (

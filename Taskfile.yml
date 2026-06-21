@@ -359,6 +359,14 @@ tasks:
     cmds:
       - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} check
 
+  release:preflight:
+    desc: "校验 release 前的 root/build/workspace 依赖状态"
+    cmds:
+      - go mod tidy -diff
+      - go -C build mod tidy -diff
+      - go work sync
+      - git diff --exit-code -- go.mod go.sum build/go.mod build/go.sum go.work go.work.sum
+
   release:goreleaser:snapshot:
     desc: "使用 GoReleaser 执行本地快照构建（不发布）"
     cmds:
@@ -371,6 +379,7 @@ tasks:
     vars:
       TAG: '{{if hasPrefix .VERSION "v"}}{{.VERSION}}{{else}}v{{.VERSION}}{{end}}'
     cmds:
+      - task: release:preflight
       - task: release:goreleaser:check
       - task: release:tag
         vars:

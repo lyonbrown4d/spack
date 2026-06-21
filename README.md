@@ -40,6 +40,8 @@ ENV SPACK_HTTP_PORT=80
 
 Release images are published to both `ghcr.io/lyonbrown4d/spack` and `lyonbrown4d/spack`.
 
+Release archives include `spack-runtime` and `spack-compiler` for Linux amd64. `spack-runtime` is built with `CGO_ENABLED=0`; `spack-compiler` is built with `spack_libvips` and requires the target host or image to provide compatible `libvips` runtime libraries.
+
 ## Local Development
 
 ```powershell
