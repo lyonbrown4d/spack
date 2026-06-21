@@ -11,6 +11,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	"github.com/lyonbrown4d/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/metrics"
 	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/source"
@@ -107,7 +108,10 @@ func compilerConfigForGeneration(cfg *config.Config) *config.Config {
 }
 
 func buildUtilityRuntime(name string, modules ...dix.Module) (*dix.Runtime, error) {
-	app := dix.New(name, dix.Modules(modules...))
+	allModules := make([]dix.Module, 0, len(modules)+1)
+	allModules = append(allModules, mapx.Module)
+	allModules = append(allModules, modules...)
+	app := dix.New(name, dix.Modules(allModules...))
 	if err := app.Validate(); err != nil {
 		return nil, fmt.Errorf("validate %s container: %w", name, err)
 	}

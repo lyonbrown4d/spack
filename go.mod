@@ -19,6 +19,7 @@ require (
 	github.com/arcgolabs/dix/advanced v0.11.1
 	github.com/arcgolabs/eventx v0.1.2
 	github.com/arcgolabs/logx v0.1.3
+	github.com/arcgolabs/mapper v0.2.0
 	github.com/arcgolabs/observabilityx v0.4.0
 	github.com/arl/statsviz v0.8.0
 	github.com/davidbyttow/govips/v2 v2.18.0
@@ -46,6 +47,7 @@ require (
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/hcl v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/json v1.0.0 // indirect

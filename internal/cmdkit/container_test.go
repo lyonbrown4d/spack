@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/arcgolabs/dix"
+	"github.com/arcgolabs/mapper"
 	obsprom "github.com/arcgolabs/observabilityx/prometheus"
 	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
@@ -69,6 +70,9 @@ func mustBuildPrometheusRuntime(t *testing.T, app *dix.App) *dix.Runtime {
 	}
 	if recorder := rt.EventRecorder(); recorder == nil || recorder.Capacity() != 128 {
 		t.Fatalf("expected runtime recent event recorder with capacity 128, got %#v", recorder)
+	}
+	if _, err := dix.ResolveAs[*mapper.Mapper](rt.Container()); err != nil {
+		t.Fatalf("resolve mapper from container: %v", err)
 	}
 
 	return rt
