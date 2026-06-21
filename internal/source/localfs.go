@@ -30,12 +30,6 @@ type LocalFS struct {
 	bundle   *bundleSource
 }
 
-type bundleSource struct {
-	path    string
-	index   spackbundle.Index
-	entries map[string]spackbundle.IndexFile
-}
-
 func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
 	root := strings.TrimSpace(cfg.Root)
 	if root == "" {
@@ -90,25 +84,6 @@ func resolveLocalFSRoot(root string) (resolvedLocalFSRoot, error) {
 		return resolvedLocalFSRoot{root: root, info: info, bundle: bundle}, nil
 	}
 	return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", root))
-}
-
-func newBundleSource(root string) (*bundleSource, error) {
-	index, err := spackbundle.ReadIndex(root)
-	if err != nil {
-		return nil, fmt.Errorf("read source bundle index: %w", err)
-	}
-	entries := make(map[string]spackbundle.IndexFile, len(index.Files))
-	for _, file := range index.Files {
-		if strings.TrimSpace(file.Path) == "" {
-			continue
-		}
-		entries[file.Path] = file
-	}
-	return &bundleSource{
-		path:    root,
-		index:   index,
-		entries: entries,
-	}, nil
 }
 
 func logSourceConfigured(logger *slog.Logger, configuredRoot string, resolved resolvedLocalFSRoot) {
@@ -178,47 +153,6 @@ func (s *LocalFS) FindFile(assetPath string) (File, bool, error) {
 		IsDir:    info.IsDir(),
 		ModTime:  info.ModTime(),
 	}, true, nil
-}
-
-func (s *LocalFS) walkBundle(walkFn func(File) error) error {
-	for _, entry := range s.bundle.index.Files {
-		file, err := s.bundleFile(entry)
-		if err != nil {
-			return err
-		}
-		if err := walkFn(file); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *LocalFS) findBundleFile(relativePath string) (File, bool, error) {
-	entry, ok := s.bundle.entries[relativePath]
-	if !ok {
-		return File{}, false, nil
-	}
-	file, err := s.bundleFile(entry)
-	if err != nil {
-		return File{}, false, err
-	}
-	return file, true, nil
-}
-
-func (s *LocalFS) bundleFile(entry spackbundle.IndexFile) (File, error) {
-	reference, err := spackbundle.NewReference(s.bundle.path, entry.Path)
-	if err != nil {
-		return File{}, oops.Wrap(err)
-	}
-	return File{
-		Path:       entry.Path,
-		FullPath:   reference,
-		Size:       entry.Size,
-		ModTime:    s.bundle.index.CreatedAt,
-		MediaType:  entry.MediaType,
-		SourceHash: entry.SourceHash,
-		ETag:       entry.ETag,
-	}, nil
 }
 
 func buildWalkFile(root, fullPath string, entry fs.DirEntry, walkErr error) (File, error) {

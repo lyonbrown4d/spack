@@ -57,7 +57,6 @@ func TestEscapedUnicodeJavaScriptAssetFromExternalBuild(t *testing.T) {
 		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger),
 		resolver.NewResolverForTest(&cfg.Assets, cat, logger),
 		nil,
-		nil,
 	)
 	t.Cleanup(func() {
 		if shutdownErr := app.Shutdown(); shutdownErr != nil {

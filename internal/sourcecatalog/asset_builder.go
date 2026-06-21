@@ -117,6 +117,9 @@ func collectAssetBuildCandidates(
 			return true
 		}
 		file, _ := filesByPath.Get(path)
+		if isExplicitBundleVariantFile(file) {
+			return true
+		}
 		if asset, ok := existingAssets.GetOption(path).Get(); ok && canReuseAsset(asset, file) {
 			asset.Metadata = catalog.MetadataWithModTime(asset.Metadata, file.ModTime)
 			assets.Set(path, asset)

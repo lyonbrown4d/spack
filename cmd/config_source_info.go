@@ -84,7 +84,8 @@ func effectiveBundleInfo(root string) (map[string]any, error) {
 
 func bundleIndexTotalBytes(index spackbundle.Index) int64 {
 	total := int64(0)
-	for _, file := range index.Files {
+	for indexFile := range index.Files {
+		file := index.Files[indexFile]
 		total += file.Size
 	}
 	return total

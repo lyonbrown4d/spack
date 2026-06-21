@@ -117,7 +117,7 @@ func newHTTPBenchmarkApp(b *testing.B, memoryCacheEnabled bool, assetName string
 	}
 
 	assetResolver := resolver.NewResolverForTest(&cfg.Assets, cat, logger)
-	app := server.NewAppForTest(&cfg, logger, cat, bodyCache, assetResolver, nil, nil)
+	app := server.NewAppForTest(&cfg, logger, cat, bodyCache, assetResolver, nil)
 	b.Cleanup(func() {
 		if err := app.Shutdown(); err != nil {
 			b.Fatalf("shutdown benchmark app: %v", err)

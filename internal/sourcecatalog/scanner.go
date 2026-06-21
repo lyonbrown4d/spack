@@ -14,7 +14,11 @@ import (
 	"github.com/samber/oops"
 )
 
-const SourceSidecarStage = "source_sidecar"
+const (
+	SourceSidecarStage     = "source_sidecar"
+	BundleCompressionStage = "compression"
+	BundleImageStage       = "image"
+)
 
 type Snapshot struct {
 	Assets     *cxmapping.Map[string, *catalog.Asset]
@@ -113,6 +117,10 @@ func (s Scanner) ScanWithCatalog(ctx context.Context, cat catalog.Catalog) (Snap
 	if err != nil {
 		return Snapshot{}, err
 	}
+	buildExplicitBundleVariants(filesByPath, assets).Range(func(key string, variant *catalog.Variant) bool {
+		variants.Set(key, variant)
+		return true
+	})
 
 	return Snapshot{
 		Assets:     assets,

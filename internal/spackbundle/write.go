@@ -16,15 +16,18 @@ import (
 
 // File describes one source file to embed in a bundle.
 type File struct {
-	Path       string
-	FullPath   string
-	Kind       string
-	Size       int64
-	MediaType  string
-	SourceHash string
-	ETag       string
-	AssetPath  string
-	Encoding   string
+	Path          string
+	FullPath      string
+	Kind          string
+	Size          int64
+	MediaType     string
+	SourceHash    string
+	ETag          string
+	AssetPath     string
+	Encoding      string
+	Format        string
+	Width         int
+	AllowExternal bool
 }
 
 // WriteOptions configures bundle writing.
@@ -183,7 +186,7 @@ func statBundleFile(root string, file File) (string, os.FileInfo, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("resolve bundle file %q: %w", file.Path, err)
 	}
-	if !isPathInside(root, fullPath) {
+	if !file.AllowExternal && !isPathInside(root, fullPath) {
 		return "", nil, fmt.Errorf("bundle file %q escapes root", file.Path)
 	}
 	info, err := os.Lstat(fullPath)
@@ -218,6 +221,8 @@ func buildIndex(files []File, now func() time.Time) Index {
 			ETag:       file.ETag,
 			AssetPath:  file.AssetPath,
 			Encoding:   file.Encoding,
+			Format:     file.Format,
+			Width:      file.Width,
 		})
 	}
 	return index

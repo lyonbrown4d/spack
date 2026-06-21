@@ -12,7 +12,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 	"github.com/samber/do/v2"
 	"log/slog"
@@ -88,7 +87,6 @@ var Module = dix.NewModule("server",
 				dix.TypedService[*config.Config](),
 				dix.TypedService[assetRouteRuntime](),
 				dix.TypedService[*resolver.Resolver](),
-				dix.TypedService[*pipeline.Service](),
 				dix.TypedService[*assetcache.Cache](),
 				dix.TypedService[eventx.BusRuntime](),
 			),
@@ -173,7 +171,6 @@ type assetRouteRegistrationDeps struct {
 	cfg           *config.Config     `do:""`
 	runtime       assetRouteRuntime  `do:""`
 	assetResolver *resolver.Resolver `do:""`
-	pipelineSvc   *pipeline.Service  `do:""`
 	bodyCache     *assetcache.Cache  `do:""`
 	bus           eventx.BusRuntime  `do:""`
 }
@@ -184,7 +181,6 @@ func newAssetRouteRegistration(deps assetRouteRegistrationDeps) appRegistration 
 			deps.cfg,
 			deps.runtime,
 			deps.assetResolver,
-			deps.pipelineSvc,
 			deps.bodyCache,
 			deps.bus,
 		))

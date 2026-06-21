@@ -5,12 +5,10 @@ import (
 	"fmt"
 
 	"github.com/arcgolabs/dix"
-	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	"github.com/lyonbrown4d/spack/internal/event"
-	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 	"github.com/lyonbrown4d/spack/internal/server"
 	"github.com/lyonbrown4d/spack/internal/source"
@@ -101,10 +99,8 @@ func bindRuntimeRoot(command *cobra.Command) {
 			event.Module,
 			source.Module,
 			sourcecatalog.Module,
-			artifact.Module,
 			contentcoding.Module,
 			assetcache.Module,
-			pipeline.Module,
 			resolver.Module,
 			server.Module,
 		)

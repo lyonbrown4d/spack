@@ -72,7 +72,7 @@ func TestCatalogReadyAttrsIncludeCacheAndCompressionState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	attrs := runtime.CatalogReadyAttrsForTest(&cfg, cat, bodyCache, assetcache.WarmStats{Entries: 2, Bytes: 128}, 2048, 50*time.Millisecond)
+	attrs := runtime.CatalogReadyAttrsForTest(cat, bodyCache, assetcache.WarmStats{Entries: 2, Bytes: 128}, 2048, 50*time.Millisecond)
 	attrMap := cxmapping.NewMapWithCapacity[string, any](attrs.Len())
 	attrs.Range(func(_ int, attr slog.Attr) bool {
 		attrMap.Set(attr.Key, attr.Value.Any())
@@ -87,9 +87,6 @@ func TestCatalogReadyAttrsIncludeCacheAndCompressionState(t *testing.T) {
 	}
 	if got, _ := attrMap.Get("memory_cache_enable"); got != true {
 		t.Fatalf("expected memory_cache_enable true, got %#v", got)
-	}
-	if got, _ := attrMap.Get("compression_mode"); got != cfg.Compression.NormalizedMode() {
-		t.Fatalf("expected compression_mode %q, got %#v", cfg.Compression.NormalizedMode(), got)
 	}
 	assertCountAttr(t, attrMap, "asset_media_types", "text/javascript", 1)
 	assertCountAttr(t, attrMap, "variant_encodings", "br", 1)

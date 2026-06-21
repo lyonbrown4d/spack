@@ -88,12 +88,16 @@ func recognizeSidecars(filesByPath *cxmapping.Map[string, source.File], matchers
 	matcherTrie := buildSidecarMatcherTrie(matchers)
 	sidecars := cxmapping.NewMapWithCapacity[string, sidecarFile](filesByPath.Len())
 	sortedKeys[source.File](filesByPath).Range(func(_ int, path string) bool {
+		file := filesByPath.GetOrDefault(path, source.File{})
+		if isExplicitBundleVariantFile(file) {
+			return true
+		}
 		match, ok := matchSidecar(path, filesByPath, matcherTrie).Get()
 		if !ok {
 			return true
 		}
 
-		match.File = filesByPath.GetOrDefault(path, source.File{})
+		match.File = file
 		sidecars.Set(match.Path, match)
 		return true
 	})

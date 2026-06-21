@@ -38,6 +38,8 @@ type IndexFile struct {
 	ETag       string `json:"etag,omitempty"`
 	AssetPath  string `json:"asset_path,omitempty"`
 	Encoding   string `json:"encoding,omitempty"`
+	Format     string `json:"format,omitempty"`
+	Width      int    `json:"width,omitempty"`
 }
 
 func marshalIndex(index Index) ([]byte, error) {

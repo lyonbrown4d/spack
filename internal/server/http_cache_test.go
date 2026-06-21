@@ -253,7 +253,7 @@ func newHTTPTestApp(
 ) *fiber.App {
 	t.Helper()
 
-	app := server.NewAppForTest(cfg, logger, cat, bodyCache, assetResolver, nil, nil)
+	app := server.NewAppForTest(cfg, logger, cat, bodyCache, assetResolver, nil)
 	t.Cleanup(func() {
 		if err := app.Shutdown(); err != nil {
 			t.Fatalf("shutdown test app: %v", err)

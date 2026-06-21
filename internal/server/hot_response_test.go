@@ -52,7 +52,6 @@ func TestAssetRouteReusesHotResponseEntry(t *testing.T) {
 		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger),
 		resolver.NewResolverForTest(&cfg.Assets, cat, logger),
 		nil,
-		nil,
 	)
 	t.Cleanup(func() {
 		if err := app.Shutdown(); err != nil {

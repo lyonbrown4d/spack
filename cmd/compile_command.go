@@ -1,18 +1,11 @@
 package cmd
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"runtime"
-	"slices"
-	"strings"
 
-	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -61,18 +54,24 @@ func compileBundle(ctx context.Context, options compileOptions) (spackbundle.Wri
 	if err != nil {
 		return spackbundle.WriteSummary{}, err
 	}
-	scanner, err := resolveScannerWithDix(cfg)
+	compiler, err := resolveCompilerWithDix(cfg)
 	if err != nil {
 		return spackbundle.WriteSummary{}, err
 	}
-	snapshot, err := scanner.Scan(ctx)
+	snapshot, err := compiler.scanner.Scan(ctx)
 	if err != nil {
 		return spackbundle.WriteSummary{}, fmt.Errorf("scan assets: %w", err)
+	}
+	if upsertErr := upsertCompileSnapshot(compiler.cat, snapshot); upsertErr != nil {
+		return spackbundle.WriteSummary{}, upsertErr
+	}
+	if warmErr := compiler.pipelineSvc.Warm(ctx); warmErr != nil {
+		return spackbundle.WriteSummary{}, fmt.Errorf("generate bundle variants: %w", warmErr)
 	}
 	summary, err := spackbundle.Write(ctx, spackbundle.WriteOptions{
 		Output: options.output,
 		Root:   cfg.Assets.Root,
-		Files:  bundleFilesFromSnapshot(cfg.Assets.Root, options.output, snapshot),
+		Files:  bundleFilesFromCatalog(cfg.Assets.Root, options.output, compiler.cat),
 	})
 	if err != nil {
 		return spackbundle.WriteSummary{}, fmt.Errorf("write spack bundle: %w", err)
@@ -116,104 +115,4 @@ func cloneVisitedConfigFlags(source *pflag.FlagSet) (*pflag.FlagSet, error) {
 		return nil, cloneErr
 	}
 	return flags, nil
-}
-
-func bundleFilesFromSnapshot(root, output string, snapshot sourcecatalog.Snapshot) []spackbundle.File {
-	files := make([]spackbundle.File, 0, snapshot.Assets.Len()+snapshot.Variants.Len())
-	excludedOutput, hasExcludedOutput := normalizedOptionalPath(output)
-	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
-		files = appendBundleAssetFile(files, asset, excludedOutput, hasExcludedOutput)
-		return true
-	})
-	snapshot.Variants.Range(func(_ string, variant *catalog.Variant) bool {
-		files = appendBundleVariantFile(files, root, variant, excludedOutput, hasExcludedOutput)
-		return true
-	})
-	slices.SortFunc(files, func(left, right spackbundle.File) int {
-		return cmp.Compare(left.Path, right.Path)
-	})
-	return files
-}
-
-func appendBundleAssetFile(
-	files []spackbundle.File,
-	asset *catalog.Asset,
-	excludedOutput string,
-	hasExcludedOutput bool,
-) []spackbundle.File {
-	if asset == nil || shouldExcludeBundlePath(asset.FullPath, excludedOutput, hasExcludedOutput) {
-		return files
-	}
-	return append(files, spackbundle.File{
-		Path:       asset.Path,
-		FullPath:   asset.FullPath,
-		Kind:       "asset",
-		Size:       asset.Size,
-		MediaType:  asset.MediaType,
-		SourceHash: asset.SourceHash,
-		ETag:       asset.ETag,
-	})
-}
-
-func appendBundleVariantFile(
-	files []spackbundle.File,
-	root string,
-	variant *catalog.Variant,
-	excludedOutput string,
-	hasExcludedOutput bool,
-) []spackbundle.File {
-	if variant == nil ||
-		!sourcecatalog.IsSourceSidecarVariant(variant) ||
-		shouldExcludeBundlePath(variant.ArtifactPath, excludedOutput, hasExcludedOutput) {
-		return files
-	}
-	return append(files, spackbundle.File{
-		Path:       bundleVariantPath(root, variant),
-		FullPath:   variant.ArtifactPath,
-		Kind:       "source_sidecar",
-		Size:       variant.Size,
-		MediaType:  variant.MediaType,
-		SourceHash: variant.SourceHash,
-		ETag:       variant.ETag,
-		AssetPath:  variant.AssetPath,
-		Encoding:   variant.Encoding,
-	})
-}
-
-func shouldExcludeBundlePath(path, excludedOutput string, hasExcludedOutput bool) bool {
-	return hasExcludedOutput && sameFilesystemPath(path, excludedOutput)
-}
-
-func normalizedOptionalPath(path string) (string, bool) {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return "", false
-	}
-	absolute, err := filepath.Abs(filepath.Clean(path))
-	if err != nil {
-		return "", false
-	}
-	return absolute, true
-}
-
-func sameFilesystemPath(left, right string) bool {
-	left, leftOK := normalizedOptionalPath(left)
-	right, rightOK := normalizedOptionalPath(right)
-	if !leftOK || !rightOK {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		return strings.EqualFold(left, right)
-	}
-	return left == right
-}
-
-func bundleVariantPath(root string, variant *catalog.Variant) string {
-	if variant == nil {
-		return ""
-	}
-	if rel, err := filepath.Rel(root, variant.ArtifactPath); err == nil {
-		return filepath.ToSlash(rel)
-	}
-	return variant.ID
 }

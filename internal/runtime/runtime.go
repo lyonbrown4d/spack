@@ -28,10 +28,6 @@ func bootstrapCatalogOnStart(
 	go runtime.catMetrics.SyncCatalog(runtime.cat)
 	go runtime.catMetrics.SetSourceBytes(totalBytes)
 
-	warmErr := runtime.pipelineSvc.Warm(ctx)
-	if warmErr != nil {
-		return bootstrapErr.With("service", "pipeline").Wrap(warmErr)
-	}
 	cacheStats, cacheErr := runtime.bodyCache.Warm(ctx, runtime.cat)
 	if cacheErr != nil {
 		return bootstrapErr.With("service", "asset memory cache").Wrap(cacheErr)
@@ -44,7 +40,7 @@ func bootstrapCatalogOnStart(
 		ctx,
 		slog.LevelInfo,
 		"Catalog ready",
-		catalogReadyAttrs(runtime.cfg, runtime.cat, runtime.bodyCache, cacheStats, totalBytes, time.Since(startedAt)).Values()...,
+		catalogReadyAttrs(runtime.cat, runtime.bodyCache, cacheStats, totalBytes, time.Since(startedAt)).Values()...,
 	)
 	return nil
 }
@@ -92,7 +88,6 @@ func logConfigOnStart(ctx context.Context, runtime catalogBootstrapRuntime) erro
 }
 
 func catalogReadyAttrs(
-	cfg *config.Config,
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	cacheStats assetcache.WarmStats,
@@ -107,7 +102,6 @@ func catalogReadyAttrs(
 		slog.Bool("memory_cache_warmup", bodyCache.WarmupEnabled()),
 		slog.Int("memory_cache_entries", cacheStats.Entries),
 		slog.Int64("memory_cache_bytes", cacheStats.Bytes),
-		slog.String("compression_mode", cfg.Compression.NormalizedMode()),
 		slog.Duration("duration", duration),
 	)
 	return attrs.Merge(catalogDistributionAttrs(cat))
@@ -161,18 +155,6 @@ func configLogAttrs(cfg *config.Config) *cxlist.List[slog.Attr] {
 		slog.String("fallback_on", string(cfg.Assets.Fallback.On)),
 		slog.String("fallback_target", cfg.Assets.Fallback.Target),
 		slog.Int("async_workers", cfg.Async.NormalizedWorkers()),
-		slog.Bool("compression_enable", cfg.Compression.Enable),
-		slog.String("compression_mode", cfg.Compression.NormalizedMode()),
-		slog.String("compression_cache_dir", cfg.Compression.CacheDir),
-		slog.Int64("compression_min_size", cfg.Compression.MinSize),
-		slog.Int("compression_workers", cfg.Compression.Workers),
-		slog.Int("compression_queue_size", cfg.Compression.QueueCapacity()),
-		slog.Any("compression_encodings", cfg.Compression.NormalizedEncodings().Values()),
-		slog.Int("compression_zstd_level", cfg.Compression.ZstdLevel),
-		slog.Bool("image_enable", cfg.Image.Enable),
-		slog.Any("image_widths", cfg.Image.ParsedWidths().Values()),
-		slog.Any("image_formats", cfg.Image.ParsedFormats().Values()),
-		slog.Int("image_jpeg_quality", cfg.Image.JPEGQuality),
 		slog.Bool("frontend_resource_hints_enable", cfg.Frontend.ResourceHints.Enable),
 		slog.Bool("frontend_resource_hints_early_hints", cfg.Frontend.ResourceHints.EarlyHints),
 		slog.Bool("frontend_immutable_cache_enable", cfg.Frontend.ImmutableCache.Enable),

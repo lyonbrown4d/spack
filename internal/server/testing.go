@@ -13,7 +13,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
@@ -71,10 +70,9 @@ func NewAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	pipelineSvc *pipeline.Service,
 	bus eventx.BusRuntime,
 ) *fiber.App {
-	return NewObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, pipelineSvc, bus)
+	return NewObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, bus)
 }
 
 // NewObservedAppForTest exposes server construction with observability and runtime metrics for external tests.
@@ -86,10 +84,9 @@ func NewObservedAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	pipelineSvc *pipeline.Service,
 	bus eventx.BusRuntime,
 ) *fiber.App {
-	return newObservedAppForTest(cfg, logger, obs, runtimeMetrics, cat, bodyCache, assetResolver, pipelineSvc, bus, nil)
+	return newObservedAppForTest(cfg, logger, obs, runtimeMetrics, cat, bodyCache, assetResolver, bus, nil)
 }
 
 func NewPreparedAppForTest(
@@ -98,14 +95,13 @@ func NewPreparedAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	pipelineSvc *pipeline.Service,
 	bus eventx.BusRuntime,
 ) (*fiber.App, error) {
 	prepared := NewPreparedServiceForTest(cfg, logger, cat)
 	if err := prepared.Rebuild(context.Background()); err != nil {
 		return nil, err
 	}
-	return newObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, pipelineSvc, bus, prepared), nil
+	return newObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, bus, prepared), nil
 }
 
 func newObservedAppForTest(
@@ -116,7 +112,6 @@ func newObservedAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	pipelineSvc *pipeline.Service,
 	bus eventx.BusRuntime,
 	prepared *PreparedService,
 ) *fiber.App {
@@ -141,7 +136,6 @@ func newObservedAppForTest(
 				cfg:           cfg,
 				runtime:       newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), prepared),
 				assetResolver: assetResolver,
-				pipelineSvc:   pipelineSvc,
 				bodyCache:     bodyCache,
 				bus:           bus,
 			}),

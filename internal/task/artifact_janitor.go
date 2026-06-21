@@ -3,24 +3,19 @@ package task
 import (
 	"context"
 	"io/fs"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxset "github.com/arcgolabs/collectionx/set"
 	cxtree "github.com/arcgolabs/collectionx/tree"
-	"github.com/go-co-op/gocron/v2"
 	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/samber/oops"
 )
-
-const artifactJanitorInterval = 15 * time.Minute
 
 type ArtifactJanitorReport struct {
 	ScannedArtifacts   int
@@ -38,56 +33,6 @@ type artifactJanitorRun struct {
 	cat        catalog.Catalog
 	bodyCache  *assetcache.Cache
 	report     *ArtifactJanitorReport
-}
-
-func registerArtifactJanitorTask(ctx context.Context, scheduler gocron.Scheduler, runtime *artifactJanitorRuntime) (bool, error) {
-	if runtime == nil || runtime.store == nil || strings.TrimSpace(runtime.store.Root()) == "" {
-		return false, nil
-	}
-
-	job, err := scheduler.NewJob(
-		gocron.DurationJob(artifactJanitorInterval),
-		gocron.NewTask(func() {
-			runArtifactJanitor(ctx, runtime)
-		}),
-		gocron.WithName("artifact_janitor"),
-	)
-	if err != nil {
-		return false, oops.In("task").Owner("artifact janitor").Wrap(err)
-	}
-
-	runtime.logger.Info("Task artifact janitor enabled",
-		slog.String("id", job.ID().String()),
-		slog.String("interval", artifactJanitorInterval.String()),
-		slog.String("root", runtime.store.Root()),
-	)
-	return true, nil
-}
-
-func runArtifactJanitor(ctx context.Context, runtime *artifactJanitorRuntime) {
-	startedAt := time.Now()
-	report, err := syncArtifactCatalog(ctx, runtime.store, runtime.catalog, runtime.bodyCache)
-	recordTaskRunMetrics(ctx, runtime.obs, "artifact_janitor", startedAt, err)
-	if err != nil {
-		runtime.logger.Error("Task artifact janitor failed", slog.String("err", err.Error()))
-		return
-	}
-	recordArtifactJanitorMetrics(ctx, runtime.obs, report)
-	runtime.catMetrics.SyncCatalog(runtime.catalog)
-
-	if report.ScannedArtifacts == 0 && report.RemovedOrphans == 0 && report.MissingVariants == 0 && report.RemovedDirectories == 0 {
-		return
-	}
-	publishCatalogChanged(ctx, runtime.bus, "artifact_janitor", runtime.logger)
-
-	runtime.logger.Info("Task artifact janitor completed",
-		slog.Int("scanned_artifacts", report.ScannedArtifacts),
-		slog.Int("removed_orphans", report.RemovedOrphans),
-		slog.Int("missing_variants", report.MissingVariants),
-		slog.Int("removed_directories", report.RemovedDirectories),
-		slog.Int("cache_invalidations", report.CacheInvalidations),
-		slog.Duration("duration", time.Since(startedAt)),
-	)
 }
 
 func syncArtifactCatalog(

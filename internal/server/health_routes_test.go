@@ -110,7 +110,6 @@ func TestHealthRoutesRecordRuntimeMetrics(t *testing.T) {
 		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 		nil,
-		nil,
 	)
 	t.Cleanup(func() {
 		if err := app.Shutdown(); err != nil {

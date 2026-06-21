@@ -9,7 +9,6 @@ import (
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/go-co-op/gocron/v2"
-	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -26,11 +25,9 @@ var Module = dix.NewModule("task",
 		dix.ProviderErr2(newScheduler),
 		dix.Provider2(newTaskTelemetry),
 		dix.Provider6(newSourceRescanRuntime),
-		dix.Provider6(newArtifactJanitorRuntime),
 		dix.Provider5(newCacheWarmerRuntime),
 		dix.Provider1(newSourceRescanWatcher),
 		dix.Contribute1(newSourceRescanTaskRegistration, dix.Order(100)),
-		dix.Contribute1(newArtifactJanitorTaskRegistration, dix.Order(200)),
 		dix.Contribute1(newCacheWarmerTaskRegistration, dix.Order(300)),
 	),
 	dix.WithModuleHooks(
@@ -137,41 +134,6 @@ type sourceRescanWatcher struct {
 
 func newSourceRescanWatcher(runtime *sourceRescanRuntime) *sourceRescanWatcher {
 	return &sourceRescanWatcher{runtime: runtime}
-}
-
-type artifactJanitorRuntime struct {
-	store      artifact.Store
-	catalog    catalog.Catalog
-	catMetrics *catalog.RuntimeMetrics
-	bodyCache  *assetcache.Cache
-	bus        eventx.BusRuntime
-	logger     *slog.Logger
-	obs        observabilityx.Observability
-}
-
-func newArtifactJanitorRuntime(
-	store artifact.Store,
-	cat catalog.Catalog,
-	catMetrics *catalog.RuntimeMetrics,
-	bodyCache *assetcache.Cache,
-	bus eventx.BusRuntime,
-	telemetry taskTelemetry,
-) *artifactJanitorRuntime {
-	return &artifactJanitorRuntime{
-		store:      store,
-		catalog:    cat,
-		catMetrics: catMetrics,
-		bodyCache:  bodyCache,
-		bus:        bus,
-		logger:     telemetry.logger,
-		obs:        telemetry.obs,
-	}
-}
-
-func newArtifactJanitorTaskRegistration(runtime *artifactJanitorRuntime) taskRegistration {
-	return newTaskRegistration(200, "artifact_janitor", func(ctx context.Context, scheduler gocron.Scheduler) (bool, error) {
-		return registerArtifactJanitorTask(ctx, scheduler, runtime)
-	})
 }
 
 type cacheWarmerRuntime struct {

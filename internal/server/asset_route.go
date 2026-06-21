@@ -13,7 +13,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
-	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
@@ -25,7 +24,6 @@ type assetDeliveryRuntime struct {
 	responsePolicy cachepolicy.ResponsePolicy
 	logger         *slog.Logger
 	assetResolver  *resolver.Resolver
-	pipelineSvc    *pipeline.Service
 	bodyCache      *assetcache.Cache
 	bus            eventx.BusRuntime
 	prepared       *PreparedService
@@ -46,7 +44,6 @@ func newAssetDeliveryRuntime(
 	cfg *config.Config,
 	routeRuntime assetRouteRuntime,
 	assetResolver *resolver.Resolver,
-	pipelineSvc *pipeline.Service,
 	bodyCache *assetcache.Cache,
 	bus eventx.BusRuntime,
 ) *assetDeliveryRuntime {
@@ -55,7 +52,6 @@ func newAssetDeliveryRuntime(
 		responsePolicy: cachepolicy.NewResponsePolicyFromConfig(cfg),
 		logger:         routeRuntime.logger,
 		assetResolver:  assetResolver,
-		pipelineSvc:    pipelineSvc,
 		bodyCache:      bodyCache,
 		bus:            bus,
 		prepared:       routeRuntime.prepared,
@@ -89,7 +85,6 @@ func (r *assetDeliveryRuntime) handle(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	r.enqueuePipelineResult(result)
 	delivery, resolvedResult, deliveryErr := r.sendResolvedAssetWithVariantFallback(c, request, result, requestedFormat)
 	if deliveryErr != nil {
 		return deliveryErr
@@ -138,7 +133,6 @@ func (r *assetDeliveryRuntime) retryResolvedAssetDelivery(
 		if resolveErr != nil {
 			return "", result, resolveErr
 		}
-		r.enqueuePipelineResult(nextResult)
 
 		delivery, err := r.sendResolvedAsset(c, request, nextResult, requestedFormat)
 		if err == nil {
@@ -195,28 +189,6 @@ func buildResolverRequest(c fiber.Ctx, cleanedPath requestpath.Cleaned, requeste
 
 func requestRangeRequested(c fiber.Ctx) bool {
 	return strings.TrimSpace(c.Get(fiber.HeaderRange)) != ""
-}
-
-func (r *assetDeliveryRuntime) enqueuePipelineResult(result *resolver.Result) {
-	if r.pipelineSvc == nil || result == nil || result.Asset == nil || !hasPreferredPipelineRequests(result) {
-		return
-	}
-
-	r.pipelineSvc.Enqueue(pipeline.Request{
-		AssetPath:          result.Asset.Path,
-		PreferredEncodings: result.PreferredEncodings,
-		PreferredWidths:    result.PreferredWidths,
-		PreferredFormats:   result.PreferredFormats,
-	})
-}
-
-func hasPreferredPipelineRequests(result *resolver.Result) bool {
-	if result == nil {
-		return false
-	}
-	return result.PreferredEncodings.Len() > 0 ||
-		result.PreferredWidths.Len() > 0 ||
-		result.PreferredFormats.Len() > 0
 }
 
 func parsePositiveInt(raw string) int {

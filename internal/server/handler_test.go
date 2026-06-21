@@ -86,7 +86,6 @@ func newErrorTestApp(t *testing.T, logger *slog.Logger) *fiber.App {
 		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 		nil,
-		nil,
 	)
 }
 

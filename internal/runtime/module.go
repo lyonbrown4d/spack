@@ -11,7 +11,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/server"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/task"
@@ -21,7 +20,7 @@ import (
 var Module = dix.NewModule("runtime",
 	dix.WithModuleProviders(
 		dix.Provider4(newMainHTTPRuntime),
-		dix.Provider6(newCollectorRegistration),
+		dix.Provider5(newCollectorRegistration),
 	),
 	dix.Setups(
 		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
@@ -37,7 +36,6 @@ var Module = dix.NewModule("runtime",
 				dix.TypedService[catalog.Catalog](),
 				dix.TypedService[*catalog.RuntimeMetrics](),
 				dix.TypedService[*assetcache.Cache](),
-				dix.TypedService[*pipeline.Service](),
 				dix.TypedService[*server.PreparedService](),
 				dix.TypedService[*slog.Logger](),
 			),
@@ -57,14 +55,13 @@ var Module = dix.NewModule("runtime",
 )
 
 type catalogBootstrapRuntime struct {
-	cfg         *config.Config          `do:""`
-	scanner     sourcecatalog.Scanner   `do:""`
-	cat         catalog.Catalog         `do:""`
-	catMetrics  *catalog.RuntimeMetrics `do:""`
-	bodyCache   *assetcache.Cache       `do:""`
-	pipelineSvc *pipeline.Service       `do:""`
-	prepared    *server.PreparedService `do:""`
-	logger      *slog.Logger            `do:""`
+	cfg        *config.Config          `do:""`
+	scanner    sourcecatalog.Scanner   `do:""`
+	cat        catalog.Catalog         `do:""`
+	catMetrics *catalog.RuntimeMetrics `do:""`
+	bodyCache  *assetcache.Cache       `do:""`
+	prepared   *server.PreparedService `do:""`
+	logger     *slog.Logger            `do:""`
 }
 
 type mainHTTPRuntime struct {
@@ -85,7 +82,6 @@ func newMainHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog,
 
 func newCollectorRegistration(
 	cfg *config.Config,
-	pipelineMetrics *pipeline.Metrics,
 	catMetrics *catalog.RuntimeMetrics,
 	serverMetrics *server.RuntimeMetrics,
 	taskMetrics *task.RuntimeMetrics,
@@ -93,7 +89,6 @@ func newCollectorRegistration(
 ) *collectorRegistration {
 	return buildCollectorRegistration(
 		cfg,
-		pipelineMetrics,
 		catMetrics,
 		serverMetrics,
 		taskMetrics,

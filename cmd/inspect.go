@@ -150,7 +150,8 @@ func inspectBundle(root string) (bundleSummary, bool, error) {
 		CreatedAt:     index.CreatedAt,
 		FileCount:     len(index.Files),
 	}
-	for _, file := range index.Files {
+	for indexFile := range index.Files {
+		file := index.Files[indexFile]
 		summary.TotalBytes += file.Size
 		switch file.Kind {
 		case "asset", "":

@@ -121,7 +121,7 @@ func startSpackServer(b *testing.B, root string, cases []staticBenchCase) static
 	logger := slog.New(slog.DiscardHandler)
 	bodyCache := assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger)
 	assetResolver := resolver.NewResolverForTest(&cfg.Assets, cat, logger)
-	app, err := server.NewPreparedAppForTest(&cfg, logger, cat, bodyCache, assetResolver, nil, nil)
+	app, err := server.NewPreparedAppForTest(&cfg, logger, cat, bodyCache, assetResolver, nil)
 	if err != nil {
 		b.Fatal(err)
 	}
