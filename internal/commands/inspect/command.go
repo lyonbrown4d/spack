@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lyonbrown4d/spack/internal/assetprofile"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -34,6 +35,7 @@ type inspectReport struct {
 	Compression          map[string]compressionSummary `json:"compression"`
 	ImageVariants        imageVariantSummary           `json:"image_variants"`
 	EstimatedMemoryCache memoryCacheSummary            `json:"estimated_memory_cache"`
+	ByteProfile          assetprofile.Summary          `json:"byte_profile"`
 	PotentialIssues      []string                      `json:"potential_issues,omitempty"`
 }
 
@@ -131,6 +133,7 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 		Compression:          map[string]compressionSummary{},
 		ImageVariants:        inspectImageVariants(cfg.Image, snapshot),
 		EstimatedMemoryCache: inspectMemoryCache(cfg.HTTP.MemoryCache, snapshot),
+		ByteProfile:          assetprofile.AnalyzeAssets(snapshot.Assets, assetprofile.DefaultOptions()),
 		PotentialIssues:      inspectPotentialIssues(cfg, snapshot),
 	}
 	report.TotalAssetBytes = sumAssetBytes(snapshot)

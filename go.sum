@@ -1,5 +1,7 @@
 github.com/andybalholm/brotli v1.2.1 h1:R+f5xP285VArJDRgowrfb9DqL18yVK0gKAW/F+eTWro=
 github.com/andybalholm/brotli v1.2.1/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
+github.com/arcgolabs/collectionx/bytex v0.9.0 h1:9ivX4V3rjwcBR6MIH9AEBRH/3EpYVBArytjlOPS9J64=
+github.com/arcgolabs/collectionx/bytex v0.9.0/go.mod h1:r7fYjxjq9pGI/lRWZ/F42lypqUjpBi8Y0pG/hlVk5Bk=
 github.com/arcgolabs/collectionx/graph v0.9.0 h1:wpOevcDwHq49F1Ei5oyoq+7Xiln8iPipPRsxrzyLQGw=
 github.com/arcgolabs/collectionx/graph v0.9.0/go.mod h1:ed6tV9GiiLzvSajUwyaEYt4c5R2m8itI3FKfkHSRv80=
 github.com/arcgolabs/collectionx/interval v0.9.0 h1:LiJrRH2SOh6fZY6+r5ocFhDFfvb2OvxIdZjMFulGCf0=
