@@ -271,8 +271,8 @@ func inspectPotentialIssues(cfg *config.Config, snapshot sourcecatalog.Snapshot)
 	if cfg.HTTP.MemoryCache.Enabled() && int64(snapshot.Assets.Len()) > int64(cfg.HTTP.MemoryCache.MaxEntries) {
 		issues = append(issues, "asset count exceeds http.memory_cache.max_entries")
 	}
-	if cfg.Compression.PipelineEnabled() && cfg.Compression.QueueCapacity() < cfg.Async.NormalizedWorkers() {
-		issues = append(issues, "compression queue capacity is smaller than normalized async workers")
+	if cfg.Compression.PipelineEnabled() && cfg.Compression.NormalizedMode() == config.CompressionModeLazy {
+		issues = append(issues, "compression.mode=lazy is retained for legacy runtime enqueue compatibility; compiler pre-generation uses compression.mode=warmup")
 	}
 	if cfg.Logger.File.Enabled && strings.TrimSpace(cfg.Logger.File.Path) == "" {
 		issues = append(issues, "logger.file.enabled is true but logger.file.path is empty")

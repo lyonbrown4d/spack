@@ -16,19 +16,19 @@ func newMetrics() *Metrics {
 	return &Metrics{
 		QueueLength: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "pipeline_queue_length",
-			Help: "Current number of pending pipeline requests in queue",
+			Help: "Current number of pending legacy lazy pipeline requests in queue",
 		}),
 		QueueCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "pipeline_queue_capacity",
-			Help: "Configured pipeline queue capacity",
+			Help: "Configured legacy lazy pipeline queue capacity",
 		}),
 		EnqueueDroppedTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "pipeline_enqueue_dropped_total",
-			Help: "Total number of dropped pipeline enqueue requests due to a full queue",
+			Help: "Total number of legacy lazy pipeline enqueue requests dropped due to a full queue",
 		}),
 		EnqueueDeduplicatedTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "pipeline_enqueue_deduplicated_total",
-			Help: "Total number of deduplicated pipeline enqueue requests",
+			Help: "Total number of deduplicated legacy lazy pipeline enqueue requests",
 		}),
 		CleanupRunsTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "pipeline_cleanup_runs_total",

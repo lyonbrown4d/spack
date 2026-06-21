@@ -58,7 +58,7 @@ func TestRuntimeInfoMetricsFallsBackToDefaultConfig(t *testing.T) {
 	expected := strings.NewReader(`
 # HELP spack_config_info Effective low-cardinality runtime configuration for the current spack instance.
 # TYPE spack_config_info gauge
-spack_config_info{app="spack",compression_mode="lazy",compression_pipeline_enabled="true",debug_enabled="true",frontend_early_hints_enabled="false",frontend_hints_enabled="true",frontend_immutable_enabled="true",image_enabled="true",logger_level="debug",memory_cache_enabled="true",memory_cache_warmup_enabled="true",metrics_enabled="true",robots_enabled="true"} 1
+spack_config_info{app="spack",compression_mode="warmup",compression_pipeline_enabled="true",debug_enabled="true",frontend_early_hints_enabled="false",frontend_hints_enabled="true",frontend_immutable_enabled="true",image_enabled="true",logger_level="debug",memory_cache_enabled="true",memory_cache_warmup_enabled="true",metrics_enabled="true",robots_enabled="true"} 1
 # HELP spack_runtime_start_time_seconds Unix time when the current spack runtime instance was initialized.
 # TYPE spack_runtime_start_time_seconds gauge
 spack_runtime_start_time_seconds{app="spack"} 1

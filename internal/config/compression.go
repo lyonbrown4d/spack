@@ -38,14 +38,14 @@ type Compression struct {
 
 func (c Compression) NormalizedMode() string {
 	switch strings.ToLower(strings.TrimSpace(c.Mode)) {
-	case "", CompressionModeLazy:
-		return CompressionModeLazy
+	case "", CompressionModeWarmup:
+		return CompressionModeWarmup
 	case CompressionModeOff:
 		return CompressionModeOff
-	case CompressionModeWarmup:
-		return CompressionModeWarmup
-	default:
+	case CompressionModeLazy:
 		return CompressionModeLazy
+	default:
+		return CompressionModeWarmup
 	}
 }
 

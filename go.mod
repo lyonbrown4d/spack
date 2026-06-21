@@ -4,7 +4,6 @@ go 1.26.3
 
 require (
 	github.com/andybalholm/brotli v1.2.1
-	github.com/anthonynsimon/bild v0.15.0
 	github.com/arcgolabs/collectionx/interval v0.9.0
 	github.com/arcgolabs/collectionx/list v0.9.0
 	github.com/arcgolabs/collectionx/mapping v0.9.0

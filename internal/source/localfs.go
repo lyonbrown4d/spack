@@ -74,7 +74,7 @@ func resolveLocalFSRoot(root string) (resolvedLocalFSRoot, error) {
 		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, root))
 	}
 	if info.IsDir() {
-		return resolvedLocalFSRoot{root: root, info: info}, nil
+		return resolveLocalFSDirectoryRoot(root)
 	}
 	if info.Mode().IsRegular() && spackbundle.IsBundlePath(root) {
 		bundle, err := newBundleSource(root)
@@ -84,6 +84,50 @@ func resolveLocalFSRoot(root string) (resolvedLocalFSRoot, error) {
 		return resolvedLocalFSRoot{root: root, info: info, bundle: bundle}, nil
 	}
 	return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", root))
+}
+
+func resolveLocalFSDirectoryRoot(root string) (resolvedLocalFSRoot, error) {
+	rootDir, err := os.OpenRoot(root)
+	if err != nil {
+		return resolvedLocalFSRoot{}, oops.Wrap(err)
+	}
+	openedInfo, err := rootDir.Stat(".")
+	if err != nil {
+		closeRoot(rootDir)
+		return resolvedLocalFSRoot{}, oops.Wrap(err)
+	}
+	currentInfo, err := os.Lstat(root)
+	if err != nil {
+		closeRoot(rootDir)
+		return resolvedLocalFSRoot{}, oops.Wrap(err)
+	}
+	if err := validateOpenedDirectoryRoot(root, openedInfo, currentInfo); err != nil {
+		closeRoot(rootDir)
+		return resolvedLocalFSRoot{}, err
+	}
+	if err := rootDir.Close(); err != nil {
+		return resolvedLocalFSRoot{}, oops.Wrap(err)
+	}
+	return resolvedLocalFSRoot{root: root, info: currentInfo}, nil
+}
+
+func validateOpenedDirectoryRoot(root string, openedInfo, currentInfo fs.FileInfo) error {
+	if isSymlink(currentInfo) {
+		return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, root))
+	}
+	if !currentInfo.IsDir() {
+		return oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", root))
+	}
+	if !os.SameFile(openedInfo, currentInfo) {
+		return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrRootReplaced, root))
+	}
+	return nil
+}
+
+func closeRoot(rootDir *os.Root) {
+	if err := rootDir.Close(); err != nil {
+		return
+	}
 }
 
 func logSourceConfigured(logger *slog.Logger, configuredRoot string, resolved resolvedLocalFSRoot) {
@@ -106,8 +150,13 @@ func (s *LocalFS) Walk(walkFn func(File) error) error {
 	if s.bundle != nil {
 		return s.walkBundle(walkFn)
 	}
-	if err := filepath.WalkDir(s.root, func(fullPath string, entry fs.DirEntry, err error) error {
-		file, fileErr := buildWalkFile(s.root, fullPath, entry, err)
+	rootDir, err := s.openRoot()
+	if err != nil {
+		return err
+	}
+	defer closeRoot(rootDir)
+	if err := fs.WalkDir(rootDir.FS(), ".", func(relativePath string, entry fs.DirEntry, err error) error {
+		file, fileErr := buildWalkFile(s.root, relativePath, entry, err)
 		if fileErr != nil {
 			return fileErr
 		}
@@ -130,12 +179,13 @@ func (s *LocalFS) FindFile(assetPath string) (File, bool, error) {
 		return s.findBundleFile(relativePath)
 	}
 
-	fullPath := filepath.Join(s.root, filepath.FromSlash(relativePath))
-	if !isPathWithinRoot(s.root, fullPath) {
-		return File{}, false, nil
+	rootDir, err := s.openRoot()
+	if err != nil {
+		return File{}, false, err
 	}
+	defer closeRoot(rootDir)
 
-	info, err := s.lstatPathWithinRoot(fullPath)
+	info, err := lstatPathWithinRoot(rootDir, s.root, relativePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return File{}, false, nil
@@ -148,17 +198,18 @@ func (s *LocalFS) FindFile(assetPath string) (File, bool, error) {
 
 	return File{
 		Path:     relativePath,
-		FullPath: fullPath,
+		FullPath: filepath.Join(s.root, filepath.FromSlash(relativePath)),
 		Size:     info.Size(),
 		IsDir:    info.IsDir(),
 		ModTime:  info.ModTime(),
 	}, true, nil
 }
 
-func buildWalkFile(root, fullPath string, entry fs.DirEntry, walkErr error) (File, error) {
+func buildWalkFile(root, relativePath string, entry fs.DirEntry, walkErr error) (File, error) {
 	if walkErr != nil {
 		return File{}, oops.Wrap(walkErr)
 	}
+	fullPath := filepath.Join(root, filepath.FromSlash(relativePath))
 	if entry.Type()&fs.ModeSymlink != 0 {
 		return File{}, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, fullPath))
 	}
@@ -167,13 +218,9 @@ func buildWalkFile(root, fullPath string, entry fs.DirEntry, walkErr error) (Fil
 	if err != nil {
 		return File{}, oops.Wrap(err)
 	}
-	rel, err := filepath.Rel(root, fullPath)
-	if err != nil {
-		return File{}, oops.Wrap(err)
-	}
 
 	return File{
-		Path:     filepath.ToSlash(rel),
+		Path:     relativePath,
 		FullPath: fullPath,
 		Size:     info.Size(),
 		IsDir:    entry.IsDir(),
@@ -198,33 +245,33 @@ func cleanRelativeAssetPath(raw string) (string, bool) {
 	return cleaned, true
 }
 
-func (s *LocalFS) lstatPathWithinRoot(fullPath string) (fs.FileInfo, error) {
-	relativePath, err := filepath.Rel(s.root, fullPath)
+func (s *LocalFS) openRoot() (*os.Root, error) {
+	rootDir, err := os.OpenRoot(s.root)
 	if err != nil {
 		return nil, oops.Wrap(err)
 	}
-	if relativePath == "." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || relativePath == ".." {
-		return nil, os.ErrNotExist
-	}
+	return rootDir, nil
+}
 
-	currentPath := s.root
+func lstatPathWithinRoot(rootDir *os.Root, root, relativePath string) (fs.FileInfo, error) {
+	currentPath := ""
 	var info fs.FileInfo
-	for segment := range strings.SplitSeq(relativePath, string(filepath.Separator)) {
-		currentPath = filepath.Join(currentPath, segment)
-		info, err = os.Lstat(currentPath)
+	for segment := range strings.SplitSeq(relativePath, "/") {
+		if currentPath == "" {
+			currentPath = segment
+		} else {
+			currentPath = path.Join(currentPath, segment)
+		}
+		var err error
+		info, err = rootDir.Lstat(filepath.FromSlash(currentPath))
 		if err != nil {
-			return nil, fmt.Errorf("stat source path %q: %w", currentPath, err)
+			return nil, fmt.Errorf("stat source path %q: %w", filepath.Join(root, filepath.FromSlash(currentPath)), err)
 		}
 		if isSymlink(info) {
-			return nil, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, currentPath))
+			return nil, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, filepath.Join(root, filepath.FromSlash(currentPath))))
 		}
 	}
 	return info, nil
-}
-
-func isPathWithinRoot(root, fullPath string) bool {
-	rel, err := filepath.Rel(root, fullPath)
-	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func isSymlink(info fs.FileInfo) bool {

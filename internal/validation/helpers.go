@@ -1,17 +1,15 @@
 package validation
 
 import (
-	"cmp"
 	"strconv"
-	"strings"
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	cxset "github.com/arcgolabs/collectionx/set"
+	"github.com/lyonbrown4d/spack/internal/normalizex"
 )
 
 func ParseFlexibleDuration(raw string) time.Duration {
-	raw = strings.TrimSpace(raw)
+	raw = normalizex.Trim(raw)
 	if raw == "" {
 		return 0
 	}
@@ -31,27 +29,5 @@ func ParseFlexibleDuration(raw string) time.Duration {
 }
 
 func ParseWidths(raw string) *cxlist.List[int] {
-	if strings.TrimSpace(raw) == "" {
-		return cxlist.NewList[int]()
-	}
-
-	widths := cxlist.NewList[int]()
-	for part := range strings.SplitSeq(raw, ",") {
-		width, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil || width <= 0 {
-			continue
-		}
-		widths.Add(width)
-	}
-	if widths.IsEmpty() {
-		return widths
-	}
-
-	widths.Sort(cmp.Compare[int])
-	unique := cxset.NewOrderedSetWithCapacity[int](widths.Len())
-	widths.Range(func(_ int, width int) bool {
-		unique.Add(width)
-		return true
-	})
-	return cxlist.NewList[int](unique.Values()...)
+	return normalizex.ParsePositiveIntCSV(raw)
 }

@@ -1,7 +1,5 @@
 github.com/andybalholm/brotli v1.2.1 h1:R+f5xP285VArJDRgowrfb9DqL18yVK0gKAW/F+eTWro=
 github.com/andybalholm/brotli v1.2.1/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
-github.com/anthonynsimon/bild v0.15.0 h1:FzvaNLuNlAPKw1Xz7V2WYOcGIEBMj8Y6ZyAk7CI+HzA=
-github.com/anthonynsimon/bild v0.15.0/go.mod h1:qIgJ9FldkCn0iy5Ad24fzUkz5R+iJ0WfhiV+6FeCB5A=
 github.com/arcgolabs/collectionx/graph v0.9.0 h1:wpOevcDwHq49F1Ei5oyoq+7Xiln8iPipPRsxrzyLQGw=
 github.com/arcgolabs/collectionx/graph v0.9.0/go.mod h1:ed6tV9GiiLzvSajUwyaEYt4c5R2m8itI3FKfkHSRv80=
 github.com/arcgolabs/collectionx/interval v0.9.0 h1:LiJrRH2SOh6fZY6+r5ocFhDFfvb2OvxIdZjMFulGCf0=

@@ -4,6 +4,8 @@ SPACK is a container-first static asset runtime for SPA and frontend build outpu
 
 SPACK 是面向容器化前端应用的静态资源运行时，聚焦 SPA/static assets、压缩变体、图片变体、HTTP 缓存、可观测性和高性能分发。
 
+Runtime note: SPACK serves source assets and compiler-produced variants. `compression.mode=warmup` is the compiler pre-generation path; `compression.mode=lazy` and `compression.queue_size` remain legacy compatibility knobs rather than the recommended runtime surface.
+
 ## Documentation / 文档
 
 Detailed user documentation and architecture design have moved to the GitHub Wiki:

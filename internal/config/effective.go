@@ -134,13 +134,14 @@ func effectiveCompressionMap(cfg Compression, redact bool) map[string]any {
 	if redact && cacheDir != "" {
 		cacheDir = redactedValue
 	}
-	return map[string]any{
+	mode := cfg.NormalizedMode()
+	out := map[string]any{
 		"enable":                   cfg.Enable,
-		"mode":                     cfg.Mode,
+		"mode":                     mode,
+		"generation_scope":         compressionGenerationScope(mode),
 		"cache_dir":                cacheDir,
 		"min_size":                 cfg.MinSize,
 		"workers":                  cfg.Workers,
-		"queue_size":               cfg.QueueSize,
 		"encodings":                cfg.Encodings,
 		"cleanup_every":            cfg.CleanupEvery,
 		"max_age":                  cfg.MaxAge,
@@ -152,5 +153,21 @@ func effectiveCompressionMap(cfg Compression, redact bool) map[string]any {
 		"brotli_quality":           cfg.BrotliQuality,
 		"zstd_level":               cfg.ZstdLevel,
 		"gzip_level":               cfg.GzipLevel,
+	}
+	if mode == CompressionModeLazy {
+		out["queue_size"] = cfg.QueueSize
+		out["queue_size_scope"] = "legacy_runtime_enqueue_compatibility"
+	}
+	return out
+}
+
+func compressionGenerationScope(mode string) string {
+	switch mode {
+	case CompressionModeWarmup:
+		return "compiler_only"
+	case CompressionModeLazy:
+		return "legacy_runtime_enqueue_compatibility"
+	default:
+		return "disabled"
 	}
 }

@@ -2,13 +2,23 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/lyonbrown4d/spack/internal/perfbench"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "refine-aot" {
+		if err := perfbench.RunRefineAOT(context.Background(), os.Args[2:]); err != nil {
+			fatalf("%v", err)
+		}
+		return
+	}
+
 	budgetPath := flag.String("budget", filepath.Join("performance", "budgets.json"), "performance budget file")
 	candidatePath := flag.String("candidate", "", "candidate Go benchmark output")
 	baselinePath := flag.String("baseline", "", "baseline Go benchmark output")

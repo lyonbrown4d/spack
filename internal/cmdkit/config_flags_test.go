@@ -5,8 +5,30 @@ import (
 
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/configschema"
 	"github.com/spf13/cobra"
 )
+
+func TestNewConfigFlagSetRegistersSchemaFlags(t *testing.T) {
+	defaults := config.DefaultConfig()
+	flags := cmdkit.NewConfigFlagSet()
+
+	for _, schemaFlag := range configschema.Flags() {
+		flag := flags.Lookup(schemaFlag.Name)
+		if flag == nil {
+			t.Fatalf("expected config flag %q to be registered", schemaFlag.Name)
+		}
+		if got := flag.Value.Type(); got != string(schemaFlag.Kind) {
+			t.Fatalf("expected config flag %q type %q, got %q", schemaFlag.Name, schemaFlag.Kind, got)
+		}
+		if want := schemaFlag.DefaultString(defaults); flag.DefValue != want {
+			t.Fatalf("expected config flag %q default %q, got %q", schemaFlag.Name, want, flag.DefValue)
+		}
+		if flag.Usage != schemaFlag.Usage {
+			t.Fatalf("expected config flag %q usage %q, got %q", schemaFlag.Name, schemaFlag.Usage, flag.Usage)
+		}
+	}
+}
 
 func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 	command := &cobra.Command{Use: "spack-test"}

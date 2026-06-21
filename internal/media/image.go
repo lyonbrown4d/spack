@@ -6,7 +6,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	cxset "github.com/arcgolabs/collectionx/set"
+	"github.com/lyonbrown4d/spack/internal/normalizex"
 )
 
 type ImageFormatDescriptor struct {
@@ -65,22 +65,19 @@ func SupportedImageFormats() *cxlist.List[string] {
 }
 
 func LookupImageDescriptor(format string) (ImageFormatDescriptor, bool) {
-	normalized := strings.ToLower(strings.TrimSpace(format))
-	return imageDescriptorsByName.Get(normalized)
+	return imageDescriptorsByName.Get(normalizex.TrimLower(format))
 }
 
 func LookupImageDescriptorByMediaType(mediaType string) (ImageFormatDescriptor, bool) {
-	normalized := strings.ToLower(strings.TrimSpace(mediaType))
-	return imageDescriptorsByMediaType.Get(normalized)
+	return imageDescriptorsByMediaType.Get(normalizex.TrimLower(mediaType))
 }
 
 func LookupImageDescriptorByAcceptToken(token string) (ImageFormatDescriptor, bool) {
-	normalized := strings.ToLower(strings.TrimSpace(token))
-	return imageDescriptorsByAcceptToken.Get(normalized)
+	return imageDescriptorsByAcceptToken.Get(normalizex.TrimLower(token))
 }
 
 func NormalizeImageFormat(format string) string {
-	normalized := strings.ToLower(strings.TrimSpace(format))
+	normalized := normalizex.TrimLower(format)
 	switch normalized {
 	case "jpg":
 		return "jpeg"
@@ -100,21 +97,14 @@ func ImageFormat(mediaType string) string {
 }
 
 func IsImageMediaType(mediaType string) bool {
-	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(mediaType)), "image/")
+	return strings.HasPrefix(normalizex.TrimLower(mediaType), "image/")
 }
 
 func NormalizeImageFormats(formats *cxlist.List[string]) *cxlist.List[string] {
 	if formats == nil || formats.IsEmpty() {
 		return nil
 	}
-
-	values := cxlist.FilterMapList[string, string](formats, func(_ int, format string) (string, bool) {
-		value := NormalizeImageFormat(format)
-		return value, value != ""
-	})
-
-	normalized := cxset.NewOrderedSet[string](values.Values()...)
-	return cxlist.NewList[string](normalized.Values()...)
+	return normalizex.NormalizeStringList(formats, NormalizeImageFormat, normalizex.PreserveOrder)
 }
 
 func buildImageDescriptorsByAcceptToken(
@@ -123,7 +113,7 @@ func buildImageDescriptorsByAcceptToken(
 	out := cxmapping.NewMap[string, ImageFormatDescriptor]()
 	descriptors.Range(func(_ int, descriptor ImageFormatDescriptor) bool {
 		descriptor.AcceptTokens.Range(func(_ int, token string) bool {
-			normalized := strings.ToLower(strings.TrimSpace(token))
+			normalized := normalizex.TrimLower(token)
 			if normalized != "" {
 				out.Set(normalized, descriptor)
 			}

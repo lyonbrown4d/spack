@@ -42,6 +42,9 @@ var (
 )
 
 func resolveQueueSize(cfg *config.Compression, workers int) int {
+	if cfg.NormalizedMode() != config.CompressionModeLazy {
+		return 0
+	}
 	queueSize := cfg.QueueCapacity()
 	if queueSize < 1 {
 		return workers * 64
@@ -99,8 +102,12 @@ func (s *Service) start(ctx context.Context, workers, queueSize int) error {
 	if err := os.MkdirAll(s.cfg.CacheDir, 0o750); err != nil {
 		return fmt.Errorf("create pipeline cache directory: %w", err)
 	}
-	s.startWorkers(ctx, workers)
-	s.logWorkersStarted(workers, queueSize)
+	if s.cfg.NormalizedMode() == config.CompressionModeLazy {
+		s.startWorkers(ctx, workers)
+		s.logLazyWorkersStarted(workers, queueSize)
+	} else {
+		s.logCompilerWarmupConfigured()
+	}
 	s.startCleanupIfNeeded(ctx)
 	return nil
 }
@@ -118,10 +125,17 @@ func (s *Service) startWorkers(ctx context.Context, workers int) {
 	}
 }
 
-func (s *Service) logWorkersStarted(workers, queueSize int) {
-	s.logger.Info("Pipeline workers started",
+func (s *Service) logLazyWorkersStarted(workers, queueSize int) {
+	s.logger.Info("Legacy lazy pipeline workers started",
 		slog.Int("workers", workers),
-		slog.Int("queue_size", queueSize),
+		slog.Int("legacy_queue_capacity", queueSize),
+		slog.String("mode", s.cfg.NormalizedMode()),
+		slog.String("cache_dir", s.cfg.CacheDir),
+	)
+}
+
+func (s *Service) logCompilerWarmupConfigured() {
+	s.logger.Info("Pipeline generation configured for compiler warmup",
 		slog.String("mode", s.cfg.NormalizedMode()),
 		slog.String("cache_dir", s.cfg.CacheDir),
 	)

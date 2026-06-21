@@ -4,8 +4,8 @@ import (
 	"cmp"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/normalizex"
 	"slices"
-	"strings"
 )
 
 type imageFormatMask uint8
@@ -43,7 +43,7 @@ func parseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List
 }
 
 func ParseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
-	if strings.TrimSpace(header) == "" {
+	if normalizex.IsBlank(header) {
 		return nil
 	}
 
@@ -92,7 +92,7 @@ func imageFormatMaskForName(format string) (imageFormatMask, bool) {
 }
 
 func (prefs *imagePreferences) setExplicit(mask imageFormatMask, q float64) {
-	if prefs.explicit.has(mask) && q <= prefs.quality(mask) {
+	if !bestAcceptQuality(prefs.quality(mask), prefs.explicit.has(mask), q) {
 		return
 	}
 	prefs.explicit |= mask
@@ -172,17 +172,14 @@ func compareImageCandidates(left, right imageCandidate) int {
 	if left.match != right.match {
 		return cmp.Compare(int(right.match), int(left.match))
 	}
-	if left.q == right.q {
-		return cmp.Compare(left.priority, right.priority)
-	}
-	if left.q > right.q {
-		return -1
-	}
-	return 1
+	return compareAcceptQualityPriority(left.q, left.priority, right.q, right.priority)
 }
 
 func imageFormatCandidates(supported *cxlist.List[string], sourceFormat string) *cxlist.List[string] {
-	candidates := cxlist.NewList[string]().Merge(supported)
+	candidates := cxlist.NewList[string]()
+	if supported != nil {
+		candidates.Merge(supported)
+	}
 	if sourceFormat != "" {
 		candidates.Add(sourceFormat)
 	}

@@ -116,12 +116,12 @@ func defaultFrontendConfig() Frontend {
 
 func defaultCompressionConfig() Compression {
 	return Compression{
-		Mode:                  CompressionModeLazy,
+		Mode:                  CompressionModeWarmup,
 		Enable:                true,
 		CacheDir:              filepath.Join(os.TempDir(), "spack-cache"),
 		MinSize:               1024,
 		Workers:               2,
-		QueueSize:             128,
+		QueueSize:             0,
 		Encodings:             "br,zstd,gzip",
 		CleanupEvery:          "5m",
 		MaxAge:                "168h",

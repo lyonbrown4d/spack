@@ -1,11 +1,10 @@
 package resolver
 
 import (
-	"cmp"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	contentcodingspec "github.com/lyonbrown4d/spack/internal/contentcoding/spec"
+	"github.com/lyonbrown4d/spack/internal/normalizex"
 	"slices"
-	"strings"
 )
 
 var defaultSupportedEncodings = contentcodingspec.DefaultNames()
@@ -42,7 +41,7 @@ func parseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.
 }
 
 func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	if strings.TrimSpace(header) == "" {
+	if normalizex.IsBlank(header) {
 		return nil
 	}
 
@@ -51,7 +50,7 @@ func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.
 }
 
 func ParseAcceptEncodingNormalized(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	if strings.TrimSpace(header) == "" {
+	if normalizex.IsBlank(header) {
 		return nil
 	}
 
@@ -99,7 +98,7 @@ func knownEncodingMask(token string) (encodingMask, bool) {
 
 func (prefs *encodingPreferences) setKnown(mask encodingMask, q float64) {
 	current := prefs.knownQuality(mask)
-	if prefs.known.has(mask) && q <= current {
+	if !bestAcceptQuality(current, prefs.known.has(mask), q) {
 		return
 	}
 	prefs.known |= mask
@@ -143,15 +142,9 @@ func applyExtraEncodingPreference(prefs *encodingPreferences, entry acceptEntry)
 		prefs.extra = make(map[string]float64, 1)
 	}
 	current, ok := prefs.extra[entry.token]
-	next, _ := preferredEncodingQuality(current, ok, entry.q)
-	prefs.extra[entry.token] = next
-}
-
-func preferredEncodingQuality(current float64, ok bool, next float64) (float64, bool) {
-	if !ok || next > current {
-		return next, true
+	if bestAcceptQuality(current, ok, entry.q) {
+		prefs.extra[entry.token] = entry.q
 	}
-	return current, ok
 }
 
 func buildEncodingCandidates(prefs encodingPreferences, supported *cxlist.List[string]) *cxlist.List[string] {
@@ -208,7 +201,10 @@ func wildcardEncodingQuality(prefs encodingPreferences) (float64, bool) {
 }
 
 func encodingSupportedCandidates(supported *cxlist.List[string]) *cxlist.List[string] {
-	if supported.IsEmpty() {
+	supported = normalizex.NilIfEmpty(
+		normalizex.NormalizeStringList(supported, normalizex.TrimLower, normalizex.PreserveOrder),
+	)
+	if supported == nil {
 		return defaultSupportedEncodings
 	}
 	return supported
@@ -227,11 +223,5 @@ func supportsEncodingToken(supported *cxlist.List[string], token string) bool {
 }
 
 func compareEncodingCandidates(left, right encodingCandidate) int {
-	if left.q == right.q {
-		return cmp.Compare(left.priority, right.priority)
-	}
-	if left.q > right.q {
-		return -1
-	}
-	return 1
+	return compareAcceptQualityPriority(left.q, left.priority, right.q, right.priority)
 }

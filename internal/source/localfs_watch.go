@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -36,10 +35,16 @@ func (s *LocalFS) addWatchDirs(watcher *fsnotify.Watcher) error {
 	if err := s.validateRoot(); err != nil {
 		return err
 	}
-	if err := filepath.WalkDir(s.root, func(fullPath string, entry fs.DirEntry, err error) error {
+	rootDir, err := s.openRoot()
+	if err != nil {
+		return err
+	}
+	defer closeRoot(rootDir)
+	if err := fs.WalkDir(rootDir.FS(), ".", func(relativePath string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+		fullPath := filepath.Join(s.root, filepath.FromSlash(relativePath))
 		if entry.Type()&fs.ModeSymlink != 0 {
 			return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, fullPath))
 		}
@@ -109,11 +114,17 @@ func (s *LocalFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- Cha
 }
 
 func (s *LocalFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string) {
-	if !isPathWithinRoot(s.root, fullPath) {
+	relativePath, ok := s.relativeWatchPath(fullPath)
+	if !ok || relativePath == "." {
 		return
 	}
-	info, err := os.Lstat(fullPath)
-	if err != nil || isSymlink(info) || !info.IsDir() {
+	rootDir, err := s.openRoot()
+	if err != nil {
+		return
+	}
+	defer closeRoot(rootDir)
+	info, err := lstatPathWithinRoot(rootDir, s.root, relativePath)
+	if err != nil || !info.IsDir() {
 		return
 	}
 	if err := watcher.Add(fullPath); err != nil && s.logger != nil {
@@ -125,15 +136,23 @@ func (s *LocalFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string)
 }
 
 func (s *LocalFS) changeEvent(event fsnotify.Event) (ChangeEvent, bool) {
-	rel, err := filepath.Rel(s.root, event.Name)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	relativePath, ok := s.relativeWatchPath(event.Name)
+	if !ok {
 		return ChangeEvent{}, false
 	}
 	return ChangeEvent{
-		Path:     filepath.ToSlash(rel),
+		Path:     relativePath,
 		FullPath: event.Name,
 		Op:       event.Op.String(),
 	}, true
+}
+
+func (s *LocalFS) relativeWatchPath(fullPath string) (string, bool) {
+	rel, err := filepath.Rel(s.root, fullPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
 }
 
 func isContentWatchEvent(event fsnotify.Event) bool {

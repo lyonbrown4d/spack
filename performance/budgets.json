@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-06-20",
+  "updated": "2026-06-22",
   "go_benchmarks": [
     {
       "id": "request_path_clean_static",
@@ -58,7 +58,7 @@
     },
     {
       "id": "memory_cache_miss",
-      "scenario": "first dynamic generation",
+      "scenario": "cache miss asset load",
       "benchmark": "BenchmarkCacheGetOrLoadMiss",
       "metrics": {
         "ns_per_op": { "max_regression_percent": 10 },
@@ -85,7 +85,7 @@
     },
     {
       "id": "pipeline_enqueue_unique",
-      "scenario": "first dynamic generation",
+      "scenario": "legacy lazy enqueue compatibility",
       "benchmark": "BenchmarkServiceEnqueueUnique",
       "metrics": {
         "ns_per_op": { "max_regression_percent": 10 },
@@ -94,7 +94,7 @@
     },
     {
       "id": "pipeline_enqueue_deduplicated",
-      "scenario": "first dynamic generation",
+      "scenario": "legacy lazy enqueue compatibility",
       "benchmark": "BenchmarkServiceEnqueueDeduplicated",
       "metrics": {
         "ns_per_op": { "max_regression_percent": 10 },
