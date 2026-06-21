@@ -156,3 +156,107 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${GITHUB_REF_NAME}" tmp/perf/results/* tmp/k6/results/*.json --clobber
+
+  compiler:
+    name: Compiler ${{ matrix.target }}
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-arm64
+            os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+            suffix: linux_arm64
+            archive_ext: tar.gz
+          - target: darwin-amd64
+            os: macos-15-intel
+            goos: darwin
+            goarch: amd64
+            suffix: darwin_amd64
+            archive_ext: tar.gz
+          - target: darwin-arm64
+            os: macos-15
+            goos: darwin
+            goarch: arm64
+            suffix: darwin_arm64
+            archive_ext: tar.gz
+          - target: windows-amd64
+            os: windows-2025
+            goos: windows
+            goarch: amd64
+            suffix: windows_amd64
+            archive_ext: zip
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Go 1.26
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            build/go.sum
+            go.work.sum
+
+      - name: Install Linux compiler dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libvips-dev upx-ucl
+
+      - name: Install macOS compiler dependencies
+        if: runner.os == 'macOS'
+        run: brew install pkg-config vips upx
+
+      - name: Install Windows compiler dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & C:\msys64\usr\bin\pacman.exe -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-libvips
+          choco install upx -y --no-progress
+          "PATH=C:\msys64\ucrt64\bin;$env:PATH" >> $env:GITHUB_ENV
+          "PKG_CONFIG_PATH=C:\msys64\ucrt64\lib\pkgconfig" >> $env:GITHUB_ENV
+
+      - name: Build and archive compiler
+        if: runner.os != 'Windows'
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          out_dir="dist/spack-compiler_${GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          mkdir -p "$out_dir"
+          go build -tags=spack_libvips -trimpath -ldflags="-s -w -buildid=" -o "$out_dir/spack-compiler" ./cmd/spack-compiler
+          upx --best --lzma --brute "$out_dir/spack-compiler"
+          tar -C "$out_dir" -czf "dist/spack-compiler_${GITHUB_REF_NAME}_${{ matrix.suffix }}.${{ matrix.archive_ext }}" .
+
+      - name: Build and archive compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          $outDir = "dist/spack-compiler_${env:GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          go build -tags=spack_libvips -trimpath -ldflags="-s -w -buildid=" -o "$outDir/spack-compiler.exe" ./cmd/spack-compiler
+          upx --best --lzma --brute "$outDir/spack-compiler.exe"
+          Compress-Archive -Path "$outDir/*" -DestinationPath "dist/spack-compiler_${env:GITHUB_REF_NAME}_${{ matrix.suffix }}.${{ matrix.archive_ext }}" -Force
+
+      - name: Upload compiler artifact to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: gh release upload "${GITHUB_REF_NAME}" "dist/spack-compiler_${GITHUB_REF_NAME}_${{ matrix.suffix }}.${{ matrix.archive_ext }}" --clobber
+
+      - name: Attest compiler artifact
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: dist/spack-compiler_${{ github.ref_name }}_${{ matrix.suffix }}.${{ matrix.archive_ext }}

@@ -18,6 +18,34 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -buildid=
+  - id: spack-runtime-darwin
+    main: ./cmd/spack-runtime
+    binary: spack-runtime
+    flags:
+      - -trimpath
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -buildid=
+  - id: spack-runtime-windows
+    main: ./cmd/spack-runtime
+    binary: spack-runtime
+    flags:
+      - -trimpath
+    goos:
+      - windows
+    goarch:
+      - amd64
     env:
       - CGO_ENABLED=0
     ldflags:
@@ -42,11 +70,14 @@ upx:
   - enabled: true
     ids:
       - spack-runtime-linux
+      - spack-runtime-windows
       - spack-compiler-linux
     goos:
       - linux
+      - windows
     goarch:
       - amd64
+      - arm64
     compress: best
     lzma: true
     brute: true
@@ -65,6 +96,8 @@ changelog:
 archives:
   - ids:
       - spack-runtime-linux
+      - spack-runtime-darwin
+      - spack-runtime-windows
       - spack-compiler-linux
     formats:
       - tar.gz
@@ -84,6 +117,22 @@ archives:
       {{- else if eq .Arch "arm64" }}arm64
       {{- else }}{{ .Arch }}
       {{- end }}
+
+nfpms:
+  - id: spack-runtime-linux-packages
+    package_name: spack-runtime
+    ids:
+      - spack-runtime-linux
+    vendor: lyonbrown4d
+    homepage: https://github.com/lyonbrown4d/spack
+    maintainer: SPACK maintainers <security@lyonbrown.dev>
+    description: Container-first static asset runtime for SPA and frontend build outputs.
+    license: Apache-2.0
+    bindir: /usr/bin
+    formats:
+      - apk
+      - deb
+      - rpm
 
 checksum:
   name_template: checksums.txt
