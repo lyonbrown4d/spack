@@ -107,6 +107,9 @@ func cloneVisitedConfigFlags(source *pflag.FlagSet) (*pflag.FlagSet, error) {
 	}
 	var cloneErr error
 	source.Visit(func(flag *pflag.Flag) {
+		if flags.Lookup(flag.Name) == nil {
+			return
+		}
 		if err := flags.Set(flag.Name, flag.Value.String()); err != nil {
 			cloneErr = fmt.Errorf("clone config flag %s: %w", flag.Name, err)
 		}

@@ -12,8 +12,38 @@ SPACK treats performance as a release artifact. Benchmarks are useful only when 
 | First dynamic generation | First request latency, queue length, dropped tasks | Pipeline benchmark, runtime metrics |
 | Image variants | Decode, resize, encode time, peak RSS | Resolver benchmark, release profile |
 | Large directory startup | Source scan time, prepared snapshot time, memory usage | Startup benchmark, release report |
+| Refine AOT runtime comparison | Direct runtime vs compiler-produced `.spack` runtime latency, throughput, and errors | Refine AOT smoke and k6 workloads |
 | Concurrency ladder | 1, 8, 64, 256, 1024 concurrent clients | k6 fixed workloads |
 | Container limits | 0.25 CPU, 0.5 CPU, 64 MiB, 128 MiB | release k6 workload under Docker limits |
+
+## Refine AOT benchmark
+
+The Refine AOT benchmark compares two runtime paths for the same Refine application workload:
+
+- Direct runtime: serves the built Refine `dist/` directory directly.
+- Compiler-produced `.spack` runtime: serves the same `dist/` after `spack-compiler compile` packages it into a `.spack` bundle.
+
+The default fixture uses a Refine example application, injects a Vite entry that imports common frontend packages (`date-fns`, `lodash-es`, `nanoid`, `recharts`, and `zod`), and enriches the built `dist/` with deterministic benchmark assets, including large JS/CSS files, JPEG/PNG/SVG images, a font, a manifest, and binary payloads. Set `REFINE_SOURCE_DIR` to benchmark a local application, or set `REFINE_EXAMPLE_PATH` to choose another example from `refinedev/refine`.
+
+Useful fixture knobs:
+
+- `REFINE_FIXTURE_PACKAGES`: override the additional npm packages imported by the benchmark entry.
+- `REFINE_BUILD_MODE`: `vite` by default for deterministic static output; set to `package` to run the example package build script.
+- `REFINE_SOURCE_DIR`: benchmark an existing frontend instead of cloning the pinned Refine example.
+
+Use the smoke workflow first when changing AOT integration behavior:
+
+```sh
+task integration:aot:refine:smoke
+```
+
+Use the performance workflow when collecting benchmark data:
+
+```sh
+task perf:aot:refine
+```
+
+The AOT integration workspace and generated runtime artifacts are written under `tmp/refine-aot`. k6 summaries and raw performance result files are written under `tmp/k6/results`.
 
 ## CI policy
 

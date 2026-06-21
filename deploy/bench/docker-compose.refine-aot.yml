@@ -1,0 +1,64 @@
+name: spack-refine-aot-bench
+
+services:
+  spack-direct:
+    image: spack-k6-bench:local
+    ports:
+      - "127.0.0.1:18082:80"
+    volumes:
+      - ../../tmp/refine-aot/dist:/app:ro
+    environment:
+      SPACK_ASSETS_ROOT: /app
+      SPACK_ASSETS_PATH: /
+      SPACK_ASSETS_ENTRY: index.html
+      SPACK_ASSETS_FALLBACK_ON: not_found
+      SPACK_ASSETS_FALLBACK_TARGET: index.html
+      SPACK_HTTP_PORT: "80"
+      SPACK_HTTP_MEMORY_CACHE_ENABLE: "${SPACK_MEMORY_CACHE_ENABLE:-true}"
+      SPACK_HTTP_MEMORY_CACHE_WARMUP: "${SPACK_MEMORY_CACHE_WARMUP:-true}"
+      SPACK_COMPRESSION_ENABLE: "true"
+      SPACK_COMPRESSION_MODE: off
+      SPACK_IMAGE_ENABLE: "false"
+      SPACK_FRONTEND_RESOURCE_HINTS_ENABLE: "false"
+      SPACK_DEBUG_ENABLE: "false"
+      SPACK_LOGGER_LEVEL: error
+      SPACK_LOGGER_CONSOLE_ENABLED: "false"
+
+  spack-aot:
+    image: spack-k6-bench:local
+    ports:
+      - "127.0.0.1:18083:80"
+    volumes:
+      - ../../tmp/refine-aot/app.spack:/app/app.spack:ro
+    environment:
+      SPACK_ASSETS_ROOT: /app/app.spack
+      SPACK_ASSETS_PATH: /
+      SPACK_ASSETS_ENTRY: index.html
+      SPACK_ASSETS_FALLBACK_ON: not_found
+      SPACK_ASSETS_FALLBACK_TARGET: index.html
+      SPACK_HTTP_PORT: "80"
+      SPACK_HTTP_MEMORY_CACHE_ENABLE: "${SPACK_MEMORY_CACHE_ENABLE:-true}"
+      SPACK_HTTP_MEMORY_CACHE_WARMUP: "${SPACK_MEMORY_CACHE_WARMUP:-true}"
+      SPACK_COMPRESSION_ENABLE: "true"
+      SPACK_COMPRESSION_MODE: off
+      SPACK_IMAGE_ENABLE: "false"
+      SPACK_FRONTEND_RESOURCE_HINTS_ENABLE: "false"
+      SPACK_DEBUG_ENABLE: "false"
+      SPACK_LOGGER_LEVEL: error
+      SPACK_LOGGER_CONSOLE_ENABLED: "false"
+
+  k6:
+    image: grafana/k6@sha256:632ddbc81a4a9fdc9e597da91ab1d8fcf1916dd988b43b4a4559d2f8d8e73d47
+    depends_on:
+      - spack-direct
+      - spack-aot
+    volumes:
+      - ./k6:/scripts:ro
+      - ../../tmp/k6/results:/results
+    environment:
+      PAGE_PATH: "${PAGE_PATH:-/}"
+      BENCH_PATHS: "${BENCH_PATHS:-/,/index.html}"
+      ASSET_PATHS: "${ASSET_PATHS:-/index.html}"
+      VUS: "${VUS:-64}"
+      DURATION: "${DURATION:-30s}"
+      ACCEPT_ENCODING: "${ACCEPT_ENCODING:-br,gzip}"

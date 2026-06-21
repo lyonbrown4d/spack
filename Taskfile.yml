@@ -56,6 +56,19 @@ tasks:
     cmds:
       - bash scripts/container-smoke.sh
 
+  integration:aot:refine:smoke:
+    desc: Build a Refine fixture, compile it to .spack, and smoke-test direct vs AOT runtime serving
+    vars:
+      K6_VUS: '{{default "1" .K6_VUS}}'
+      K6_DURATION: '{{default "5s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+    env:
+      K6_VUS: "{{.K6_VUS}}"
+      K6_DURATION: "{{.K6_DURATION}}"
+      ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+    cmds:
+      - bash scripts/refine-aot-bench.sh smoke
+
   clean:
     cmds:
       - rm -rf {{.DIST_DIR}}
@@ -195,6 +208,29 @@ tasks:
       - task: perf:k6:run:group
         vars: { GROUP: other, BENCH_PATHS: "{{.K6_OTHER_PATHS}}", K6_VUS: "{{.K6_VUS}}", K6_DURATION: "{{.K6_DURATION}}", ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}" }
       - task: perf:k6:down
+
+  perf:aot:refine:
+    desc: 使用真实 Refine dist 对比 direct runtime 与 compiler .spack AOT runtime
+    vars:
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+    env:
+      K6_VUS: "{{.K6_VUS}}"
+      K6_DURATION: "{{.K6_DURATION}}"
+      ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+    cmds:
+      - bash scripts/refine-aot-bench.sh perf
+
+  perf:aot:refine:prepare:
+    desc: 准备 Refine dist、AOT bundle 和本地 runtime bench 镜像
+    cmds:
+      - bash scripts/refine-aot-bench.sh prepare
+
+  perf:aot:refine:down:
+    desc: 清理 Refine AOT benchmark 容器和网络
+    cmds:
+      - bash scripts/refine-aot-bench.sh down
 
   perf:k6:up:
     internal: true
