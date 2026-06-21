@@ -1,0 +1,46 @@
+// Package cmdkit wires CLI command helpers and application containers.
+package cmdkit
+
+import (
+	cxlist "github.com/arcgolabs/collectionx/list"
+	"github.com/arcgolabs/dix"
+	"github.com/lyonbrown4d/spack/internal/appmeta"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	spacklogger "github.com/lyonbrown4d/spack/internal/logger"
+	"github.com/lyonbrown4d/spack/internal/metrics"
+	"github.com/lyonbrown4d/spack/internal/runtime"
+	"github.com/lyonbrown4d/spack/internal/task"
+	"github.com/lyonbrown4d/spack/internal/validation"
+	"github.com/samber/oops"
+)
+
+const dixRecentEventCapacity = 128
+
+func CreateContainer(loadOptions config.LoadOptions, userModules ...dix.Module) (*dix.App, error) {
+	allModules := cxlist.NewListWithCapacity[dix.Module](8 + len(userModules))
+	allModules.Add(appmeta.Module,
+		validation.Module,
+		config.NewModule(loadOptions),
+		spacklogger.Module,
+		metrics.Module,
+		catalog.Module,
+		runtime.Module,
+		task.Module,
+	)
+	allModules.Add(userModules...)
+	var instance *dix.App
+	allModules.ViewValues(func(modules []dix.Module) {
+		instance = dix.New(
+			"spack",
+			dix.Modules(modules...),
+			dix.RunStopTimeout(dix.DefaultRunStopTimeout),
+			dix.RecentEvents(dixRecentEventCapacity),
+		)
+	})
+	err := instance.Validate()
+	if err != nil {
+		return nil, oops.In("command").Owner("container").Wrap(err)
+	}
+	return instance, nil
+}
