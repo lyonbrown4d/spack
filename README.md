@@ -40,7 +40,7 @@ ENV SPACK_HTTP_PORT=80
 
 Release images are published to both `ghcr.io/lyonbrown4d/spack` and `lyonbrown4d/spack`.
 
-Release archives include `spack-runtime` for Linux amd64/arm64, macOS amd64/arm64, and Windows amd64. Linux `.deb`, `.rpm`, and `.apk` packages install `spack-runtime` to `/usr/bin`. `spack-compiler` is released for Linux amd64 through GoReleaser and supplemented by the release CI matrix for Linux arm64, macOS amd64/arm64, and Windows amd64. Compiler builds use `spack_libvips` and require the target host or image to provide compatible `libvips` runtime libraries.
+Release archives include `spack-runtime` for Linux amd64/arm64, macOS amd64/arm64, and Windows amd64. Linux `.deb`, `.rpm`, and `.apk` packages install `spack-runtime` to `/usr/bin`. `spack-compiler` is released for Linux amd64 through GoReleaser and supplemented by the release CI matrix for Linux arm64, macOS amd64/arm64, and Windows amd64. Compiler builds use `spack_libvips` and require the target host or image to provide compatible `libvips` runtime libraries, including the AVIF encoder plugin when AVIF output is enabled.
 
 ## Local Development
 
