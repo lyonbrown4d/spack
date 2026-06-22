@@ -3,14 +3,16 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"sync"
+
+	"golang.org/x/sync/semaphore"
 )
 
 type imageMemoryBudget struct {
-	cond  *sync.Cond
 	limit int64
-	used  int64
+	slots *semaphore.Weighted
 }
 
 func newImageMemoryBudget(limit int64) *imageMemoryBudget {
@@ -18,12 +20,16 @@ func newImageMemoryBudget(limit int64) *imageMemoryBudget {
 		return nil
 	}
 	return &imageMemoryBudget{
-		cond:  sync.NewCond(&sync.Mutex{}),
 		limit: limit,
+		slots: semaphore.NewWeighted(limit),
 	}
 }
 
 func (b *imageMemoryBudget) Acquire(bytes int64) (func(), error) {
+	return b.AcquireContext(context.Background(), bytes)
+}
+
+func (b *imageMemoryBudget) AcquireContext(ctx context.Context, bytes int64) (func(), error) {
 	if b == nil || bytes <= 0 {
 		return noopMemoryRelease, nil
 	}
@@ -35,24 +41,17 @@ func (b *imageMemoryBudget) Acquire(bytes int64) (func(), error) {
 			ErrVariantSkipped,
 		)
 	}
-
-	b.cond.L.Lock()
-	defer b.cond.L.Unlock()
-	for b.used+bytes > b.limit {
-		b.cond.Wait()
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	b.used += bytes
+	if err := b.slots.Acquire(ctx, bytes); err != nil {
+		return noopMemoryRelease, fmt.Errorf("acquire image memory budget: %w", err)
+	}
 
 	var once sync.Once
 	return func() {
 		once.Do(func() {
-			b.cond.L.Lock()
-			defer b.cond.L.Unlock()
-			b.used -= bytes
-			if b.used < 0 {
-				b.used = 0
-			}
-			b.cond.Broadcast()
+			b.slots.Release(bytes)
 		})
 	}, nil
 }

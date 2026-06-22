@@ -12,6 +12,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/panjf2000/ants/v2"
 	"github.com/samber/oops"
 	"golang.org/x/sync/singleflight"
 	"log/slog"
@@ -30,10 +31,11 @@ type Service struct {
 	stages     *cxlist.List[Stage]
 	bus        eventx.BusRuntime
 
-	tasks   chan Request
-	wg      sync.WaitGroup
-	sf      singleflight.Group
-	pending *cxset.ConcurrentSet[string]
+	tasks          chan Request
+	lazyWorkerPool *ants.PoolWithFunc
+	workerStopOnce sync.Once
+	sf             singleflight.Group
+	pending        *cxset.ConcurrentSet[string]
 
 	cleanupMu   sync.Mutex
 	cleanupStop chan struct{}

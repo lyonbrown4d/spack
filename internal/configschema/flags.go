@@ -2,7 +2,9 @@
 package configschema
 
 import (
+	"encoding/csv"
 	"strconv"
+	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/spf13/pflag"
@@ -11,11 +13,12 @@ import (
 type FlagKind string
 
 const (
-	BoolFlag    FlagKind = "bool"
-	Float64Flag FlagKind = "float64"
-	IntFlag     FlagKind = "int"
-	Int64Flag   FlagKind = "int64"
-	StringFlag  FlagKind = "string"
+	BoolFlag        FlagKind = "bool"
+	Float64Flag     FlagKind = "float64"
+	IntFlag         FlagKind = "int"
+	Int64Flag       FlagKind = "int64"
+	StringFlag      FlagKind = "string"
+	StringSliceFlag FlagKind = "stringSlice"
 )
 
 type Flag struct {
@@ -23,11 +26,12 @@ type Flag struct {
 	Kind  FlagKind
 	Usage string
 
-	boolDefault    func(config.Config) bool
-	float64Default func(config.Config) float64
-	intDefault     func(config.Config) int
-	int64Default   func(config.Config) int64
-	stringDefault  func(config.Config) string
+	boolDefault        func(config.Config) bool
+	float64Default     func(config.Config) float64
+	intDefault         func(config.Config) int
+	int64Default       func(config.Config) int64
+	stringDefault      func(config.Config) string
+	stringSliceDefault func(config.Config) []string
 }
 
 func Flags() []Flag {
@@ -52,6 +56,8 @@ func (f Flag) Register(flags *pflag.FlagSet, defaults config.Config) {
 		flags.Int64(f.Name, f.int64Default(defaults), f.Usage)
 	case StringFlag:
 		flags.String(f.Name, f.stringDefault(defaults), f.Usage)
+	case StringSliceFlag:
+		flags.StringSlice(f.Name, append([]string(nil), f.stringSliceDefault(defaults)...), f.Usage)
 	default:
 		panic("unknown config flag kind: " + string(f.Kind))
 	}
@@ -69,6 +75,8 @@ func (f Flag) DefaultString(defaults config.Config) string {
 		return strconv.FormatInt(f.int64Default(defaults), 10)
 	case StringFlag:
 		return f.stringDefault(defaults)
+	case StringSliceFlag:
+		return stringSliceDefaultString(f.stringSliceDefault(defaults))
 	default:
 		panic("unknown config flag kind: " + string(f.Kind))
 	}
@@ -94,6 +102,23 @@ func stringFlag(name string, defaultValue func(config.Config) string, usage stri
 	return Flag{Name: name, Kind: StringFlag, Usage: usage, stringDefault: defaultValue}
 }
 
+func stringSliceFlag(name string, defaultValue func(config.Config) []string, usage string) Flag {
+	return Flag{Name: name, Kind: StringSliceFlag, Usage: usage, stringSliceDefault: defaultValue}
+}
+
+func stringSliceDefaultString(values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	var builder strings.Builder
+	writer := csv.NewWriter(&builder)
+	if err := writer.Write(values); err != nil {
+		return "[]"
+	}
+	writer.Flush()
+	return "[" + strings.TrimSuffix(builder.String(), "\n") + "]"
+}
+
 var configFlags = []Flag{
 	intFlag("http.port", func(c config.Config) int { return c.HTTP.Port }, "HTTP listen port."),
 	boolFlag("http.low_memory", func(c config.Config) bool { return c.HTTP.LowMemory }, "Reduce Fiber memory usage."),
@@ -109,6 +134,8 @@ var configFlags = []Flag{
 	stringFlag("assets.path", func(c config.Config) string { return c.Assets.Path }, "HTTP mount path for assets."),
 	stringFlag("assets.root", func(c config.Config) string { return c.Assets.Root }, "Filesystem root directory or .spack bundle containing static assets."),
 	stringFlag("assets.entry", func(c config.Config) string { return c.Assets.Entry }, "Default entry file for directory requests."),
+	stringSliceFlag("assets.include", func(c config.Config) []string { return c.Assets.Include }, "Doublestar glob patterns included in source catalog scanning. Empty means include all files."),
+	stringSliceFlag("assets.exclude", func(c config.Config) []string { return c.Assets.Exclude }, "Doublestar glob patterns excluded from source catalog scanning after includes are applied."),
 	stringFlag("assets.fallback.on", func(c config.Config) string { return string(c.Assets.Fallback.On) }, "Fallback trigger mode."),
 	stringFlag("assets.fallback.target", func(c config.Config) string { return c.Assets.Fallback.Target }, "Fallback asset path."),
 

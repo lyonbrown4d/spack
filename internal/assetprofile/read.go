@@ -1,12 +1,10 @@
 package assetprofile
 
 import (
-	"archive/zip"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/arcgolabs/collectionx/bytex"
@@ -15,7 +13,7 @@ import (
 
 type bundleAssetReader struct {
 	source io.ReadCloser
-	bundle *zip.ReadCloser
+	bundle *spackbundle.Reader
 }
 
 func countAssetBytes(fullPath string, limit int64, counter *bytex.Counter) (int64, error) {
@@ -55,23 +53,21 @@ func openBundleReferenceAsset(reference string) (*bundleAssetReader, uint64, err
 	if err != nil {
 		return nil, 0, fmt.Errorf("parse bundle asset reference: %w", err)
 	}
-	reader, err := zip.OpenReader(ref.BundlePath)
+	reader, err := spackbundle.OpenReader(ref.BundlePath)
 	if err != nil {
 		return nil, 0, fmt.Errorf("open bundle for asset profile: %w", err)
 	}
-	for _, file := range reader.File {
-		if file == nil || filepath.ToSlash(file.Name) != ref.FilePath {
-			continue
-		}
-		source, err := file.Open()
-		if err != nil {
-			discardClose(reader)
-			return nil, 0, fmt.Errorf("open bundle asset for profile: %w", err)
-		}
-		return &bundleAssetReader{source: source, bundle: reader}, file.UncompressedSize64, nil
+	stat, err := reader.Stat(ref.FilePath)
+	if err != nil {
+		discardClose(reader)
+		return nil, 0, fmt.Errorf("stat bundle asset for profile: %w", err)
 	}
-	discardClose(reader)
-	return nil, 0, os.ErrNotExist
+	source, err := reader.OpenFile(ref.FilePath)
+	if err != nil {
+		discardClose(reader)
+		return nil, 0, fmt.Errorf("open bundle asset for profile: %w", err)
+	}
+	return &bundleAssetReader{source: source, bundle: reader}, stat.Size, nil
 }
 
 func (r *bundleAssetReader) Close() error {
@@ -114,11 +110,11 @@ func minPositiveUint64(limit int64, size uint64) int64 {
 	if size >= uint64(limit) {
 		return limit
 	}
-	parsed, err := strconv.ParseInt(strconv.FormatUint(size, 10), 10, 64)
-	if err != nil {
+	const maxInt64Uint = uint64(1<<63 - 1)
+	if size > maxInt64Uint {
 		return limit
 	}
-	return parsed
+	return int64(size)
 }
 
 func countReaderBytes(reader io.Reader, limit int64, counter *bytex.Counter) (int64, error) {

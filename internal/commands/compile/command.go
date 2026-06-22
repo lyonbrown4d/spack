@@ -2,8 +2,10 @@ package compilecmd
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -111,7 +113,12 @@ func cloneVisitedConfigFlags(source *pflag.FlagSet) (*pflag.FlagSet, error) {
 		if flags.Lookup(flag.Name) == nil {
 			return
 		}
-		if err := flags.Set(flag.Name, flag.Value.String()); err != nil {
+		value, err := cloneConfigFlagValue(flag)
+		if err != nil {
+			cloneErr = fmt.Errorf("clone config flag %s: %w", flag.Name, err)
+			return
+		}
+		if err := flags.Set(flag.Name, value); err != nil {
 			cloneErr = fmt.Errorf("clone config flag %s: %w", flag.Name, err)
 		}
 	})
@@ -119,4 +126,21 @@ func cloneVisitedConfigFlags(source *pflag.FlagSet) (*pflag.FlagSet, error) {
 		return nil, cloneErr
 	}
 	return flags, nil
+}
+
+func cloneConfigFlagValue(flag *pflag.Flag) (string, error) {
+	if slice, ok := flag.Value.(pflag.SliceValue); ok {
+		return encodeStringSliceFlagValue(slice.GetSlice())
+	}
+	return flag.Value.String(), nil
+}
+
+func encodeStringSliceFlagValue(values []string) (string, error) {
+	var builder strings.Builder
+	writer := csv.NewWriter(&builder)
+	if err := writer.Write(values); err != nil {
+		return "", fmt.Errorf("write string slice flag value: %w", err)
+	}
+	writer.Flush()
+	return strings.TrimSuffix(builder.String(), "\n"), nil
 }

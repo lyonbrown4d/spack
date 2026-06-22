@@ -16,7 +16,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
-	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/spf13/cobra"
 )
 
@@ -139,43 +138,6 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 	report.TotalAssetBytes = sumAssetBytes(snapshot)
 	report.Compression = inspectCompression(snapshot)
 	return report, nil
-}
-
-func inspectBundle(root string) (bundleSummary, bool, error) {
-	if !spackbundle.IsBundlePath(root) {
-		return bundleSummary{}, false, nil
-	}
-	index, err := spackbundle.ReadIndex(root)
-	if err != nil {
-		return bundleSummary{}, false, fmt.Errorf("read bundle index: %w", err)
-	}
-	summary := bundleSummary{
-		FormatVersion: index.APIVersion,
-		IndexKind:     index.Kind,
-		CreatedAt:     index.CreatedAt,
-		FileCount:     len(index.Files),
-	}
-	for indexFile := range index.Files {
-		file := index.Files[indexFile]
-		summary.TotalBytes += file.Size
-		switch file.Kind {
-		case "asset", "":
-			summary.AssetCount++
-		case "source_sidecar":
-			summary.SourceSidecarCount++
-		}
-		if strings.TrimSpace(file.Encoding) != "" {
-			summary.CompressedFileCount++
-		}
-	}
-	return summary, true, nil
-}
-
-func inspectSourceType(hasBundle bool) string {
-	if hasBundle {
-		return "bundle"
-	}
-	return "directory"
 }
 
 func sumAssetBytes(snapshot sourcecatalog.Snapshot) int64 {

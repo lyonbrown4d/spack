@@ -53,24 +53,7 @@ func newConfigPrintEffectiveCommand() *cobra.Command {
 		Use:   "print-effective",
 		Short: "Print the effective merged configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := loadConfigForCommand(cmd, options.files)
-			if err != nil {
-				return err
-			}
-			effective := config.EffectiveMap(cfg, options.redact)
-			if options.sourceInfo {
-				sourceInfo, sourceErr := effectiveSourceInfo(cfg.Assets.Root, options.redact)
-				if sourceErr != nil {
-					return sourceErr
-				}
-				effective["source_info"] = sourceInfo
-			}
-			body, err := yaml.Marshal(effective)
-			if err != nil {
-				return fmt.Errorf("marshal effective config: %w", err)
-			}
-			cmd.Print(string(body))
-			return nil
+			return runConfigPrintEffectiveCommand(cmd, options)
 		},
 	}
 	command.Flags().StringSliceVar(&options.files, "file", nil, "Config file path(s). Later files override earlier ones.")
@@ -79,12 +62,44 @@ func newConfigPrintEffectiveCommand() *cobra.Command {
 	return command
 }
 
+func runConfigPrintEffectiveCommand(cmd *cobra.Command, options configCommandOptions) error {
+	rt, err := loadConfigRuntimeForCommand(cmd, options.files)
+	if err != nil {
+		return err
+	}
+	effective, err := config.BuildEffectiveConfig(rt.Mapper, rt.Config, options.redact)
+	if err != nil {
+		return fmt.Errorf("build effective config: %w", err)
+	}
+	if options.sourceInfo {
+		sourceInfo, sourceErr := effectiveSourceInfo(rt.Config.Assets.Root, options.redact)
+		if sourceErr != nil {
+			return sourceErr
+		}
+		effective.SourceInfo = sourceInfo
+	}
+	body, err := yaml.Marshal(effective)
+	if err != nil {
+		return fmt.Errorf("marshal effective config: %w", err)
+	}
+	cmd.Print(string(body))
+	return nil
+}
+
 func loadConfigForCommand(cmd *cobra.Command, files []string) (*config.Config, error) {
 	cfg, err := cmdkit.ResolveConfigWithDix(configCommandLoadOptions(cmd, files))
 	if err != nil {
 		return nil, fmt.Errorf("resolve config: %w", err)
 	}
 	return cfg, nil
+}
+
+func loadConfigRuntimeForCommand(cmd *cobra.Command, files []string) (cmdkit.ConfigRuntime, error) {
+	rt, err := cmdkit.ResolveConfigRuntimeWithDix(configCommandLoadOptions(cmd, files))
+	if err != nil {
+		return cmdkit.ConfigRuntime{}, fmt.Errorf("resolve config: %w", err)
+	}
+	return rt, nil
 }
 
 func configCommandLoadOptions(cmd *cobra.Command, files []string) config.LoadOptions {

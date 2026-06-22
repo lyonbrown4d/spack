@@ -69,9 +69,17 @@ func effectiveSourceTypeAndBundle(root string, info fs.FileInfo) (string, map[st
 }
 
 func effectiveBundleInfo(root string) (map[string]any, error) {
-	index, err := spackbundle.ReadIndex(root)
+	reader, err := spackbundle.OpenReader(root)
+	if err != nil {
+		return nil, fmt.Errorf("open assets.root bundle: %w", err)
+	}
+	index, err := reader.Index()
+	closeErr := reader.Close()
 	if err != nil {
 		return nil, fmt.Errorf("read assets.root bundle index: %w", err)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close assets.root bundle: %w", closeErr)
 	}
 	return map[string]any{
 		"format_version": index.APIVersion,

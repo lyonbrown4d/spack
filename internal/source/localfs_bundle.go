@@ -15,9 +15,17 @@ type bundleSource struct {
 }
 
 func newBundleSource(root string) (*bundleSource, error) {
-	index, err := spackbundle.ReadIndex(root)
+	reader, err := spackbundle.OpenReader(root)
+	if err != nil {
+		return nil, fmt.Errorf("open source bundle: %w", err)
+	}
+	index, err := reader.Index()
+	closeErr := reader.Close()
 	if err != nil {
 		return nil, fmt.Errorf("read source bundle index: %w", err)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close source bundle: %w", closeErr)
 	}
 	entries := make(map[string]spackbundle.IndexFile, len(index.Files))
 	for indexFile := range index.Files {
@@ -28,7 +36,7 @@ func newBundleSource(root string) (*bundleSource, error) {
 		entries[file.Path] = file
 	}
 	return &bundleSource{
-		path:    root,
+		path:    reader.Path(),
 		index:   index,
 		entries: entries,
 	}, nil

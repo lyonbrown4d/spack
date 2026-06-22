@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/arcgolabs/dix"
+	"github.com/arcgolabs/mapper"
 	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/catalog"
@@ -19,20 +20,40 @@ import (
 	"github.com/lyonbrown4d/spack/internal/validation"
 )
 
+type ConfigRuntime struct {
+	Config *config.Config
+	Mapper *mapper.Mapper
+}
+
 func ResolveConfigWithDix(loadOptions config.LoadOptions) (*config.Config, error) {
+	rt, err := ResolveConfigRuntimeWithDix(loadOptions)
+	if err != nil {
+		return nil, err
+	}
+	return rt.Config, nil
+}
+
+func ResolveConfigRuntimeWithDix(loadOptions config.LoadOptions) (ConfigRuntime, error) {
 	rt, err := buildUtilityRuntime(
 		"spack-config",
 		validation.Module,
 		config.NewModule(loadOptions),
 	)
 	if err != nil {
-		return nil, err
+		return ConfigRuntime{}, err
 	}
 	cfg, err := dix.ResolveAs[*config.Config](rt.Container())
 	if err != nil {
-		return nil, fmt.Errorf("resolve config: %w", err)
+		return ConfigRuntime{}, fmt.Errorf("resolve config: %w", err)
 	}
-	return cfg, nil
+	instance, err := dix.ResolveAs[*mapper.Mapper](rt.Container())
+	if err != nil {
+		return ConfigRuntime{}, fmt.Errorf("resolve mapper: %w", err)
+	}
+	return ConfigRuntime{
+		Config: cfg,
+		Mapper: instance,
+	}, nil
 }
 
 func ResolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {

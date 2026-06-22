@@ -56,15 +56,9 @@ func NormalizeRequestIntsForTest(values *cxlist.List[int]) *cxlist.List[int] {
 
 // NewServiceForTest exposes service construction for external tests.
 func NewServiceForTest(cfg *config.Compression, logger *slog.Logger, cat catalog.Catalog, queueSize int) *Service {
-	return newServiceState(serviceStateDeps{
-		cfg:    cfg,
-		logger: logger,
-		cat:    cat,
-		services: serviceDeps{
-			obs: observabilityx.NopWithLogger(logger),
-		},
-		queueSize: queueSize,
-	})
+	return newServiceState(cfg, logger, cat, serviceDeps{
+		obs: observabilityx.NopWithLogger(logger),
+	}, queueSize)
 }
 
 // NewServiceWithBusForTest exposes service construction with an event bus for external tests.
@@ -75,16 +69,10 @@ func NewServiceWithBusForTest(
 	bus eventx.BusRuntime,
 	queueSize int,
 ) *Service {
-	return newServiceState(serviceStateDeps{
-		cfg:    cfg,
-		logger: logger,
-		cat:    cat,
-		services: serviceDeps{
-			bus: bus,
-			obs: observabilityx.NopWithLogger(logger),
-		},
-		queueSize: queueSize,
-	})
+	return newServiceState(cfg, logger, cat, serviceDeps{
+		bus: bus,
+		obs: observabilityx.NopWithLogger(logger),
+	}, queueSize)
 }
 
 // NewServiceWithObservabilityForTest exposes service construction with an observability backend for external tests.
@@ -95,15 +83,9 @@ func NewServiceWithObservabilityForTest(
 	obs observabilityx.Observability,
 	queueSize int,
 ) *Service {
-	return newServiceState(serviceStateDeps{
-		cfg:    cfg,
-		logger: logger,
-		cat:    cat,
-		services: serviceDeps{
-			obs: obs,
-		},
-		queueSize: queueSize,
-	})
+	return newServiceState(cfg, logger, cat, serviceDeps{
+		obs: obs,
+	}, queueSize)
 }
 
 type testStage struct {

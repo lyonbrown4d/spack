@@ -52,33 +52,31 @@ func resolveQueueSize(cfg *config.Compression, workers int) int {
 	return queueSize
 }
 
-type serviceStateDeps struct {
-	cfg       *config.Compression
-	logger    *slog.Logger
-	cat       catalog.Catalog
-	services  serviceDeps
-	queueSize int
-}
-
-func newServiceState(deps serviceStateDeps) *Service {
-	stages := deps.services.stages
+func newServiceState(
+	cfg *config.Compression,
+	logger *slog.Logger,
+	cat catalog.Catalog,
+	services serviceDeps,
+	queueSize int,
+) *Service {
+	stages := services.stages
 	if stages == nil {
 		stages = cxlist.NewList[Stage]()
 	}
 	return &Service{
-		cfg:            deps.cfg,
-		logger:         deps.logger,
-		catalog:        deps.cat,
-		metrics:        deps.services.metrics,
-		obs:            observabilityx.Normalize(deps.services.obs, deps.logger),
-		catMetrics:     deps.services.catMetrics,
+		cfg:            cfg,
+		logger:         logger,
+		catalog:        cat,
+		metrics:        services.metrics,
+		obs:            observabilityx.Normalize(services.obs, logger),
+		catMetrics:     services.catMetrics,
 		stages:         stages,
-		bus:            deps.services.bus,
-		tasks:          make(chan Request, deps.queueSize),
-		pending:        cxset.NewConcurrentSetWithCapacity[string](deps.queueSize),
-		variantHits:    cxmapping.NewConcurrentMapWithCapacity[string, time.Time](deps.queueSize),
-		warmWorkers:    deps.services.workers,
-		artifactPolicy: cachepolicy.NewArtifactPolicy(deps.cfg),
+		bus:            services.bus,
+		tasks:          make(chan Request, queueSize),
+		pending:        cxset.NewConcurrentSetWithCapacity[string](queueSize),
+		variantHits:    cxmapping.NewConcurrentMapWithCapacity[string, time.Time](queueSize),
+		warmWorkers:    services.workers,
+		artifactPolicy: cachepolicy.NewArtifactPolicy(cfg),
 	}
 }
 func (s *Service) initializeMetrics(queueSize int) {
@@ -103,26 +101,15 @@ func (s *Service) start(ctx context.Context, workers, queueSize int) error {
 		return fmt.Errorf("create pipeline cache directory: %w", err)
 	}
 	if s.cfg.NormalizedMode() == config.CompressionModeLazy {
-		s.startWorkers(ctx, workers)
+		if err := s.startWorkers(ctx, workers); err != nil {
+			return err
+		}
 		s.logLazyWorkersStarted(workers, queueSize)
 	} else {
 		s.logCompilerWarmupConfigured()
 	}
 	s.startCleanupIfNeeded(ctx)
 	return nil
-}
-
-func (s *Service) startWorkers(ctx context.Context, workers int) {
-	for range workers {
-		s.wg.Go(func() {
-			for request := range s.tasks {
-				key := requestKey(request)
-				s.updateQueueLengthMetric()
-				s.process(ctx, request)
-				s.finishRequest(key)
-			}
-		})
-	}
 }
 
 func (s *Service) logLazyWorkersStarted(workers, queueSize int) {
@@ -184,21 +171,6 @@ func (s *Service) stopCleanup(ctx context.Context) error {
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("wait for cleanup shutdown: %w", ctx.Err())
-	}
-}
-
-func (s *Service) stopWorkers(ctx context.Context) error {
-	close(s.tasks)
-	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("wait for worker shutdown: %w", ctx.Err())
 	}
 }
 

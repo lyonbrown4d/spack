@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -66,6 +67,72 @@ func TestScannerLeavesDisabledEncodingSidecarsAsAssets(t *testing.T) {
 	}
 	if snapshot.Variants.Len() != 0 {
 		t.Fatalf("expected no recognized variants, got %d", snapshot.Variants.Len())
+	}
+}
+
+func TestScannerAppliesIncludeExcludeGlobPatterns(t *testing.T) {
+	root := t.TempDir()
+	writeSourceFile(t, filepath.Join(root, "index.html"), []byte("<main></main>"))
+	writeSourceFile(t, filepath.Join(root, "assets", "app.js"), []byte("console.log('ok');"))
+	writeSourceFile(t, filepath.Join(root, "assets", "app.test.js"), []byte("console.log('test');"))
+	writeSourceFile(t, filepath.Join(root, "images", "logo.png"), []byte("png"))
+	writeSourceFile(t, filepath.Join(root, "node_modules", "pkg", "index.js"), []byte("console.log('pkg');"))
+
+	scanner := newFilteredScannerForTest(t, root, config.Assets{
+		Include: []string{"index.html", "**/*.js"},
+		Exclude: []string{"**/*.test.js", "node_modules/**"},
+	})
+	snapshot, err := scanner.Scan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := snapshot.Assets.Get("index.html"); !ok {
+		t.Fatal("expected index.html to be included")
+	}
+	if _, ok := snapshot.Assets.Get("assets/app.js"); !ok {
+		t.Fatal("expected assets/app.js to be included")
+	}
+	if _, ok := snapshot.Assets.Get("assets/app.test.js"); ok {
+		t.Fatal("expected assets/app.test.js to be excluded")
+	}
+	if _, ok := snapshot.Assets.Get("images/logo.png"); ok {
+		t.Fatal("expected images/logo.png to be excluded by include patterns")
+	}
+	if _, ok := snapshot.Assets.Get("node_modules/pkg/index.js"); ok {
+		t.Fatal("expected node_modules/pkg/index.js to be excluded")
+	}
+}
+
+func TestScannerFindFileAppliesGlobFilter(t *testing.T) {
+	root := t.TempDir()
+	writeSourceFile(t, filepath.Join(root, "public.txt"), []byte("public"))
+	writeSourceFile(t, filepath.Join(root, "private.txt"), []byte("private"))
+
+	scanner := newFilteredScannerForTest(t, root, config.Assets{
+		Exclude: []string{"private.txt"},
+	})
+	if _, found, err := scanner.FindFile("public.txt"); err != nil || !found {
+		t.Fatalf("expected public.txt to be found, found=%v err=%v", found, err)
+	}
+	if _, found, err := scanner.FindFile("private.txt"); err != nil || found {
+		t.Fatalf("expected private.txt to be filtered out, found=%v err=%v", found, err)
+	}
+}
+
+func TestScannerRejectsInvalidGlobPattern(t *testing.T) {
+	root := t.TempDir()
+	writeSourceFile(t, filepath.Join(root, "index.html"), []byte("<main></main>"))
+
+	scanner := newFilteredScannerForTest(t, root, config.Assets{
+		Include: []string{"["},
+	})
+	_, err := scanner.Scan(context.Background())
+	if err == nil {
+		t.Fatal("expected invalid include glob to fail scan")
+	}
+	if !strings.Contains(err.Error(), "invalid assets.include glob pattern") {
+		t.Fatalf("expected invalid include glob error, got %v", err)
 	}
 }
 
@@ -169,6 +236,24 @@ func newScannerForTest(t *testing.T, root string, encodings *cxlist.List[string]
 	}
 
 	return newScannerFromSource(src, encodings)
+}
+
+func newFilteredScannerForTest(t *testing.T, root string, assets config.Assets) sourcecatalog.Scanner {
+	t.Helper()
+
+	cfg := config.DefaultConfigForTest()
+	cfg.Assets.Root = root
+	cfg.Assets.Include = assets.Include
+	cfg.Assets.Exclude = assets.Exclude
+	src, err := source.NewLocalFS(&cfg.Assets, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sourcecatalog.NewScannerWithAssets(src, contentcoding.NewRegistry(contentcoding.Options{
+		BrotliQuality: cfg.Compression.BrotliQuality,
+		GzipLevel:     cfg.Compression.GzipLevel,
+		ZstdLevel:     cfg.Compression.ZstdLevel,
+	}, cfg.Compression.NormalizedEncodings()), &cfg.Assets)
 }
 
 func newScannerFromSource(src *source.LocalFS, encodings *cxlist.List[string]) sourcecatalog.Scanner {

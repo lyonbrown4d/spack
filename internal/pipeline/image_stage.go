@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
@@ -9,6 +10,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/samber/oops"
+	"golang.org/x/sync/semaphore"
 	"strconv"
 	"time"
 )
@@ -18,7 +20,7 @@ type imageStage struct {
 	engine      imageEngine
 	store       artifact.Store
 	catalog     catalog.Catalog
-	sourceSlots chan struct{}
+	sourceSlots *semaphore.Weighted
 }
 
 func newImageStage(cfg *config.Image, engine imageEngine, store artifact.Store, cat catalog.Catalog) *imageStage {
@@ -29,7 +31,7 @@ func newImageStage(cfg *config.Image, engine imageEngine, store artifact.Store, 
 		catalog: cat,
 	}
 	if cfg != nil && cfg.MaxConcurrentSources > 0 {
-		stage.sourceSlots = make(chan struct{}, cfg.MaxConcurrentSources)
+		stage.sourceSlots = semaphore.NewWeighted(int64(cfg.MaxConcurrentSources))
 	}
 	return stage
 }
@@ -73,7 +75,10 @@ func (s *imageStage) ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List
 		return nil, ErrVariantSkipped
 	}
 
-	release := s.acquireSourceSlot()
+	release, err := s.acquireSourceSlot()
+	if err != nil {
+		return nil, err
+	}
 	defer release()
 
 	results, err := s.engine.GenerateBatch(imageGenerateBatchRequest{
@@ -89,6 +94,13 @@ func (s *imageStage) ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List
 		return nil, fmt.Errorf("generate image artifact: %w", err)
 	}
 
+	return s.writeImageVariants(asset, results)
+}
+
+func (s *imageStage) writeImageVariants(
+	asset *catalog.Asset,
+	results *cxlist.List[imageGenerateResult],
+) (*cxlist.List[*catalog.Variant], error) {
 	variants := cxlist.NewList[*catalog.Variant]()
 	var writeErr error
 	results.Range(func(_ int, result imageGenerateResult) bool {
@@ -183,14 +195,16 @@ func resolveImageVariantTargetFormat(variant ImageVariantTask, asset *catalog.As
 	return resolveTargetFormat(Task{Format: variant.Format, Width: variant.Width}, asset)
 }
 
-func (s *imageStage) acquireSourceSlot() func() {
+func (s *imageStage) acquireSourceSlot() (func(), error) {
 	if s.sourceSlots == nil {
-		return func() {}
+		return func() {}, nil
 	}
-	s.sourceSlots <- struct{}{}
+	if err := s.sourceSlots.Acquire(context.Background(), 1); err != nil {
+		return func() {}, fmt.Errorf("acquire image source slot: %w", err)
+	}
 	return func() {
-		<-s.sourceSlots
-	}
+		s.sourceSlots.Release(1)
+	}, nil
 }
 
 func savingRatio(sourceBytes, outputBytes int64) float64 {

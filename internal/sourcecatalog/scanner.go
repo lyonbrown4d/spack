@@ -9,6 +9,7 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxprefix "github.com/arcgolabs/collectionx/prefix"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/oops"
@@ -30,6 +31,7 @@ type Scanner struct {
 	src         *source.LocalFS
 	matchers    *cxlist.List[sidecarMatcher]
 	matcherTrie *cxprefix.Trie[sidecarMatcher]
+	pathFilter  assetPathFilter
 }
 
 type SidecarMatcher struct {
@@ -44,11 +46,20 @@ type SidecarMatch struct {
 }
 
 func NewScanner(src *source.LocalFS, registry contentcoding.Registry) Scanner {
+	return newScanner(src, registry, assetPathFilter{})
+}
+
+func NewScannerWithAssets(src *source.LocalFS, registry contentcoding.Registry, assets *config.Assets) Scanner {
+	return newScanner(src, registry, newAssetPathFilter(assets))
+}
+
+func newScanner(src *source.LocalFS, registry contentcoding.Registry, pathFilter assetPathFilter) Scanner {
 	matchers := buildSidecarMatchers(registry)
 	return Scanner{
 		src:         src,
 		matchers:    matchers,
 		matcherTrie: buildSidecarMatcherTrie(matchers),
+		pathFilter:  pathFilter,
 	}
 }
 
@@ -101,6 +112,9 @@ func (s Scanner) Watch(ctx context.Context) (<-chan source.ChangeEvent, error) {
 
 func (s Scanner) ScanWithCatalog(ctx context.Context, cat catalog.Catalog) (Snapshot, error) {
 	ctx = normalizeScanContext(ctx)
+	if err := s.pathFilter.Err(); err != nil {
+		return Snapshot{}, oops.In("sourcecatalog").Owner("scan filter").Wrap(err)
+	}
 
 	filesByPath, totalBytes, err := s.collectSourceFiles(ctx)
 	if err != nil {
@@ -141,6 +155,13 @@ func (s Scanner) collectSourceFiles(ctx context.Context) (*cxmapping.Map[string,
 		if file.IsDir {
 			return nil
 		}
+		allowed, filterErr := s.pathFilter.Allow(file.Path)
+		if filterErr != nil {
+			return filterErr
+		}
+		if !allowed {
+			return nil
+		}
 		filesByPath.Set(file.Path, file)
 		totalBytes += file.Size
 		return nil
@@ -154,6 +175,13 @@ func (s Scanner) collectSourceFiles(ctx context.Context) (*cxmapping.Map[string,
 func (s Scanner) findFileByPath(path string) (source.File, bool, error) {
 	normalized := normalizeSourcePath(path)
 	if normalized == "" {
+		return source.File{}, false, nil
+	}
+	allowed, filterErr := s.pathFilter.Allow(normalized)
+	if filterErr != nil {
+		return source.File{}, false, oops.In("sourcecatalog").Owner("source filter").Wrap(filterErr)
+	}
+	if !allowed {
 		return source.File{}, false, nil
 	}
 

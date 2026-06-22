@@ -150,19 +150,15 @@ func (s *LocalFS) Walk(walkFn func(File) error) error {
 	if s.bundle != nil {
 		return s.walkBundle(walkFn)
 	}
-	rootDir, err := s.openRoot()
+	files, err := s.walkDirectory()
 	if err != nil {
 		return err
 	}
-	defer closeRoot(rootDir)
-	if err := fs.WalkDir(rootDir.FS(), ".", func(relativePath string, entry fs.DirEntry, err error) error {
-		file, fileErr := buildWalkFile(s.root, relativePath, entry, err)
-		if fileErr != nil {
-			return fileErr
+	for index := range files {
+		file := files[index]
+		if err := walkFn(file); err != nil {
+			return err
 		}
-		return walkFn(file)
-	}); err != nil {
-		return oops.Wrap(err)
 	}
 	return nil
 }
@@ -203,29 +199,6 @@ func (s *LocalFS) FindFile(assetPath string) (File, bool, error) {
 		IsDir:    info.IsDir(),
 		ModTime:  info.ModTime(),
 	}, true, nil
-}
-
-func buildWalkFile(root, relativePath string, entry fs.DirEntry, walkErr error) (File, error) {
-	if walkErr != nil {
-		return File{}, oops.Wrap(walkErr)
-	}
-	fullPath := filepath.Join(root, filepath.FromSlash(relativePath))
-	if entry.Type()&fs.ModeSymlink != 0 {
-		return File{}, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, fullPath))
-	}
-
-	info, err := entry.Info()
-	if err != nil {
-		return File{}, oops.Wrap(err)
-	}
-
-	return File{
-		Path:     relativePath,
-		FullPath: fullPath,
-		Size:     info.Size(),
-		IsDir:    entry.IsDir(),
-		ModTime:  info.ModTime(),
-	}, nil
 }
 
 func cleanRelativeAssetPath(raw string) (string, bool) {

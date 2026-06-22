@@ -27,61 +27,39 @@ func IsBundlePath(path string) bool {
 
 // ReadIndex reads and validates the index embedded in a SPACK bundle.
 func ReadIndex(bundlePath string) (Index, error) {
-	absolute, err := normalizedBundlePath(bundlePath)
+	reader, err := OpenReader(bundlePath)
 	if err != nil {
 		return Index{}, err
-	}
-	reader, err := zip.OpenReader(absolute)
-	if err != nil {
-		return Index{}, fmt.Errorf("open bundle: %w", err)
 	}
 	defer func() {
 		discardError(reader.Close())
 	}()
-	return readIndexFromZip(reader.File)
+	return reader.Index()
 }
 
 // ReadFile reads one file from a SPACK bundle.
 func ReadFile(bundlePath, filePath string) ([]byte, error) {
-	absolute, err := normalizedBundlePath(bundlePath)
+	reader, err := OpenReader(bundlePath)
 	if err != nil {
 		return nil, err
-	}
-	cleanPath, err := cleanBundlePath(filePath)
-	if err != nil {
-		return nil, err
-	}
-	reader, err := zip.OpenReader(absolute)
-	if err != nil {
-		return nil, fmt.Errorf("open bundle: %w", err)
 	}
 	defer func() {
 		discardError(reader.Close())
 	}()
-	for _, file := range reader.File {
-		if file != nil && filepath.ToSlash(file.Name) == cleanPath {
-			return readZipFile(file, cleanPath)
-		}
-	}
-	return nil, os.ErrNotExist
+	return reader.ReadFile(filePath)
 }
 
 // Extract unpacks a SPACK bundle into a temporary directory.
 func Extract(ctx context.Context, bundlePath string) (Extracted, error) {
-	absolute, err := normalizedBundlePath(bundlePath)
+	reader, err := OpenReader(bundlePath)
 	if err != nil {
 		return Extracted{}, err
-	}
-
-	reader, err := zip.OpenReader(absolute)
-	if err != nil {
-		return Extracted{}, fmt.Errorf("open bundle: %w", err)
 	}
 	defer func() {
 		discardError(reader.Close())
 	}()
 
-	index, err := readIndexFromZip(reader.File)
+	index, err := reader.Index()
 	if err != nil {
 		return Extracted{}, err
 	}
@@ -93,12 +71,12 @@ func Extract(ctx context.Context, bundlePath string) (Extracted, error) {
 	committed := false
 	defer cleanupExtractedRoot(root, &committed)
 
-	if err := extractFiles(ctx, root, reader.File); err != nil {
+	if err := extractFiles(ctx, root, reader.archive.File); err != nil {
 		return Extracted{}, err
 	}
 	committed = true
 	return Extracted{
-		BundlePath: absolute,
+		BundlePath: reader.Path(),
 		Root:       root,
 		Index:      index,
 	}, nil
@@ -113,28 +91,6 @@ func (e Extracted) Cleanup() error {
 		return fmt.Errorf("cleanup extracted bundle root: %w", err)
 	}
 	return nil
-}
-
-func readIndexFromZip(files []*zip.File) (Index, error) {
-	for _, file := range files {
-		if file == nil || filepath.ToSlash(file.Name) != IndexPath {
-			continue
-		}
-		reader, err := file.Open()
-		if err != nil {
-			return Index{}, fmt.Errorf("open bundle index: %w", err)
-		}
-		body, readErr := io.ReadAll(reader)
-		closeErr := reader.Close()
-		if readErr != nil {
-			return Index{}, fmt.Errorf("read bundle index: %w", readErr)
-		}
-		if closeErr != nil {
-			return Index{}, fmt.Errorf("close bundle index: %w", closeErr)
-		}
-		return unmarshalIndex(body)
-	}
-	return Index{}, fmt.Errorf("bundle index %q was not found", IndexPath)
 }
 
 func extractFiles(ctx context.Context, root string, files []*zip.File) error {

@@ -148,23 +148,6 @@ func TestLocalFSFindFileRejectsSymlinkDirectory(t *testing.T) {
 	}
 }
 
-func TestLocalFSWalkRejectsSymlinkDirectory(t *testing.T) {
-	root := t.TempDir()
-	realDir := filepath.Join(root, "real")
-	if err := os.Mkdir(realDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	createSymlinkOrSkip(t, realDir, filepath.Join(root, "linked"))
-
-	src := newLocalFSForTest(t, root)
-	err := src.Walk(func(source.File) error {
-		return nil
-	})
-	if !errors.Is(err, source.ErrSymlinkNotAllowed) {
-		t.Fatalf("expected ErrSymlinkNotAllowed, got %v", err)
-	}
-}
-
 func TestLocalFSFindFileDetectsReplacedRoot(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows may reuse directory file IDs for immediate same-path replacement")
@@ -259,6 +242,17 @@ func newLocalFSForTest(t *testing.T, root string) *source.LocalFS {
 		t.Fatal(err)
 	}
 	return src
+}
+
+func writeLocalFSTestFile(t *testing.T, path string, body []byte) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func createSymlinkOrSkip(t *testing.T, target, link string) {

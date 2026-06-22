@@ -56,6 +56,24 @@ type Assets struct {
 	// Entry must be a relative file name and must not start with '/'.
 	Entry string `koanf:"entry" validate:"required,spack_relative_path"`
 
+	// Include limits startup/source-catalog scanning to matching relative asset paths.
+	//
+	// Patterns use doublestar syntax with '/' separators and support '**'.
+	// Empty include patterns mean all files are eligible unless excluded.
+	//
+	// Examples:
+	//   - "**/*.js"
+	//   - "assets/**"
+	//   - "index.html"
+	Include []string `koanf:"include" validate:"omitempty,dive,required"`
+
+	// Exclude removes matching relative asset paths from startup/source-catalog scanning.
+	//
+	// Exclude patterns are evaluated after include patterns and use the same
+	// doublestar syntax. The local source still enforces root containment and
+	// symlink rejection before these patterns are evaluated.
+	Exclude []string `koanf:"exclude" validate:"omitempty,dive,required"`
+
 	// Fallback defines the fallback serving behavior when a request
 	// cannot be resolved normally.
 	//

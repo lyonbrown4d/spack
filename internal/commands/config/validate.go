@@ -27,10 +27,23 @@ func validateConfiguredAssetsRoot(root string) error {
 		return nil
 	}
 	if info.Mode().IsRegular() && spackbundle.IsBundlePath(root) {
-		if _, err := spackbundle.ReadIndex(root); err != nil {
-			return fmt.Errorf("read assets.root bundle index: %w", err)
-		}
-		return nil
+		return validateBundleAssetsRoot(root)
 	}
 	return fmt.Errorf("assets.root must be an existing directory or readable .spack bundle: %s", root)
+}
+
+func validateBundleAssetsRoot(root string) error {
+	reader, err := spackbundle.OpenReader(root)
+	if err != nil {
+		return fmt.Errorf("read assets.root bundle index: %w", err)
+	}
+	_, indexErr := reader.Index()
+	closeErr := reader.Close()
+	if indexErr != nil {
+		return fmt.Errorf("read assets.root bundle index: %w", indexErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close assets.root bundle: %w", closeErr)
+	}
+	return nil
 }
