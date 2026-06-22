@@ -1,5 +1,5 @@
-# Digest locked from Docker Hub library/golang:1.26.3-alpine linux/amd64 on 2026-06-20.
-FROM golang:1.26.3-alpine@sha256:f44b851aa23dfa219d18db6eab743203245429d355cb619cf96a2ffe2a84ba7a AS build
+# Digest locked from Docker Hub library/golang:1.26.4-alpine linux/amd64 on 2026-06-22.
+FROM golang:1.26.4-alpine@sha256:0648ddfa35769070197ba1cdf22a16dc452caf9315e66b91791308a543baf229 AS build
 
 RUN apk add --no-cache upx
 
