@@ -115,7 +115,7 @@ tasks:
 
   security:govulncheck:
     cmds:
-      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} -scan=package ./...
 
   perf:bench:
     desc: 运行关键路径性能基线 benchmark

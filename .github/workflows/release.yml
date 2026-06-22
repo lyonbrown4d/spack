@@ -44,7 +44,7 @@ jobs:
         run: go test -tags=spack_libvips ./internal/pipeline
 
       - name: Run govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.4.0 ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.4.0 -scan=package ./...
 
       - name: Install task runner
         run: go install github.com/go-task/task/v3/cmd/task@v3.45.4
