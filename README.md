@@ -35,7 +35,7 @@ ENV SPACK_ASSETS_ROOT=/app
 ENV SPACK_ASSETS_PATH=/
 ENV SPACK_ASSETS_ENTRY=index.html
 ENV SPACK_ASSETS_FALLBACK_TARGET=index.html
-ENV SPACK_HTTP_PORT=80
+ENV SPACK_HTTP_PORT=8080
 ```
 
 Release images are published to both `ghcr.io/lyonbrown4d/spack` and `lyonbrown4d/spack`.

@@ -8,7 +8,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
 
 ENV CGO_ENABLED=0
 RUN go build -trimpath -ldflags="-s -w -buildid=" -o /out/spack-runtime ./cmd/spack-runtime
@@ -23,10 +25,11 @@ COPY --from=build --chmod=755 /out/spack-runtime /opt/spack-runtime
 
 USER 65532:65532
 
+ENV SPACK_HTTP_PORT=8080
+
 ENTRYPOINT ["/opt/spack-runtime"]
 
-EXPOSE 80
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD ["/opt/spack-runtime", "healthcheck", "--url", "http://127.0.0.1/livez", "--timeout", "3s"]
+  CMD ["/opt/spack-runtime", "healthcheck", "--url", "http://127.0.0.1:8080/livez", "--timeout", "3s"]
