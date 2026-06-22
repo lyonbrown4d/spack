@@ -2,11 +2,11 @@ package spackbundle
 
 import (
 	"archive/zip"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/samber/oops"
 )
 
 func cleanupTempBundle(path string, committed *bool) {
@@ -18,14 +18,14 @@ func cleanupTempBundle(path string, committed *bool) {
 
 func closeBundleWriters(zipWriter *zip.Writer, temp *os.File, err error) error {
 	if closeErr := zipWriter.Close(); closeErr != nil {
-		err = errors.Join(err, fmt.Errorf("close bundle zip writer: %w", closeErr))
+		err = oops.Join(err, oops.Wrapf(closeErr, "close bundle zip writer"))
 	}
 	return closeBundleFile(temp, err)
 }
 
 func closeBundleFile(file *os.File, err error) error {
 	if closeErr := file.Close(); closeErr != nil {
-		return errors.Join(err, fmt.Errorf("close bundle temp file: %w", closeErr))
+		return oops.In("spackbundle").Owner("fs").Wrap(oops.Join(err, oops.Wrapf(closeErr, "close bundle temp file")))
 	}
 	return err
 }

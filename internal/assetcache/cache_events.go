@@ -2,12 +2,12 @@ package assetcache
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/arcgolabs/eventx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
+	"github.com/samber/oops"
 )
 
 func (c *Cache) start(_ context.Context) error {
@@ -54,7 +54,7 @@ func (c *Cache) subscribeVariantRemoved() (func(), error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("subscribe variant removed: %w", err)
+		return nil, oops.Wrapf(err, "subscribe variant removed")
 	}
 	return unsubscribe, nil
 }
@@ -77,7 +77,7 @@ func (c *Cache) subscribeVariantGenerated() (func(), error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("subscribe variant generated: %w", err)
+		return nil, oops.Wrapf(err, "subscribe variant generated")
 	}
 	return unsubscribe, nil
 }

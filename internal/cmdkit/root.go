@@ -19,7 +19,7 @@ import (
 
 func Execute(command *cobra.Command) error {
 	if err := command.Execute(); err != nil {
-		return oops.In("command").Wrap(fmt.Errorf("execute root command: %w", err))
+		return oops.In("command").Wrap(oops.Wrapf(err, "execute root command"))
 	}
 	return nil
 }
@@ -39,17 +39,17 @@ func BindRuntimeRoot(command *cobra.Command) {
 			server.Module,
 		)
 		if err != nil {
-			return fmt.Errorf("create runtime container: %w", err)
+			return oops.Wrapf(err, "create runtime container")
 		}
 		container = dixInstance
 		return nil
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
 		if container == nil {
-			return errors.New("runtime container was not initialized")
+			return oops.In("command").Owner("runtime root").Wrap(errors.New("runtime container was not initialized"))
 		}
 		if err := container.Run(); err != nil {
-			return fmt.Errorf("run runtime container: %w", err)
+			return oops.Wrapf(err, "run runtime container")
 		}
 		return nil
 	}

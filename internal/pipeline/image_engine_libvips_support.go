@@ -3,7 +3,6 @@
 package pipeline
 
 import (
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -11,6 +10,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/oops"
 )
 
 var (
@@ -21,7 +21,7 @@ var (
 func startLibvips() error {
 	libvipsStartupOnce.Do(func() {
 		if err := vips.Startup(nil); err != nil {
-			libvipsStartupErr = fmt.Errorf("start libvips: %w", err)
+			libvipsStartupErr = oops.Wrapf(err, "start libvips")
 		}
 	})
 	return libvipsStartupErr
@@ -43,7 +43,7 @@ func (engine libvipsImageEngine) loadSourceImage(
 	engine.telemetry.recordOperation(engine.Name(), "decode", imageEngineResult(err), decodeStartedAt)
 	if err != nil {
 		closeLibvipsImage(ref)
-		return libvipsSourceImage{}, noopMemoryRelease, fmt.Errorf("decode source image with libvips: %w", err)
+		return libvipsSourceImage{}, noopMemoryRelease, oops.Wrapf(err, "decode source image with libvips")
 	}
 
 	source := libvipsSourceImage{
@@ -128,11 +128,11 @@ func buildLibvipsPyramid(
 func resizeLibvipsImage(source *vips.ImageRef, sourceWidth, width int) (*vips.ImageRef, error) {
 	resized, err := source.Copy()
 	if err != nil {
-		return nil, fmt.Errorf("copy libvips image: %w", err)
+		return nil, oops.Wrapf(err, "copy libvips image")
 	}
 	if err := resized.Resize(float64(width)/float64(sourceWidth), vips.KernelLanczos3); err != nil {
 		resized.Close()
-		return nil, fmt.Errorf("resize libvips image: %w", err)
+		return nil, oops.Wrapf(err, "resize libvips image")
 	}
 	return resized, nil
 }

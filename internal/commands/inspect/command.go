@@ -16,6 +16,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
+	"github.com/samber/lo"
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 )
 
@@ -80,7 +82,7 @@ func NewCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := cmdkit.ResolveConfigWithDix(cmdkit.ConfigLoadOptions(cmd))
 			if err != nil {
-				return fmt.Errorf("resolve inspect config: %w", err)
+				return oops.Wrapf(err, "resolve inspect config")
 			}
 			if strings.TrimSpace(options.assets) != "" {
 				cfg.Assets.Root = options.assets
@@ -92,7 +94,7 @@ func NewCommand() *cobra.Command {
 			encoder := json.NewEncoder(cmd.OutOrStdout())
 			encoder.SetIndent("", "  ")
 			if err := encoder.Encode(report); err != nil {
-				return fmt.Errorf("encode inspect report: %w", err)
+				return oops.Wrapf(err, "encode inspect report")
 			}
 			return nil
 		},
@@ -103,15 +105,15 @@ func NewCommand() *cobra.Command {
 
 func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, error) {
 	if strings.TrimSpace(cfg.Assets.Root) == "" {
-		return inspectReport{}, errors.New("assets root is required; pass --assets or configure assets.root")
+		return inspectReport{}, oops.In("inspect").Wrap(errors.New("assets root is required; pass --assets or configure assets.root"))
 	}
 	scanner, err := cmdkit.ResolveScannerWithDix(cfg)
 	if err != nil {
-		return inspectReport{}, fmt.Errorf("resolve source scanner: %w", err)
+		return inspectReport{}, oops.Wrapf(err, "resolve source scanner")
 	}
 	snapshot, err := scanner.Scan(ctx)
 	if err != nil {
-		return inspectReport{}, fmt.Errorf("scan assets: %w", err)
+		return inspectReport{}, oops.Wrapf(err, "scan assets")
 	}
 	bundle, hasBundle, err := inspectBundle(cfg.Assets.Root)
 	if err != nil {
@@ -141,33 +143,27 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 }
 
 func sumAssetBytes(snapshot sourcecatalog.Snapshot) int64 {
-	total := int64(0)
-	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
-		if asset != nil {
-			total += asset.Size
-		}
-		return true
+	return lo.SumBy(snapshotAssetList(snapshot), func(asset *catalog.Asset) int64 {
+		return asset.Size
 	})
-	return total
 }
 
 func inspectCompression(snapshot sourcecatalog.Snapshot) map[string]compressionSummary {
 	out := map[string]compressionSummary{}
-	snapshot.Variants.Range(func(_ string, variant *catalog.Variant) bool {
-		if variant == nil || strings.TrimSpace(variant.Encoding) == "" {
-			return true
+	for _, variant := range snapshotVariantList(snapshot) {
+		if strings.TrimSpace(variant.Encoding) == "" {
+			continue
 		}
 		asset, ok := snapshot.Assets.Get(variant.AssetPath)
 		if !ok || asset == nil {
-			return true
+			continue
 		}
 		summary := out[variant.Encoding]
 		summary.Count++
 		summary.OriginalBytes += asset.Size
 		summary.CompressedBytes += variant.Size
 		out[variant.Encoding] = summary
-		return true
-	})
+	}
 	for encoding, summary := range out {
 		summary.SavedBytes = max(summary.OriginalBytes-summary.CompressedBytes, 0)
 		if summary.OriginalBytes > 0 {
@@ -181,14 +177,9 @@ func inspectCompression(snapshot sourcecatalog.Snapshot) map[string]compressionS
 func inspectImageVariants(cfg config.Image, snapshot sourcecatalog.Snapshot) imageVariantSummary {
 	widths := cfg.ParsedWidths().Values()
 	formats := media.NormalizeImageFormats(cfg.ParsedFormats()).Values()
-	imageAssets := 0
-	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
-		if asset != nil {
-			if _, ok := media.LookupImageDescriptorByMediaType(asset.MediaType); ok {
-				imageAssets++
-			}
-		}
-		return true
+	imageAssets := lo.CountBy(snapshotAssetList(snapshot), func(asset *catalog.Asset) bool {
+		_, ok := media.LookupImageDescriptorByMediaType(asset.MediaType)
+		return ok
 	})
 	formatCount := max(len(formats), 1)
 	return imageVariantSummary{
@@ -201,18 +192,17 @@ func inspectImageVariants(cfg config.Image, snapshot sourcecatalog.Snapshot) ima
 }
 
 func inspectMemoryCache(cfg config.MemoryCache, snapshot sourcecatalog.Snapshot) memoryCacheSummary {
-	eligible := int64(0)
-	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
-		if asset != nil && asset.Size <= cfg.MaxFileSize {
-			eligible += asset.Size
+	eligible := lo.SumBy(snapshotAssetList(snapshot), func(asset *catalog.Asset) int64 {
+		if asset.Size <= cfg.MaxFileSize {
+			return asset.Size
 		}
-		return true
+		return 0
 	})
-	snapshot.Variants.Range(func(_ string, variant *catalog.Variant) bool {
-		if variant != nil && variant.Size <= cfg.MaxFileSize {
-			eligible += variant.Size
+	eligible += lo.SumBy(snapshotVariantList(snapshot), func(variant *catalog.Variant) int64 {
+		if variant.Size <= cfg.MaxFileSize {
+			return variant.Size
 		}
-		return true
+		return 0
 	})
 	maxBytes := cfg.MaxCost()
 	return memoryCacheSummary{
@@ -243,6 +233,28 @@ func inspectPotentialIssues(cfg *config.Config, snapshot sourcecatalog.Snapshot)
 		issues = append(issues, "logger.file.enabled is true but logger.file.path is empty")
 	}
 	return issues
+}
+
+func snapshotAssetList(snapshot sourcecatalog.Snapshot) []*catalog.Asset {
+	assets := make([]*catalog.Asset, 0, snapshot.Assets.Len())
+	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
+		if asset != nil {
+			assets = append(assets, asset)
+		}
+		return true
+	})
+	return assets
+}
+
+func snapshotVariantList(snapshot sourcecatalog.Snapshot) []*catalog.Variant {
+	variants := make([]*catalog.Variant, 0, snapshot.Variants.Len())
+	snapshot.Variants.Range(func(_ string, variant *catalog.Variant) bool {
+		if variant != nil {
+			variants = append(variants, variant)
+		}
+		return true
+	})
+	return variants
 }
 
 func boolToInt(value bool) int {

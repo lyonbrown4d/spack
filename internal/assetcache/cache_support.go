@@ -2,13 +2,14 @@ package assetcache
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
+	"os"
+
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
-	"log/slog"
-	"os"
+	"github.com/samber/oops"
 )
 
 var assetCacheCounterSpecs = cxmapping.NewMapFrom(map[string]observabilityx.CounterSpec{
@@ -62,7 +63,7 @@ func (c *Cache) readFile(path string) ([]byte, error) {
 				slog.String("err", err.Error()),
 			)
 		}
-		return nil, fmt.Errorf("read resolved asset: %w", err)
+		return nil, oops.Wrapf(err, "read resolved asset")
 	}
 	return body, nil
 }
@@ -71,14 +72,14 @@ func readResolvedAssetPath(path string) ([]byte, error) {
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
-			return nil, fmt.Errorf("read bundle asset: %w", err)
+			return nil, oops.Wrapf(err, "read bundle asset")
 		}
 		return body, nil
 	}
 	// #nosec G304 -- path comes from resolver/catalog-selected asset paths already validated against the asset tree.
 	body, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read asset file: %w", err)
+		return nil, oops.Wrapf(err, "read asset file")
 	}
 	return body, nil
 }

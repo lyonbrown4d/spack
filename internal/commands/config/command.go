@@ -2,10 +2,9 @@
 package configcmd
 
 import (
-	"fmt"
-
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 )
@@ -69,7 +68,7 @@ func runConfigPrintEffectiveCommand(cmd *cobra.Command, options configCommandOpt
 	}
 	effective, err := config.BuildEffectiveConfig(rt.Mapper, rt.Config, options.redact)
 	if err != nil {
-		return fmt.Errorf("build effective config: %w", err)
+		return oops.Wrapf(err, "build effective config")
 	}
 	if options.sourceInfo {
 		sourceInfo, sourceErr := effectiveSourceInfo(rt.Config.Assets.Root, options.redact)
@@ -80,7 +79,7 @@ func runConfigPrintEffectiveCommand(cmd *cobra.Command, options configCommandOpt
 	}
 	body, err := yaml.Marshal(effective)
 	if err != nil {
-		return fmt.Errorf("marshal effective config: %w", err)
+		return oops.Wrapf(err, "marshal effective config")
 	}
 	cmd.Print(string(body))
 	return nil
@@ -89,7 +88,7 @@ func runConfigPrintEffectiveCommand(cmd *cobra.Command, options configCommandOpt
 func loadConfigForCommand(cmd *cobra.Command, files []string) (*config.Config, error) {
 	cfg, err := cmdkit.ResolveConfigWithDix(configCommandLoadOptions(cmd, files))
 	if err != nil {
-		return nil, fmt.Errorf("resolve config: %w", err)
+		return nil, oops.Wrapf(err, "resolve config")
 	}
 	return cfg, nil
 }
@@ -97,7 +96,7 @@ func loadConfigForCommand(cmd *cobra.Command, files []string) (*config.Config, e
 func loadConfigRuntimeForCommand(cmd *cobra.Command, files []string) (cmdkit.ConfigRuntime, error) {
 	rt, err := cmdkit.ResolveConfigRuntimeWithDix(configCommandLoadOptions(cmd, files))
 	if err != nil {
-		return cmdkit.ConfigRuntime{}, fmt.Errorf("resolve config: %w", err)
+		return cmdkit.ConfigRuntime{}, oops.Wrapf(err, "resolve config")
 	}
 	return rt, nil
 }

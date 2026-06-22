@@ -3,13 +3,13 @@
 package pipeline
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/oops"
 )
 
 func (engine libvipsImageEngine) exportLibvipsVariants(
@@ -48,7 +48,7 @@ func (engine libvipsImageEngine) exportLibvipsVariant(
 	variantAttrs := mergeImageLogAttrs(batchAttrs, imageVariantLogAttrs(variant, width)...)
 	output, ok := pyramid[width]
 	if !ok {
-		err := fmt.Errorf("missing libvips image pyramid width %d", width)
+		err := oops.Errorf("missing libvips image pyramid width %d", width)
 		logImageGenerationError(logger, "Libvips image variant failed", err, variantAttrs)
 		engine.telemetry.recordOperation(engine.Name(), "encode", "error", time.Now())
 		return imageGenerateResult{}, err
@@ -75,7 +75,7 @@ func exportLibvipsImage(
 ) ([]byte, string, string, error) {
 	descriptor, ok := media.LookupImageDescriptor(media.NormalizeImageFormat(format))
 	if !ok {
-		return nil, "", "", fmt.Errorf("unsupported image format: %s", format)
+		return nil, "", "", oops.Errorf("unsupported image format: %s", format)
 	}
 
 	payload, err := exportLibvipsImagePayload(image, descriptor.Name, opts)
@@ -112,7 +112,7 @@ func exportLibvipsImagePayload(image *vips.ImageRef, format string, opts imageEn
 		payload, _, err := image.ExportAvif(params)
 		return payload, wrapLibvipsExportError("avif", err)
 	default:
-		return nil, fmt.Errorf("libvips engine does not support %s output", format)
+		return nil, oops.Errorf("libvips engine does not support %s output", format)
 	}
 }
 
@@ -120,7 +120,7 @@ func wrapLibvipsExportError(format string, err error) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("export %s image with libvips: %w", format, err)
+	return oops.Wrapf(err, "export %s image with libvips", format)
 }
 
 func (engine libvipsImageEngine) recordGeneratedLibvipsVariant(result imageGenerateResult) {

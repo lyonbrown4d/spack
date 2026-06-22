@@ -3,11 +3,12 @@
 package pipeline
 
 import (
-	"fmt"
+	"cmp"
 	"os"
-	"sort"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
+	cxset "github.com/arcgolabs/collectionx/set"
+	"github.com/samber/oops"
 )
 
 type imageSourceSnapshot struct {
@@ -20,15 +21,15 @@ func imageSourceBytes(path string, limits imageGenerateLimits) (int64, error) {
 	// #nosec G304 -- path comes from scanned assets rooted under configured sources.
 	info, err := os.Stat(path)
 	if err != nil {
-		return 0, fmt.Errorf("stat source image: %w", err)
+		return 0, oops.Wrapf(err, "stat source image")
 	}
 	size := info.Size()
 	if limits.MaxSourceBytes > 0 && size > limits.MaxSourceBytes {
-		return 0, fmt.Errorf(
-			"source image bytes %d exceed max source bytes %d: %w",
+		return 0, oops.Wrapf(
+			ErrVariantSkipped,
+			"source image bytes %d exceed max source bytes %d",
 			size,
 			limits.MaxSourceBytes,
-			ErrVariantSkipped,
 		)
 	}
 	return size, nil
@@ -36,27 +37,27 @@ func imageSourceBytes(path string, limits imageGenerateLimits) (int64, error) {
 
 func validateImageSourceLimits(source imageSourceSnapshot, limits imageGenerateLimits) error {
 	if source.width <= 0 || source.height <= 0 {
-		return fmt.Errorf(
-			"source image dimensions %dx%d are invalid: %w",
+		return oops.Wrapf(
+			ErrVariantSkipped,
+			"source image dimensions %dx%d are invalid",
 			source.width,
 			source.height,
-			ErrVariantSkipped,
 		)
 	}
 	if limits.MaxWidth > 0 && source.width > limits.MaxWidth {
-		return fmt.Errorf(
-			"source image width %d exceeds max width %d: %w",
+		return oops.Wrapf(
+			ErrVariantSkipped,
+			"source image width %d exceeds max width %d",
 			source.width,
 			limits.MaxWidth,
-			ErrVariantSkipped,
 		)
 	}
 	if limits.MaxHeight > 0 && source.height > limits.MaxHeight {
-		return fmt.Errorf(
-			"source image height %d exceeds max height %d: %w",
+		return oops.Wrapf(
+			ErrVariantSkipped,
+			"source image height %d exceeds max height %d",
 			source.height,
 			limits.MaxHeight,
-			ErrVariantSkipped,
 		)
 	}
 	return validateImagePixelLimits(source, limits)
@@ -65,19 +66,19 @@ func validateImageSourceLimits(source imageSourceSnapshot, limits imageGenerateL
 func validateImagePixelLimits(source imageSourceSnapshot, limits imageGenerateLimits) error {
 	pixels := int64(source.width) * int64(source.height)
 	if limits.MaxSourcePixels > 0 && pixels > limits.MaxSourcePixels {
-		return fmt.Errorf(
-			"source image pixels %d exceed max source pixels %d: %w",
+		return oops.Wrapf(
+			ErrVariantSkipped,
+			"source image pixels %d exceed max source pixels %d",
 			pixels,
 			limits.MaxSourcePixels,
-			ErrVariantSkipped,
 		)
 	}
 	if limits.MaxMemoryBytes > 0 && pixels*4 > limits.MaxMemoryBytes {
-		return fmt.Errorf(
-			"source image decode bytes %d exceed max memory bytes %d: %w",
+		return oops.Wrapf(
+			ErrVariantSkipped,
+			"source image decode bytes %d exceed max memory bytes %d",
 			pixels*4,
 			limits.MaxMemoryBytes,
-			ErrVariantSkipped,
 		)
 	}
 	return nil
@@ -111,21 +112,14 @@ func imageRawMemoryBytes(width, height int) int64 {
 }
 
 func uniqueImageOutputWidths(sourceWidth int, variants *cxlist.List[imageVariantGenerateRequest]) []int {
-	seen := make(map[int]struct{}, variants.Len()+1)
-	widths := make([]int, 0, variants.Len()+1)
+	widths := cxset.NewSetWithCapacity[int](variants.Len() + 1)
 	variants.Range(func(_ int, variant imageVariantGenerateRequest) bool {
-		width := normalizedImageOutputWidth(sourceWidth, variant.TargetWidth)
-		if _, ok := seen[width]; ok {
-			return true
-		}
-		seen[width] = struct{}{}
-		widths = append(widths, width)
+		widths.Add(normalizedImageOutputWidth(sourceWidth, variant.TargetWidth))
 		return true
 	})
-	sort.Slice(widths, func(left, right int) bool {
-		return widths[left] > widths[right]
-	})
-	return widths
+	return cxlist.NewList(widths.Values()...).Sort(func(left, right int) int {
+		return cmp.Compare(right, left)
+	}).Values()
 }
 
 func normalizedImageOutputWidth(sourceWidth, targetWidth int) int {

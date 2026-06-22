@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/lo"
 	"github.com/samber/oops"
 )
 
@@ -27,14 +28,14 @@ func newBundleSource(root string) (*bundleSource, error) {
 	if closeErr != nil {
 		return nil, fmt.Errorf("close source bundle: %w", closeErr)
 	}
-	entries := make(map[string]spackbundle.IndexFile, len(index.Files))
-	for indexFile := range index.Files {
-		file := index.Files[indexFile]
-		if strings.TrimSpace(file.Path) == "" {
-			continue
-		}
-		entries[file.Path] = file
-	}
+	entries := lo.SliceToMap(
+		lo.Filter(index.Files, func(file spackbundle.IndexFile, _ int) bool {
+			return strings.TrimSpace(file.Path) != ""
+		}),
+		func(file spackbundle.IndexFile) (string, spackbundle.IndexFile) {
+			return file.Path, file
+		},
+	)
 	return &bundleSource{
 		path:    reader.Path(),
 		index:   index,

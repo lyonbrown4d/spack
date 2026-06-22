@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/lyonbrown4d/spack/internal/config"
 )
 
 type assetPathFilter struct {
-	include []string
-	exclude []string
+	include *cxlist.List[string]
+	exclude *cxlist.List[string]
 	err     error
 }
 
@@ -48,7 +49,7 @@ func (f assetPathFilter) Allow(rawPath string) (bool, error) {
 	if assetPath == "" {
 		return false, nil
 	}
-	if len(f.include) == 0 && len(f.exclude) == 0 {
+	if globPatternsEmpty(f.include) && globPatternsEmpty(f.exclude) {
 		return true, nil
 	}
 
@@ -64,30 +65,39 @@ func (f assetPathFilter) Allow(rawPath string) (bool, error) {
 }
 
 func (f assetPathFilter) matchesInclude(assetPath string) (bool, error) {
-	if len(f.include) == 0 {
+	if globPatternsEmpty(f.include) {
 		return true, nil
 	}
 	return matchesAnyGlob(f.include, assetPath)
 }
 
-func matchesAnyGlob(patterns []string, assetPath string) (bool, error) {
-	for _, pattern := range patterns {
-		matched, err := doublestar.Match(pattern, assetPath)
-		if err != nil {
-			return false, fmt.Errorf("match asset path %q with glob %q: %w", assetPath, pattern, err)
-		}
-		if matched {
-			return true, nil
-		}
+func matchesAnyGlob(patterns *cxlist.List[string], assetPath string) (bool, error) {
+	if globPatternsEmpty(patterns) {
+		return false, nil
 	}
-	return false, nil
+
+	var matched bool
+	var matchErr error
+	patterns.Range(func(_ int, pattern string) bool {
+		ok, err := doublestar.Match(pattern, assetPath)
+		if err != nil {
+			matchErr = fmt.Errorf("match asset path %q with glob %q: %w", assetPath, pattern, err)
+			return false
+		}
+		if ok {
+			matched = true
+			return false
+		}
+		return true
+	})
+	if matchErr != nil {
+		return false, matchErr
+	}
+	return matched, nil
 }
 
-func normalizeGlobPatterns(field string, patterns []string) ([]string, error) {
-	if len(patterns) == 0 {
-		return nil, nil
-	}
-	normalized := make([]string, 0, len(patterns))
+func normalizeGlobPatterns(field string, patterns []string) (*cxlist.List[string], error) {
+	normalized := cxlist.NewListWithCapacity[string](len(patterns))
 	for _, rawPattern := range patterns {
 		pattern := normalizeGlobPattern(rawPattern)
 		if pattern == "" {
@@ -96,9 +106,13 @@ func normalizeGlobPatterns(field string, patterns []string) ([]string, error) {
 		if !doublestar.ValidatePattern(pattern) {
 			return nil, fmt.Errorf("invalid %s glob pattern %q", field, rawPattern)
 		}
-		normalized = append(normalized, pattern)
+		normalized.Add(pattern)
 	}
 	return normalized, nil
+}
+
+func globPatternsEmpty(patterns *cxlist.List[string]) bool {
+	return patterns == nil || patterns.IsEmpty()
 }
 
 func normalizeGlobPattern(rawPattern string) string {

@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 )
 
 func execute() error {
 	if err := cmdkit.Execute(newRootCommand()); err != nil {
-		return fmt.Errorf("execute spack: %w", err)
+		return oops.Wrapf(err, "execute spack")
 	}
 	return nil
 }

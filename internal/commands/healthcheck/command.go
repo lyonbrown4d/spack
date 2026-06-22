@@ -3,10 +3,10 @@ package healthcheckcmd
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 )
 
@@ -45,20 +45,20 @@ func runHealthcheck(ctx context.Context, options healthcheckOptions) error {
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, options.url, http.NoBody)
 	if err != nil {
-		return fmt.Errorf("create healthcheck request: %w", err)
+		return oops.Wrapf(err, "create healthcheck request")
 	}
 
 	response, err := healthcheckClient(options).Do(request)
 	if err != nil {
-		return fmt.Errorf("run healthcheck request: %w", err)
+		return oops.Wrapf(err, "run healthcheck request")
 	}
 
 	statusCode := response.StatusCode
 	if err := response.Body.Close(); err != nil {
-		return fmt.Errorf("close healthcheck response: %w", err)
+		return oops.Wrapf(err, "close healthcheck response")
 	}
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("healthcheck failed: status %d", statusCode)
+		return oops.Errorf("healthcheck failed: status %d", statusCode)
 	}
 
 	return nil

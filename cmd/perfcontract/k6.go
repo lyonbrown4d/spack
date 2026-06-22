@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 func readK6Summaries(dir string) []k6Summary {
@@ -16,15 +19,12 @@ func readK6Summaries(dir string) []k6Summary {
 		return nil
 	}
 
-	summaries := make([]k6Summary, 0, len(entries))
-	for _, entry := range entries {
+	summaries := lo.FilterMap(entries, func(entry fs.DirEntry, _ int) (k6Summary, bool) {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
+			return k6Summary{}, false
 		}
-		if summary, ok := parseK6Summary(filepath.Join(dir, entry.Name())); ok {
-			summaries = append(summaries, summary)
-		}
-	}
+		return parseK6Summary(filepath.Join(dir, entry.Name()))
+	})
 	slices.SortFunc(summaries, func(left, right k6Summary) int {
 		return strings.Compare(left.File, right.File)
 	})

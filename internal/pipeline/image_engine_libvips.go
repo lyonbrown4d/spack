@@ -3,7 +3,6 @@
 package pipeline
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/oops"
 )
 
 type libvipsImageEngine struct {
@@ -99,7 +99,7 @@ func (engine libvipsImageEngine) GenerateBatch(
 	batchAttrs := imageBatchLogAttrs(request)
 	if err := engine.startupErr; err != nil {
 		engine.recordLibvipsBatchError(logger, startedAt, err, batchAttrs)
-		return nil, fmt.Errorf("start libvips image engine: %w", err)
+		return nil, oops.Wrapf(err, "start libvips image engine")
 	}
 	if request.Variants == nil || request.Variants.IsEmpty() {
 		logger.Debug("Libvips image generation skipped", mergeImageLogAttrs(

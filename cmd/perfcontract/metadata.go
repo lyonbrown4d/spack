@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 func collectMetadata() metadata {
@@ -28,10 +30,11 @@ func collectMetadata() metadata {
 }
 
 func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
+	value, ok := lo.Find(values, func(value string) bool {
+		return strings.TrimSpace(value) != ""
+	})
+	if !ok {
+		return ""
 	}
-	return ""
+	return value
 }

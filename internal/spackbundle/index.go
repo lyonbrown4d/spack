@@ -6,9 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"time"
+
+	"github.com/samber/oops"
 )
 
 const (
@@ -47,11 +48,11 @@ func marshalIndex(index Index) ([]byte, error) {
 	index.Kind = "BundleIndex"
 	payload, err := json.Marshal(index)
 	if err != nil {
-		return nil, fmt.Errorf("marshal bundle index: %w", err)
+		return nil, oops.Wrapf(err, "marshal bundle index")
 	}
 	size, err := checkedUint32(len(payload))
 	if err != nil {
-		return nil, fmt.Errorf("bundle index is too large: %d bytes", len(payload))
+		return nil, oops.Wrapf(err, "bundle index is too large: %d bytes", len(payload))
 	}
 
 	body := make([]byte, 0, len(indexMagic)+4+len(payload))
@@ -63,33 +64,33 @@ func marshalIndex(index Index) ([]byte, error) {
 
 func unmarshalIndex(body []byte) (Index, error) {
 	if !bytes.HasPrefix(body, indexMagic) {
-		return Index{}, errors.New("bundle index magic mismatch")
+		return Index{}, oops.In("spackbundle").Owner("index").Wrap(errors.New("bundle index magic mismatch"))
 	}
 	if len(body) < len(indexMagic)+4 {
-		return Index{}, errors.New("bundle index is truncated")
+		return Index{}, oops.In("spackbundle").Owner("index").Wrap(errors.New("bundle index is truncated"))
 	}
 	size := binary.BigEndian.Uint32(body[len(indexMagic) : len(indexMagic)+4])
 	payload := body[len(indexMagic)+4:]
 	if uint64(len(payload)) != uint64(size) {
-		return Index{}, errors.New("bundle index size mismatch")
+		return Index{}, oops.In("spackbundle").Owner("index").Wrap(errors.New("bundle index size mismatch"))
 	}
 
 	var index Index
 	if err := json.Unmarshal(payload, &index); err != nil {
-		return Index{}, fmt.Errorf("decode bundle index: %w", err)
+		return Index{}, oops.Wrapf(err, "decode bundle index")
 	}
 	if index.APIVersion != FormatVersion {
-		return Index{}, fmt.Errorf("unsupported bundle index version %q", index.APIVersion)
+		return Index{}, oops.Errorf("unsupported bundle index version %q", index.APIVersion)
 	}
 	if index.Kind != "BundleIndex" {
-		return Index{}, fmt.Errorf("unsupported bundle index kind %q", index.Kind)
+		return Index{}, oops.Errorf("unsupported bundle index kind %q", index.Kind)
 	}
 	return index, nil
 }
 
 func checkedUint32(value int) (uint32, error) {
 	if value < 0 || value > math.MaxUint32 {
-		return 0, errors.New("value exceeds uint32 range")
+		return 0, oops.In("spackbundle").Owner("index").Wrap(errors.New("value exceeds uint32 range"))
 	}
 	return uint32(value), nil
 }

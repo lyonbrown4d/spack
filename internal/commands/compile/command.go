@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -55,21 +55,21 @@ func compileBundle(ctx context.Context, options compileOptions) (spackbundle.Wri
 	}
 	cfg, err := cmdkit.ResolveConfigWithDix(loadOptions)
 	if err != nil {
-		return spackbundle.WriteSummary{}, fmt.Errorf("resolve compile config: %w", err)
+		return spackbundle.WriteSummary{}, oops.Wrapf(err, "resolve compile config")
 	}
 	compiler, err := cmdkit.ResolveCompilerWithDix(cfg)
 	if err != nil {
-		return spackbundle.WriteSummary{}, fmt.Errorf("resolve compiler runtime: %w", err)
+		return spackbundle.WriteSummary{}, oops.Wrapf(err, "resolve compiler runtime")
 	}
 	snapshot, err := compiler.Scanner.Scan(ctx)
 	if err != nil {
-		return spackbundle.WriteSummary{}, fmt.Errorf("scan assets: %w", err)
+		return spackbundle.WriteSummary{}, oops.Wrapf(err, "scan assets")
 	}
 	if upsertErr := upsertCompileSnapshot(compiler.Catalog, snapshot); upsertErr != nil {
 		return spackbundle.WriteSummary{}, upsertErr
 	}
 	if warmErr := compiler.Pipeline.Warm(ctx); warmErr != nil {
-		return spackbundle.WriteSummary{}, fmt.Errorf("generate bundle variants: %w", warmErr)
+		return spackbundle.WriteSummary{}, oops.Wrapf(warmErr, "generate bundle variants")
 	}
 	summary, err := spackbundle.Write(ctx, spackbundle.WriteOptions{
 		Output: options.output,
@@ -77,14 +77,14 @@ func compileBundle(ctx context.Context, options compileOptions) (spackbundle.Wri
 		Files:  bundleFilesFromCatalog(cfg.Assets.Root, options.output, compiler.Catalog),
 	})
 	if err != nil {
-		return spackbundle.WriteSummary{}, fmt.Errorf("write spack bundle: %w", err)
+		return spackbundle.WriteSummary{}, oops.Wrapf(err, "write spack bundle")
 	}
 	return summary, nil
 }
 
 func validateCompileInput(root string) error {
 	if spackbundle.IsBundlePath(root) {
-		return errors.New("compile input must be an asset directory; .spack bundles are runtime sources, not compile inputs")
+		return oops.In("compile").Wrap(errors.New("compile input must be an asset directory; .spack bundles are runtime sources, not compile inputs"))
 	}
 	return nil
 }
@@ -95,7 +95,7 @@ func compileLoadOptions(assetsRoot string, base config.LoadOptions) (config.Load
 		return config.LoadOptions{}, err
 	}
 	if err := flags.Set("assets.root", assetsRoot); err != nil {
-		return config.LoadOptions{}, fmt.Errorf("set compile assets root: %w", err)
+		return config.LoadOptions{}, oops.Wrapf(err, "set compile assets root")
 	}
 	return config.LoadOptions{
 		Files:   append([]string(nil), base.Files...),
@@ -115,11 +115,11 @@ func cloneVisitedConfigFlags(source *pflag.FlagSet) (*pflag.FlagSet, error) {
 		}
 		value, err := cloneConfigFlagValue(flag)
 		if err != nil {
-			cloneErr = fmt.Errorf("clone config flag %s: %w", flag.Name, err)
+			cloneErr = oops.Wrapf(err, "clone config flag %s", flag.Name)
 			return
 		}
 		if err := flags.Set(flag.Name, value); err != nil {
-			cloneErr = fmt.Errorf("clone config flag %s: %w", flag.Name, err)
+			cloneErr = oops.Wrapf(err, "clone config flag %s", flag.Name)
 		}
 	})
 	if cloneErr != nil {
@@ -139,7 +139,7 @@ func encodeStringSliceFlagValue(values []string) (string, error) {
 	var builder strings.Builder
 	writer := csv.NewWriter(&builder)
 	if err := writer.Write(values); err != nil {
-		return "", fmt.Errorf("write string slice flag value: %w", err)
+		return "", oops.Wrapf(err, "write string slice flag value")
 	}
 	writer.Flush()
 	return strings.TrimSuffix(builder.String(), "\n"), nil

@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -24,7 +23,7 @@ func (s *Service) subscribeVariantServed() error {
 		return nil
 	})
 	if err != nil {
-		return oops.In("server").Owner("events").Wrap(fmt.Errorf("subscribe variant served: %w", err))
+		return oops.In("pipeline").Owner("events").Wrap(oops.Wrapf(err, "subscribe variant served"))
 	}
 	s.variantServedUnsubscribe = unsubscribe
 	return nil

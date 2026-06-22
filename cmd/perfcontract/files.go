@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/samber/oops"
 )
 
 func readRepoFile(path string) []byte {
@@ -55,14 +57,14 @@ func repoFileExists(path string) bool {
 func cleanRepoPath(path string) (string, error) {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
-		return "", errors.New("path is empty")
+		return "", oops.In("perfcontract").Owner("files").Wrap(errors.New("path is empty"))
 	}
 	if filepath.IsAbs(trimmed) {
-		return "", errors.New("absolute paths are not allowed")
+		return "", oops.In("perfcontract").Owner("files").Wrap(errors.New("absolute paths are not allowed"))
 	}
 	clean := filepath.ToSlash(filepath.Clean(trimmed))
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || !fs.ValidPath(clean) {
-		return "", errors.New("path must stay inside the repository")
+		return "", oops.In("perfcontract").Owner("files").Wrap(errors.New("path must stay inside the repository"))
 	}
 	return clean, nil
 }

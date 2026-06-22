@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/panjf2000/ants/v2"
+	"github.com/samber/oops"
 )
 
 func (s *Service) startWorkers(ctx context.Context, workers int) error {
@@ -22,7 +23,7 @@ func (s *Service) startWorkers(ctx context.Context, workers int) error {
 		}),
 	)
 	if err != nil {
-		return fmt.Errorf("create pipeline worker pool: %w", err)
+		return oops.Wrapf(err, "create pipeline worker pool")
 	}
 
 	s.lazyWorkerPool = pool
@@ -30,7 +31,7 @@ func (s *Service) startWorkers(ctx context.Context, workers int) error {
 		if err := pool.Invoke(struct{}{}); err != nil {
 			s.closeTaskQueue()
 			pool.Release()
-			return fmt.Errorf("start pipeline worker: %w", err)
+			return oops.Wrapf(err, "start pipeline worker")
 		}
 	}
 	return nil
@@ -55,7 +56,7 @@ func (s *Service) stopWorkers(ctx context.Context) error {
 		return nil
 	}
 	if err := s.lazyWorkerPool.ReleaseContext(ctx); err != nil {
-		return fmt.Errorf("wait for worker shutdown: %w", err)
+		return oops.Wrapf(err, "wait for worker shutdown")
 	}
 	return nil
 }

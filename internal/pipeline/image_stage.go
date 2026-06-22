@@ -91,7 +91,7 @@ func (s *imageStage) ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List
 		Limits: imageGenerateLimitsFromConfig(s.cfg),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("generate image artifact: %w", err)
+		return nil, oops.Wrapf(err, "generate image artifact")
 	}
 
 	return s.writeImageVariants(asset, results)
@@ -157,7 +157,7 @@ func (s *imageStage) imageGenerateRequests(
 func (s *imageStage) writeImageVariant(asset *catalog.Asset, result imageGenerateResult) (*catalog.Variant, error) {
 	targetPath := s.store.PathFor(asset.Path, asset.SourceHash, "image", imageVariantSuffix(result.Width, result.TargetFormat, result.Extension))
 	if err := s.store.Write(targetPath, result.Payload); err != nil {
-		return nil, oops.Wrap(fmt.Errorf("write image artifact: %w", err))
+		return nil, oops.Wrapf(err, "write image artifact")
 	}
 	sourcePixels := int64(result.SourceWidth) * int64(result.SourceHeight)
 	outputBytes := int64(len(result.Payload))
@@ -200,7 +200,7 @@ func (s *imageStage) acquireSourceSlot() (func(), error) {
 		return func() {}, nil
 	}
 	if err := s.sourceSlots.Acquire(context.Background(), 1); err != nil {
-		return func() {}, fmt.Errorf("acquire image source slot: %w", err)
+		return func() {}, oops.Wrapf(err, "acquire image source slot")
 	}
 	return func() {
 		s.sourceSlots.Release(1)

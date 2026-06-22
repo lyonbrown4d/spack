@@ -3,8 +3,9 @@ package spackbundle
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"strings"
+
+	"github.com/samber/oops"
 )
 
 const referencePrefix = "spackbundle:"
@@ -37,20 +38,20 @@ func IsReference(path string) bool {
 func ParseReference(path string) (Reference, error) {
 	path = strings.TrimSpace(path)
 	if !strings.HasPrefix(path, referencePrefix) {
-		return Reference{}, errors.New("not a spack bundle reference")
+		return Reference{}, oops.In("spackbundle").Owner("reference").Wrap(errors.New("not a spack bundle reference"))
 	}
 	body := strings.TrimPrefix(path, referencePrefix)
 	left, right, ok := strings.Cut(body, ".")
 	if !ok || left == "" || right == "" {
-		return Reference{}, errors.New("invalid spack bundle reference")
+		return Reference{}, oops.In("spackbundle").Owner("reference").Wrap(errors.New("invalid spack bundle reference"))
 	}
 	bundlePath, err := decodeReferencePart(left)
 	if err != nil {
-		return Reference{}, fmt.Errorf("decode bundle reference path: %w", err)
+		return Reference{}, oops.Wrapf(err, "decode bundle reference path")
 	}
 	filePath, err := decodeReferencePart(right)
 	if err != nil {
-		return Reference{}, fmt.Errorf("decode bundle reference file: %w", err)
+		return Reference{}, oops.Wrapf(err, "decode bundle reference file")
 	}
 	filePath, err = cleanBundlePath(filePath)
 	if err != nil {
@@ -78,7 +79,7 @@ func encodeReferencePart(value string) string {
 func decodeReferencePart(value string) (string, error) {
 	decoded, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
-		return "", fmt.Errorf("decode reference part: %w", err)
+		return "", oops.Wrapf(err, "decode reference part")
 	}
 	return string(decoded), nil
 }

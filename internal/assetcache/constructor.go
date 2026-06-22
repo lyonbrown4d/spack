@@ -1,7 +1,6 @@
 package assetcache
 
 import (
-	"fmt"
 	"log/slog"
 
 	"github.com/arcgolabs/eventx"
@@ -10,6 +9,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/samber/oops"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -55,7 +55,7 @@ func newCache(
 		OnEvict:            cache.onEviction,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create asset memory cache: %w", err)
+		return nil, oops.Wrapf(err, "create asset memory cache")
 	}
 	cache.cache = bodyCache
 	return cache, nil

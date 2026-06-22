@@ -13,13 +13,14 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/oops"
 )
 
 func upsertCompileSnapshot(cat catalog.Catalog, snapshot sourcecatalog.Snapshot) error {
 	var upsertErr error
 	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
 		if err := cat.UpsertAsset(asset); err != nil {
-			upsertErr = fmt.Errorf("upsert compile asset %q: %w", asset.Path, err)
+			upsertErr = oops.Wrapf(err, "upsert compile asset %q", asset.Path)
 			return false
 		}
 		return true
@@ -29,7 +30,7 @@ func upsertCompileSnapshot(cat catalog.Catalog, snapshot sourcecatalog.Snapshot)
 	}
 	snapshot.Variants.Range(func(_ string, variant *catalog.Variant) bool {
 		if err := cat.UpsertVariant(variant); err != nil {
-			upsertErr = fmt.Errorf("upsert compile variant %q: %w", variant.ID, err)
+			upsertErr = oops.Wrapf(err, "upsert compile variant %q", variant.ID)
 			return false
 		}
 		return true

@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
@@ -103,7 +102,7 @@ func (s *Service) Warm(ctx context.Context) error {
 		return nil
 	})
 	if err != nil {
-		return oops.In("pipeline").Wrap(fmt.Errorf("warm pipeline: %w", err))
+		return oops.Wrapf(err, "warm pipeline")
 	}
 	return nil
 }

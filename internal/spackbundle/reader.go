@@ -3,10 +3,11 @@ package spackbundle
 import (
 	"archive/zip"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/samber/oops"
 )
 
 // Reader is a closeable handle for reading files from one SPACK bundle.
@@ -32,7 +33,7 @@ func OpenReader(bundlePath string) (*Reader, error) {
 	}
 	archive, err := zip.OpenReader(absolute)
 	if err != nil {
-		return nil, fmt.Errorf("open bundle: %w", err)
+		return nil, oops.Wrapf(err, "open bundle")
 	}
 	return &Reader{
 		path:    absolute,
@@ -55,7 +56,7 @@ func (r *Reader) Close() error {
 		return nil
 	}
 	if err := r.archive.Close(); err != nil {
-		return fmt.Errorf("close bundle: %w", err)
+		return oops.Wrapf(err, "close bundle")
 	}
 	r.archive = nil
 	return nil
@@ -64,14 +65,14 @@ func (r *Reader) Close() error {
 // Index reads and validates the embedded bundle index. The decoded index is cached on the reader.
 func (r *Reader) Index() (Index, error) {
 	if r == nil {
-		return Index{}, errors.New("bundle reader is nil")
+		return Index{}, oops.In("spackbundle").Owner("reader").Wrap(errors.New("bundle reader is nil"))
 	}
 	if r.indexLoaded {
 		return r.index, nil
 	}
 	file, ok := r.files[IndexPath]
 	if !ok {
-		return Index{}, fmt.Errorf("bundle index %q was not found", IndexPath)
+		return Index{}, oops.Errorf("bundle index %q was not found", IndexPath)
 	}
 	body, err := readZipFile(file, IndexPath)
 	if err != nil {
@@ -103,7 +104,7 @@ func (r *Reader) OpenFile(filePath string) (io.ReadCloser, error) {
 	}
 	source, err := file.Open()
 	if err != nil {
-		return nil, fmt.Errorf("open bundle file %q: %w", cleanPath, err)
+		return nil, oops.Wrapf(err, "open bundle file %q", cleanPath)
 	}
 	return source, nil
 }
@@ -122,7 +123,7 @@ func (r *Reader) Stat(filePath string) (FileStat, error) {
 
 func (r *Reader) lookupFile(filePath string) (*zip.File, string, error) {
 	if r == nil {
-		return nil, "", errors.New("bundle reader is nil")
+		return nil, "", oops.In("spackbundle").Owner("reader").Wrap(errors.New("bundle reader is nil"))
 	}
 	cleanPath, err := cleanBundlePath(filePath)
 	if err != nil {

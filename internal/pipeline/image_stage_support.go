@@ -2,12 +2,13 @@ package pipeline
 
 import (
 	"cmp"
-	"fmt"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/oops"
 	"os"
 )
 
@@ -128,7 +129,7 @@ func resolveTargetFormat(task Task, asset *catalog.Asset) (string, error) {
 		return "", ErrVariantSkipped
 	}
 	if targetFormat == "" {
-		return "", fmt.Errorf("unsupported image format: %s", task.Format)
+		return "", oops.Errorf("unsupported image format: %s", task.Format)
 	}
 	return targetFormat, nil
 }

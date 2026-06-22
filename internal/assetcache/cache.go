@@ -3,7 +3,6 @@ package assetcache
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/samber/oops"
 )
 
 type WarmStats struct {
@@ -67,7 +67,7 @@ func (c *Cache) WarmSelected(ctx context.Context, cat catalog.Catalog) (WarmStat
 
 	stats := WarmStats{}
 	if err := c.warmAssets(ctx, cat, &stats); err != nil {
-		return WarmStats{}, fmt.Errorf("warm selected memory cache: %w", err)
+		return WarmStats{}, oops.Wrapf(err, "warm selected memory cache")
 	}
 	c.recordWarmStats(ctx, stats)
 	return stats, nil
@@ -80,7 +80,7 @@ func (c *Cache) Warm(ctx context.Context, cat catalog.Catalog) (WarmStats, error
 
 	stats := WarmStats{}
 	if err := c.warmAssets(ctx, cat, &stats); err != nil {
-		return WarmStats{}, fmt.Errorf("warm memory cache: %w", err)
+		return WarmStats{}, oops.Wrapf(err, "warm memory cache")
 	}
 	c.recordWarmStats(ctx, stats)
 
@@ -104,7 +104,7 @@ func (c *Cache) warmAssets(ctx context.Context, cat catalog.Catalog, stats *Warm
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("run asset warm list: %w", err)
+		return oops.Wrapf(err, "run asset warm list")
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func contextErr(ctx context.Context) error {
 		return nil
 	}
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("context done: %w", err)
+		return oops.Wrapf(err, "context done")
 	}
 	return nil
 }

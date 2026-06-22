@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	cxset "github.com/arcgolabs/collectionx/set"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/samber/lo"
+	"github.com/samber/oops"
 )
 
 type cleanupFile struct {
@@ -130,20 +130,15 @@ func (s *Service) shouldRemoveExpiredFile(file cleanupFile, now time.Time) bool 
 }
 
 func (s *Service) enforceCleanupCacheLimitByNamespace(ctx context.Context, files []cleanupFile, result *cleanupResult) []cleanupFile {
-	filesByNamespace := cxmapping.NewMapWithCapacity[string, *cxlist.List[cleanupFile]](len(files))
+	filesByNamespace := cxmapping.NewMultiMapWithCapacity[string, cleanupFile](len(files))
 	for _, file := range files {
-		filesBucket, ok := filesByNamespace.Get(file.namespace)
-		if !ok || filesBucket == nil {
-			filesBucket = cxlist.NewList[cleanupFile]()
-			filesByNamespace.Set(file.namespace, filesBucket)
-		}
-		filesBucket.Add(file)
+		filesByNamespace.Put(file.namespace, file)
 	}
 
 	remaining := cxlist.NewList[cleanupFile]()
-	filesByNamespace.Range(func(namespace string, namespaceFiles *cxlist.List[cleanupFile]) bool {
+	filesByNamespace.Range(func(namespace string, namespaceFiles []cleanupFile) bool {
 		limit := s.artifactPolicy.MaxCacheBytesForNamespace(namespace)
-		remainingFiles := s.evictCleanupFilesBySize(ctx, namespaceFiles.Values(), limit, appEvent.VariantRemovalReasonSize, result)
+		remainingFiles := s.evictCleanupFilesBySize(ctx, namespaceFiles, limit, appEvent.VariantRemovalReasonSize, result)
 		if len(remainingFiles) > 0 {
 			remaining.Add(remainingFiles...)
 		}
@@ -253,7 +248,7 @@ func collectCleanupFiles(root string) ([]cleanupFile, error) {
 
 		info, err := entry.Info()
 		if err != nil {
-			return fmt.Errorf("read cleanup file info: %w", err)
+			return oops.Wrapf(err, "read cleanup file info")
 		}
 		files.Add(cleanupFile{
 			path:    path,
@@ -266,7 +261,7 @@ func collectCleanupFiles(root string) ([]cleanupFile, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("walk cleanup directory: %w", err)
+		return nil, oops.Wrapf(err, "walk cleanup directory")
 	}
 	return files.Values(), nil
 }

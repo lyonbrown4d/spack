@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
+	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 )
 
 func execute() error {
 	if err := cmdkit.Execute(newRootCommand()); err != nil {
-		return fmt.Errorf("execute spack-compiler: %w", err)
+		return oops.Wrapf(err, "execute spack-compiler")
 	}
 	return nil
 }
@@ -20,7 +19,7 @@ func newRootCommand() *cobra.Command {
 		Short: "Compile frontend assets into SPACK bundles.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
-				return fmt.Errorf("unknown command %q", args[0])
+				return oops.Errorf("unknown command %q", args[0])
 			}
 			return cmd.Help()
 		},

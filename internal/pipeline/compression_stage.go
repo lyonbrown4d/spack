@@ -113,7 +113,8 @@ func (s *compressionStage) Execute(task Task, asset *catalog.Asset) (*catalog.Va
 func (s *compressionStage) compress(raw []byte, encoding string) ([]byte, string, error) {
 	strategy, ok := s.strategies.Lookup(encoding)
 	if !ok {
-		return nil, "", errors.New("unsupported compression encoding")
+		return nil, "", oops.In("pipeline").Owner("compression strategy").With("encoding", encoding).
+			Wrap(errors.New("unsupported compression encoding"))
 	}
 
 	compressed, err := strategy.Compress(raw)

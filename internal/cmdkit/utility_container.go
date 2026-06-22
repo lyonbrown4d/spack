@@ -1,7 +1,6 @@
 package cmdkit
 
 import (
-	"fmt"
 	"log/slog"
 
 	"github.com/arcgolabs/dix"
@@ -18,6 +17,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/validation"
+	"github.com/samber/oops"
 )
 
 type ConfigRuntime struct {
@@ -44,11 +44,11 @@ func ResolveConfigRuntimeWithDix(loadOptions config.LoadOptions) (ConfigRuntime,
 	}
 	cfg, err := dix.ResolveAs[*config.Config](rt.Container())
 	if err != nil {
-		return ConfigRuntime{}, fmt.Errorf("resolve config: %w", err)
+		return ConfigRuntime{}, oops.Wrapf(err, "resolve config")
 	}
 	instance, err := dix.ResolveAs[*mapper.Mapper](rt.Container())
 	if err != nil {
-		return ConfigRuntime{}, fmt.Errorf("resolve mapper: %w", err)
+		return ConfigRuntime{}, oops.Wrapf(err, "resolve mapper")
 	}
 	return ConfigRuntime{
 		Config: cfg,
@@ -69,7 +69,7 @@ func ResolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {
 	}
 	scanner, err := dix.ResolveAs[sourcecatalog.Scanner](rt.Container())
 	if err != nil {
-		return sourcecatalog.Scanner{}, fmt.Errorf("resolve source scanner: %w", err)
+		return sourcecatalog.Scanner{}, oops.Wrapf(err, "resolve source scanner")
 	}
 	return scanner, nil
 }
@@ -100,15 +100,15 @@ func ResolveCompilerWithDix(cfg *config.Config) (CompilerRuntime, error) {
 	}
 	scanner, err := dix.ResolveAs[sourcecatalog.Scanner](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, fmt.Errorf("resolve source scanner: %w", err)
+		return CompilerRuntime{}, oops.Wrapf(err, "resolve source scanner")
 	}
 	cat, err := dix.ResolveAs[catalog.Catalog](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, fmt.Errorf("resolve catalog: %w", err)
+		return CompilerRuntime{}, oops.Wrapf(err, "resolve catalog")
 	}
 	pipelineSvc, err := dix.ResolveAs[*pipeline.Service](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, fmt.Errorf("resolve compiler pipeline: %w", err)
+		return CompilerRuntime{}, oops.Wrapf(err, "resolve compiler pipeline")
 	}
 	return CompilerRuntime{
 		Scanner:  scanner,
@@ -134,11 +134,11 @@ func buildUtilityRuntime(name string, modules ...dix.Module) (*dix.Runtime, erro
 	allModules = append(allModules, modules...)
 	app := dix.New(name, dix.Modules(allModules...))
 	if err := app.Validate(); err != nil {
-		return nil, fmt.Errorf("validate %s container: %w", name, err)
+		return nil, oops.Wrapf(err, "validate %s container", name)
 	}
 	rt, err := app.Build()
 	if err != nil {
-		return nil, fmt.Errorf("build %s container: %w", name, err)
+		return nil, oops.Wrapf(err, "build %s container", name)
 	}
 	return rt, nil
 }

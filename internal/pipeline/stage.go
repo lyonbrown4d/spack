@@ -4,9 +4,10 @@ import (
 	"errors"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/samber/oops"
 )
 
-var ErrVariantSkipped = errors.New("variant skipped")
+var ErrVariantSkipped = oops.In("pipeline").Owner("stage").Wrap(errors.New("variant skipped"))
 
 type Request struct {
 	AssetPath          string

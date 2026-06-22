@@ -8,6 +8,7 @@ import (
 	"github.com/arcgolabs/collectionx/bytex"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/samber/lo"
 )
 
 const (
@@ -57,16 +58,20 @@ func AnalyzeAssets(assets *cxmapping.Map[string, *catalog.Asset], opts Options) 
 		return summary
 	}
 
+	assetValues := assetList(assets)
+	if len(assetValues) == 0 {
+		return summary
+	}
+
 	counter := bytex.NewCounter()
 	state := analysisState{
 		summary:       summary,
 		remaining:     opts.MaxSampleBytes,
-		declaredBytes: totalDeclaredAssetBytes(assets),
+		declaredBytes: totalDeclaredAssetBytes(assetValues),
 	}
-	assets.Range(func(_ string, asset *catalog.Asset) bool {
+	for _, asset := range assetValues {
 		state.profileAsset(asset, counter)
-		return true
-	})
+	}
 
 	return finalizeSummary(state.summary, counter, opts.TopByteCount)
 }
@@ -166,16 +171,14 @@ func topBytes(counter *bytex.Counter, total, limit int) []ByteFrequency {
 	if len(entries) == 0 {
 		return nil
 	}
-	out := make([]ByteFrequency, 0, len(entries))
-	for _, entry := range entries {
-		out = append(out, ByteFrequency{
+	return lo.Map(entries, func(entry bytex.CounterEntry, _ int) ByteFrequency {
+		return ByteFrequency{
 			Value: entry.Value,
 			Hex:   fmt.Sprintf("0x%02x", entry.Value),
 			Count: entry.Count,
 			Ratio: ratio(entry.Count, total),
-		})
-	}
-	return out
+		}
+	})
 }
 
 func ratio(part, total int) float64 {
@@ -185,16 +188,19 @@ func ratio(part, total int) float64 {
 	return float64(part) / float64(total)
 }
 
-func totalDeclaredAssetBytes(assets *cxmapping.Map[string, *catalog.Asset]) int64 {
-	if assets == nil {
-		return 0
-	}
-	total := int64(0)
+func assetList(assets *cxmapping.Map[string, *catalog.Asset]) []*catalog.Asset {
+	out := make([]*catalog.Asset, 0, assets.Len())
 	assets.Range(func(_ string, asset *catalog.Asset) bool {
 		if asset != nil {
-			total += asset.Size
+			out = append(out, asset)
 		}
 		return true
 	})
-	return total
+	return out
+}
+
+func totalDeclaredAssetBytes(assets []*catalog.Asset) int64 {
+	return lo.SumBy(assets, func(asset *catalog.Asset) int64 {
+		return asset.Size
+	})
 }

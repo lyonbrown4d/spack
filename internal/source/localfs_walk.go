@@ -4,17 +4,15 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"sort"
 	"strings"
-	"sync"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/charlievieth/fastwalk"
 	"github.com/samber/oops"
 )
 
 func (s *LocalFS) walkDirectory() ([]File, error) {
-	files := make([]File, 0, 128)
-	var filesMu sync.Mutex
+	files := cxlist.NewConcurrentListWithCapacity[File](128)
 	conf := fastwalk.Config{
 		Follow: false,
 		Sort:   fastwalk.SortDirsFirst,
@@ -24,9 +22,7 @@ func (s *LocalFS) walkDirectory() ([]File, error) {
 		if fileErr != nil {
 			return fileErr
 		}
-		filesMu.Lock()
-		files = append(files, file)
-		filesMu.Unlock()
+		files.Add(file)
 		return nil
 	}); err != nil {
 		return nil, oops.Wrap(err)
@@ -34,10 +30,9 @@ func (s *LocalFS) walkDirectory() ([]File, error) {
 	if err := s.validateRoot(); err != nil {
 		return nil, err
 	}
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Path < files[j].Path
-	})
-	return files, nil
+	return files.Snapshot().Sort(func(left, right File) int {
+		return strings.Compare(left.Path, right.Path)
+	}).Values(), nil
 }
 
 func buildFastwalkFile(root, walkPath string, entry fs.DirEntry, walkErr error) (File, error) {

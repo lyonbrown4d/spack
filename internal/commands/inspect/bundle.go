@@ -1,10 +1,11 @@
 package inspectcmd
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/lo"
+	"github.com/samber/oops"
 )
 
 func inspectBundle(root string) (bundleSummary, bool, error) {
@@ -13,15 +14,15 @@ func inspectBundle(root string) (bundleSummary, bool, error) {
 	}
 	reader, err := spackbundle.OpenReader(root)
 	if err != nil {
-		return bundleSummary{}, false, fmt.Errorf("open bundle: %w", err)
+		return bundleSummary{}, false, oops.Wrapf(err, "open bundle")
 	}
 	index, err := reader.Index()
 	closeErr := reader.Close()
 	if err != nil {
-		return bundleSummary{}, false, fmt.Errorf("read bundle index: %w", err)
+		return bundleSummary{}, false, oops.Wrapf(err, "read bundle index")
 	}
 	if closeErr != nil {
-		return bundleSummary{}, false, fmt.Errorf("close bundle: %w", closeErr)
+		return bundleSummary{}, false, oops.Wrapf(closeErr, "close bundle")
 	}
 	return summarizeBundleIndex(index), true, nil
 }
@@ -33,19 +34,18 @@ func summarizeBundleIndex(index spackbundle.Index) bundleSummary {
 		CreatedAt:     index.CreatedAt,
 		FileCount:     len(index.Files),
 	}
-	for indexFile := range index.Files {
-		file := index.Files[indexFile]
-		summary.TotalBytes += file.Size
-		switch file.Kind {
-		case "asset", "":
-			summary.AssetCount++
-		case "source_sidecar":
-			summary.SourceSidecarCount++
-		}
-		if strings.TrimSpace(file.Encoding) != "" {
-			summary.CompressedFileCount++
-		}
-	}
+	summary.TotalBytes = lo.SumBy(index.Files, func(file spackbundle.IndexFile) int64 {
+		return file.Size
+	})
+	summary.AssetCount = lo.CountBy(index.Files, func(file spackbundle.IndexFile) bool {
+		return file.Kind == "asset" || file.Kind == ""
+	})
+	summary.SourceSidecarCount = lo.CountBy(index.Files, func(file spackbundle.IndexFile) bool {
+		return file.Kind == "source_sidecar"
+	})
+	summary.CompressedFileCount = lo.CountBy(index.Files, func(file spackbundle.IndexFile) bool {
+		return strings.TrimSpace(file.Encoding) != ""
+	})
 	return summary
 }
 

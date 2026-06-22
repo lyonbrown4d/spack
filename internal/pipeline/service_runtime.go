@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
@@ -10,6 +9,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/samber/oops"
 	"log/slog"
 	"os"
 	"strings"
@@ -92,13 +92,13 @@ func (s *Service) start(ctx context.Context, workers, queueSize int) error {
 		return nil
 	}
 	if err := s.subscribeVariantServed(); err != nil {
-		return fmt.Errorf("subscribe variant served events: %w", err)
+		return oops.Wrapf(err, "subscribe variant served events")
 	}
 	if strings.TrimSpace(s.cfg.CacheDir) == "" {
 		return nil
 	}
 	if err := os.MkdirAll(s.cfg.CacheDir, 0o750); err != nil {
-		return fmt.Errorf("create pipeline cache directory: %w", err)
+		return oops.Wrapf(err, "create pipeline cache directory")
 	}
 	if s.cfg.NormalizedMode() == config.CompressionModeLazy {
 		if err := s.startWorkers(ctx, workers); err != nil {
@@ -170,7 +170,7 @@ func (s *Service) stopCleanup(ctx context.Context) error {
 	case <-s.cleanupDone:
 		return nil
 	case <-ctx.Done():
-		return fmt.Errorf("wait for cleanup shutdown: %w", ctx.Err())
+		return oops.Wrapf(ctx.Err(), "wait for cleanup shutdown")
 	}
 }
 
@@ -204,13 +204,13 @@ func executeStageTaskValue(stage Stage, asset *catalog.Asset, task Task) (any, e
 	if batchStage, ok := stage.(BatchStage); ok {
 		variants, err := batchStage.ExecuteBatch(task, asset)
 		if err != nil {
-			return nil, fmt.Errorf("execute batch stage task: %w", err)
+			return nil, oops.Wrapf(err, "execute batch stage task")
 		}
 		return variants, nil
 	}
 	variant, err := stage.Execute(task, asset)
 	if err != nil {
-		return nil, fmt.Errorf("execute stage task: %w", err)
+		return nil, oops.Wrapf(err, "execute stage task")
 	}
 	return cxlist.NewList(variant), nil
 }

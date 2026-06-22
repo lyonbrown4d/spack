@@ -3,7 +3,6 @@ package contentcoding
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 
 	"github.com/andybalholm/brotli"
 
@@ -11,6 +10,7 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/klauspost/compress/zstd"
 	"github.com/lyonbrown4d/spack/internal/contentcoding/spec"
+	"github.com/samber/oops"
 )
 
 type Options struct {
@@ -89,10 +89,10 @@ func (s BrotliStrategy) Compress(raw []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := brotli.NewWriterLevel(&buf, clampBrotliQuality(s.quality))
 	if _, err := writer.Write(raw); err != nil {
-		return nil, fmt.Errorf("write brotli payload: %w", err)
+		return nil, oops.Wrapf(err, "write brotli payload")
 	}
 	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("close brotli writer: %w", err)
+		return nil, oops.Wrapf(err, "close brotli writer")
 	}
 	return buf.Bytes(), nil
 }
@@ -119,11 +119,11 @@ func (s ZstdStrategy) Compress(raw []byte) ([]byte, error) {
 		zstd.WithEncoderConcurrency(1),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create zstd encoder: %w", err)
+		return nil, oops.Wrapf(err, "create zstd encoder")
 	}
 	compressed := encoder.EncodeAll(raw, nil)
 	if err := encoder.Close(); err != nil {
-		return nil, fmt.Errorf("close zstd encoder: %w", err)
+		return nil, oops.Wrapf(err, "close zstd encoder")
 	}
 
 	return compressed, nil
@@ -149,13 +149,13 @@ func (s GzipStrategy) Compress(raw []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer, err := gzip.NewWriterLevel(&buf, clampGzipLevel(s.level))
 	if err != nil {
-		return nil, fmt.Errorf("create gzip writer: %w", err)
+		return nil, oops.Wrapf(err, "create gzip writer")
 	}
 	if _, err := writer.Write(raw); err != nil {
-		return nil, fmt.Errorf("write gzip payload: %w", err)
+		return nil, oops.Wrapf(err, "write gzip payload")
 	}
 	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("close gzip writer: %w", err)
+		return nil, oops.Wrapf(err, "close gzip writer")
 	}
 	return buf.Bytes(), nil
 }

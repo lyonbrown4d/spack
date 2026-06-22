@@ -5,13 +5,14 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/samber/oops"
 )
 
 // File describes one source file to embed in a bundle.
@@ -55,7 +56,7 @@ func Write(ctx context.Context, options WriteOptions) (WriteSummary, error) {
 	index := buildIndex(files, options.Now)
 	temp, err := os.CreateTemp(filepath.Dir(output), filepath.Base(output)+".tmp-*")
 	if err != nil {
-		return WriteSummary{}, fmt.Errorf("create bundle temp file: %w", err)
+		return WriteSummary{}, oops.Wrapf(err, "create bundle temp file")
 	}
 	return writeBundleToTemp(ctx, output, root, temp, index, files)
 }
@@ -98,13 +99,13 @@ func writeBundleToTemp(
 		return WriteSummary{}, closeBundleWriters(zipWriter, temp, err)
 	}
 	if err := zipWriter.Close(); err != nil {
-		return WriteSummary{}, closeBundleFile(temp, fmt.Errorf("close bundle zip writer: %w", err))
+		return WriteSummary{}, closeBundleFile(temp, oops.Wrapf(err, "close bundle zip writer"))
 	}
 	if err := temp.Close(); err != nil {
-		return WriteSummary{}, fmt.Errorf("close bundle temp file: %w", err)
+		return WriteSummary{}, oops.Wrapf(err, "close bundle temp file")
 	}
 	if err := os.Rename(tempPath, output); err != nil {
-		return WriteSummary{}, fmt.Errorf("publish bundle: %w", err)
+		return WriteSummary{}, oops.Wrapf(err, "publish bundle")
 	}
 	committed = true
 
@@ -118,11 +119,11 @@ func writeBundleToTemp(
 func normalizedOutputPath(output string) (string, error) {
 	output = strings.TrimSpace(output)
 	if output == "" {
-		return "", errors.New("bundle output path is required")
+		return "", oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle output path is required"))
 	}
 	absolute, err := filepath.Abs(filepath.Clean(output))
 	if err != nil {
-		return "", fmt.Errorf("resolve bundle output path: %w", err)
+		return "", oops.Wrapf(err, "resolve bundle output path")
 	}
 	return absolute, nil
 }
@@ -130,18 +131,18 @@ func normalizedOutputPath(output string) (string, error) {
 func normalizedRootPath(root string) (string, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
-		return "", errors.New("bundle root path is required")
+		return "", oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle root path is required"))
 	}
 	absolute, err := filepath.Abs(filepath.Clean(root))
 	if err != nil {
-		return "", fmt.Errorf("resolve bundle root path: %w", err)
+		return "", oops.Wrapf(err, "resolve bundle root path")
 	}
 	info, err := os.Lstat(absolute)
 	if err != nil {
-		return "", fmt.Errorf("stat bundle root: %w", err)
+		return "", oops.Wrapf(err, "stat bundle root")
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("bundle root must be a directory: %s", absolute)
+		return "", oops.Errorf("bundle root must be a directory: %s", absolute)
 	}
 	return absolute, nil
 }
@@ -168,7 +169,7 @@ func normalizeFile(root string, file File, seen map[string]struct{}) (File, erro
 		return File{}, err
 	}
 	if _, ok := seen[path]; ok {
-		return File{}, fmt.Errorf("bundle path %q is duplicated", path)
+		return File{}, oops.Errorf("bundle path %q is duplicated", path)
 	}
 	fullPath, info, err := statBundleFile(root, file)
 	if err != nil {
@@ -184,20 +185,20 @@ func normalizeFile(root string, file File, seen map[string]struct{}) (File, erro
 func statBundleFile(root string, file File) (string, os.FileInfo, error) {
 	fullPath, err := filepath.Abs(filepath.Clean(file.FullPath))
 	if err != nil {
-		return "", nil, fmt.Errorf("resolve bundle file %q: %w", file.Path, err)
+		return "", nil, oops.Wrapf(err, "resolve bundle file %q", file.Path)
 	}
 	if !file.AllowExternal && !isPathInside(root, fullPath) {
-		return "", nil, fmt.Errorf("bundle file %q escapes root", file.Path)
+		return "", nil, oops.Errorf("bundle file %q escapes root", file.Path)
 	}
 	info, err := os.Lstat(fullPath)
 	if err != nil {
-		return "", nil, fmt.Errorf("stat bundle file %q: %w", file.Path, err)
+		return "", nil, oops.Wrapf(err, "stat bundle file %q", file.Path)
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return "", nil, fmt.Errorf("bundle file %q is a symlink", file.Path)
+		return "", nil, oops.Errorf("bundle file %q is a symlink", file.Path)
 	}
 	if info.IsDir() {
-		return "", nil, fmt.Errorf("bundle file %q is a directory", file.Path)
+		return "", nil, oops.Errorf("bundle file %q is a directory", file.Path)
 	}
 	return fullPath, info, nil
 }
@@ -240,10 +241,10 @@ func writeBundleIndex(zipWriter *zip.Writer, index Index) error {
 	header.SetMode(0o600)
 	writer, err := zipWriter.CreateHeader(header)
 	if err != nil {
-		return fmt.Errorf("create bundle index: %w", err)
+		return oops.Wrapf(err, "create bundle index")
 	}
 	if _, err := writer.Write(body); err != nil {
-		return fmt.Errorf("write bundle index: %w", err)
+		return oops.Wrapf(err, "write bundle index")
 	}
 	return nil
 }
@@ -252,7 +253,7 @@ func writeBundleFiles(ctx context.Context, zipWriter *zip.Writer, files []File) 
 	totalBytes := int64(0)
 	for index := range files {
 		if err := ctx.Err(); err != nil {
-			return 0, fmt.Errorf("write bundle canceled: %w", err)
+			return 0, oops.Wrapf(err, "write bundle canceled")
 		}
 		file := files[index]
 		written, err := writeBundleFile(zipWriter, file)
@@ -267,7 +268,7 @@ func writeBundleFiles(ctx context.Context, zipWriter *zip.Writer, files []File) 
 func writeBundleFile(zipWriter *zip.Writer, file File) (int64, error) {
 	source, err := os.Open(file.FullPath)
 	if err != nil {
-		return 0, fmt.Errorf("open bundle file %q: %w", file.Path, err)
+		return 0, oops.Wrapf(err, "open bundle file %q", file.Path)
 	}
 	defer func() {
 		discardError(source.Close())
@@ -280,11 +281,11 @@ func writeBundleFile(zipWriter *zip.Writer, file File) (int64, error) {
 	header.SetMode(0o600)
 	writer, err := zipWriter.CreateHeader(header)
 	if err != nil {
-		return 0, fmt.Errorf("create bundle file %q: %w", file.Path, err)
+		return 0, oops.Wrapf(err, "create bundle file %q", file.Path)
 	}
 	written, err := io.Copy(writer, source)
 	if err != nil {
-		return 0, fmt.Errorf("write bundle file %q: %w", file.Path, err)
+		return 0, oops.Wrapf(err, "write bundle file %q", file.Path)
 	}
 	return written, nil
 }

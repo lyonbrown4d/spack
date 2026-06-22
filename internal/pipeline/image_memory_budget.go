@@ -4,9 +4,10 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
+	"github.com/samber/oops"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -33,19 +34,20 @@ func (b *imageMemoryBudget) AcquireContext(ctx context.Context, bytes int64) (fu
 	if b == nil || bytes <= 0 {
 		return noopMemoryRelease, nil
 	}
+	if ctx == nil {
+		return noopMemoryRelease, oops.In("pipeline").Owner("image memory budget").
+			Wrap(errors.New("image memory budget context is nil"))
+	}
 	if bytes > b.limit {
-		return noopMemoryRelease, fmt.Errorf(
-			"estimated image memory bytes %d exceed max memory bytes %d: %w",
+		return noopMemoryRelease, oops.Wrapf(
+			ErrVariantSkipped,
+			"estimated image memory bytes %d exceed max memory bytes %d",
 			bytes,
 			b.limit,
-			ErrVariantSkipped,
 		)
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if err := b.slots.Acquire(ctx, bytes); err != nil {
-		return noopMemoryRelease, fmt.Errorf("acquire image memory budget: %w", err)
+		return noopMemoryRelease, oops.Wrapf(err, "acquire image memory budget")
 	}
 
 	var once sync.Once

@@ -2,9 +2,9 @@ package assetcache
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
+	"github.com/samber/oops"
 )
 
 type Entry struct {
@@ -34,7 +34,7 @@ func (c *Cache) GetCachedEntry(path string) (Entry, bool) {
 
 func (c *Cache) GetEntryWithRequest(path string, request cachepolicy.MemoryRequest) (Entry, bool, error) {
 	if !c.Enabled() {
-		return Entry{}, false, errors.New("memory cache is disabled")
+		return Entry{}, false, oops.In("assetcache").Owner("entry").Wrap(errors.New("memory cache is disabled"))
 	}
 
 	if entry, found := c.cache.Get(path); found && entry != nil {
@@ -67,12 +67,12 @@ func (c *Cache) loadEntry(path string, request cachepolicy.MemoryRequest) (cache
 		return c.loadEntryOnce(path, request)
 	})
 	if err != nil {
-		return cacheLoadResult{}, fmt.Errorf("load cache entry: %w", err)
+		return cacheLoadResult{}, oops.Wrapf(err, "load cache entry")
 	}
 
 	result, ok := value.(cacheLoadResult)
 	if !ok {
-		return cacheLoadResult{}, fmt.Errorf("unexpected cache load result %T", value)
+		return cacheLoadResult{}, oops.Errorf("unexpected cache load result %T", value)
 	}
 	return result, nil
 }

@@ -2,13 +2,14 @@ package configcmd
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/lo"
+	"github.com/samber/oops"
 )
 
 const redactedPathValue = "REDACTED"
@@ -38,18 +39,18 @@ func effectiveSourceInfo(root string, redact bool) (map[string]any, error) {
 func statEffectiveSourceRoot(root string) (string, fs.FileInfo, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
-		return "", nil, errors.New("assets.root is required")
+		return "", nil, oops.In("config").Owner("source info").Wrap(errors.New("assets.root is required"))
 	}
 	resolved, err := filepath.Abs(filepath.Clean(root))
 	if err != nil {
-		return "", nil, fmt.Errorf("resolve assets.root: %w", err)
+		return "", nil, oops.Wrapf(err, "resolve assets.root")
 	}
 	info, err := os.Lstat(resolved)
 	if err != nil {
-		return "", nil, fmt.Errorf("stat assets.root: %w", err)
+		return "", nil, oops.Wrapf(err, "stat assets.root")
 	}
 	if info.Mode()&fs.ModeSymlink != 0 {
-		return "", nil, fmt.Errorf("assets.root symlink is not allowed: %s", resolved)
+		return "", nil, oops.Errorf("assets.root symlink is not allowed: %s", resolved)
 	}
 	return resolved, info, nil
 }
@@ -65,21 +66,21 @@ func effectiveSourceTypeAndBundle(root string, info fs.FileInfo) (string, map[st
 		}
 		return "bundle", bundle, nil
 	}
-	return "", nil, fmt.Errorf("assets.root must be an existing directory or readable .spack bundle: %s", root)
+	return "", nil, oops.Errorf("assets.root must be an existing directory or readable .spack bundle: %s", root)
 }
 
 func effectiveBundleInfo(root string) (map[string]any, error) {
 	reader, err := spackbundle.OpenReader(root)
 	if err != nil {
-		return nil, fmt.Errorf("open assets.root bundle: %w", err)
+		return nil, oops.Wrapf(err, "open assets.root bundle")
 	}
 	index, err := reader.Index()
 	closeErr := reader.Close()
 	if err != nil {
-		return nil, fmt.Errorf("read assets.root bundle index: %w", err)
+		return nil, oops.Wrapf(err, "read assets.root bundle index")
 	}
 	if closeErr != nil {
-		return nil, fmt.Errorf("close assets.root bundle: %w", closeErr)
+		return nil, oops.Wrapf(closeErr, "close assets.root bundle")
 	}
 	return map[string]any{
 		"format_version": index.APIVersion,
@@ -91,12 +92,9 @@ func effectiveBundleInfo(root string) (map[string]any, error) {
 }
 
 func bundleIndexTotalBytes(index spackbundle.Index) int64 {
-	total := int64(0)
-	for indexFile := range index.Files {
-		file := index.Files[indexFile]
-		total += file.Size
-	}
-	return total
+	return lo.SumBy(index.Files, func(file spackbundle.IndexFile) int64 {
+		return file.Size
+	})
 }
 
 func redactedPath(path string, redact bool) string {
