@@ -170,3 +170,15 @@ dockers_v2:
       - latest
       - debian
       - debian-{{ .Tag }}
+  - id: compiler-debian
+    ids:
+      - spack-compiler-linux
+    dockerfile: docker/compiler-debian.Dockerfile
+    images:
+      - ghcr.io/lyonbrown4d/spack-compiler
+      - lyonbrown4d/spack-compiler
+    tags:
+      - "{{ .Tag }}"
+      - latest
+      - debian
+      - debian-{{ .Tag }}
