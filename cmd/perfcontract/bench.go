@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 func optionalBenchResult(path string) (benchResult, bool) {
@@ -114,13 +116,12 @@ func checkGoBenchmarks(
 	hasBaseline bool,
 	candidate benchResult,
 ) ([]checkRow, bool) {
-	var rows []checkRow
 	failed := false
-	for _, budget := range budgets {
+	rows := lo.FlatMap(budgets, func(budget goBenchBudget, _ int) []checkRow {
 		budgetRows, budgetFailed := checkGoBenchmark(budget, baseline, hasBaseline, candidate)
-		rows = append(rows, budgetRows...)
 		failed = failed || budgetFailed
-	}
+		return budgetRows
+	})
 	return rows, failed
 }
 
@@ -138,11 +139,9 @@ func checkGoBenchmark(
 }
 
 func missingCandidateRows(budget goBenchBudget) []checkRow {
-	rows := make([]checkRow, 0, len(budget.Metrics))
-	for _, metric := range sortedMetricNames(budget.Metrics) {
-		rows = append(rows, newCheckRow(budget, metric, 0, 0, 0, renderBudget(budget.Metrics[metric]), "missing candidate"))
-	}
-	return rows
+	return lo.Map(sortedMetricNames(budget.Metrics), func(metric string, _ int) checkRow {
+		return newCheckRow(budget, metric, 0, 0, 0, renderBudget(budget.Metrics[metric]), "missing candidate")
+	})
 }
 
 func checkGoBenchmarkMetrics(
@@ -151,13 +150,12 @@ func checkGoBenchmarkMetrics(
 	hasBaseline bool,
 	candidateMetrics map[string]float64,
 ) ([]checkRow, bool) {
-	rows := make([]checkRow, 0, len(budget.Metrics))
 	failed := false
-	for _, metric := range sortedMetricNames(budget.Metrics) {
+	rows := lo.Map(sortedMetricNames(budget.Metrics), func(metric string, _ int) checkRow {
 		row, rowFailed := evaluateMetric(budget, metric, baseline, hasBaseline, candidateMetrics)
-		rows = append(rows, row)
 		failed = failed || rowFailed
-	}
+		return row
+	})
 	return rows, failed
 }
 
@@ -232,13 +230,16 @@ func newCheckRow(
 }
 
 func renderBudget(budget metricBudget) string {
-	parts := []string{}
-	if budget.MaxRegressionPercent != nil {
-		parts = append(parts, fmt.Sprintf("regression <= %.2f%%", *budget.MaxRegressionPercent))
-	}
-	if budget.Max != nil {
-		parts = append(parts, fmt.Sprintf("max <= %.2f", *budget.Max))
-	}
+	parts := lo.Compact([]string{
+		lo.TernaryF(budget.MaxRegressionPercent != nil,
+			func() string { return fmt.Sprintf("regression <= %.2f%%", *budget.MaxRegressionPercent) },
+			func() string { return "" },
+		),
+		lo.TernaryF(budget.Max != nil,
+			func() string { return fmt.Sprintf("max <= %.2f", *budget.Max) },
+			func() string { return "" },
+		),
+	})
 	if len(parts) == 0 {
 		return "record only"
 	}

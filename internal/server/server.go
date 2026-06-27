@@ -19,6 +19,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/responsetime"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/lo"
 	"github.com/samber/oops"
 	slogfiber "github.com/samber/slog-fiber"
 )
@@ -170,7 +171,7 @@ func assetDeliveryMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
 	if delivery == "" {
 		return nil
 	}
-	return append(requestMetricsAttrs(c), observabilityx.String("delivery", delivery))
+	return lo.Concat(requestMetricsAttrs(c), []observabilityx.Attribute{observabilityx.String("delivery", delivery)})
 }
 
 func requestRoute(c fiber.Ctx) string {

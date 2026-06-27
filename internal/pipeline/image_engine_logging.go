@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/lo"
 )
 
 func imageBatchLogAttrs(request imageGenerateBatchRequest) []any {
@@ -43,8 +44,5 @@ func logImageGenerationError(logger *slog.Logger, message string, err error, att
 }
 
 func mergeImageLogAttrs(base []any, extra ...any) []any {
-	attrs := make([]any, 0, len(base)+len(extra))
-	attrs = append(attrs, base...)
-	attrs = append(attrs, extra...)
-	return attrs
+	return lo.Concat(base, extra)
 }

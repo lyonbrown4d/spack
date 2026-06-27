@@ -135,11 +135,7 @@ func (u inspectUseCase) Inspect(ctx context.Context, cfg *config.Config) (inspec
 	if err != nil {
 		return inspectReport{}, oops.Wrapf(err, "scan assets")
 	}
-	bundle, hasBundle := inspectBundle(resolvedSource)
-	var bundlePointer *bundleSummary
-	if hasBundle {
-		bundlePointer = &bundle
-	}
+	bundlePointer := inspectBundle(resolvedSource).ToPointer()
 
 	report := inspectReport{
 		AssetsRoot:           filepath.Clean(cfg.Assets.Root),
@@ -231,25 +227,40 @@ func inspectMemoryCache(cfg config.MemoryCache, snapshot sourcecatalog.Snapshot)
 }
 
 func inspectPotentialIssues(cfg *config.Config, snapshot sourcecatalog.Snapshot) []string {
-	var issues []string
-	if _, ok := snapshot.Assets.Get(cfg.Assets.Entry); !ok {
-		issues = append(issues, fmt.Sprintf("assets.entry %q was not found", cfg.Assets.Entry))
+	return lo.Compact([]string{
+		missingInspectAssetIssue(snapshot, cfg.Assets.Entry, "assets.entry"),
+		inspectFallbackIssue(cfg, snapshot),
+		lo.Ternary(
+			cfg.HTTP.MemoryCache.Enabled() && int64(snapshot.Assets.Len()) > int64(cfg.HTTP.MemoryCache.MaxEntries),
+			"asset count exceeds http.memory_cache.max_entries",
+			"",
+		),
+		lo.Ternary(
+			cfg.Compression.PipelineEnabled() && cfg.Compression.NormalizedMode() == config.CompressionModeLazy,
+			"compression.mode=lazy is retained for legacy runtime enqueue compatibility; compiler pre-generation uses compression.mode=warmup",
+			"",
+		),
+		lo.Ternary(
+			cfg.Logger.File.Enabled && strings.TrimSpace(cfg.Logger.File.Path) == "",
+			"logger.file.enabled is true but logger.file.path is empty",
+			"",
+		),
+	})
+}
+
+func inspectFallbackIssue(cfg *config.Config, snapshot sourcecatalog.Snapshot) string {
+	target := strings.TrimSpace(cfg.Assets.Fallback.Target)
+	if target == "" {
+		return ""
 	}
-	if strings.TrimSpace(cfg.Assets.Fallback.Target) != "" {
-		if _, ok := snapshot.Assets.Get(cfg.Assets.Fallback.Target); !ok {
-			issues = append(issues, fmt.Sprintf("assets.fallback.target %q was not found", cfg.Assets.Fallback.Target))
-		}
+	return missingInspectAssetIssue(snapshot, target, "assets.fallback.target")
+}
+
+func missingInspectAssetIssue(snapshot sourcecatalog.Snapshot, assetPath, label string) string {
+	if _, ok := snapshot.Assets.Get(assetPath); ok {
+		return ""
 	}
-	if cfg.HTTP.MemoryCache.Enabled() && int64(snapshot.Assets.Len()) > int64(cfg.HTTP.MemoryCache.MaxEntries) {
-		issues = append(issues, "asset count exceeds http.memory_cache.max_entries")
-	}
-	if cfg.Compression.PipelineEnabled() && cfg.Compression.NormalizedMode() == config.CompressionModeLazy {
-		issues = append(issues, "compression.mode=lazy is retained for legacy runtime enqueue compatibility; compiler pre-generation uses compression.mode=warmup")
-	}
-	if cfg.Logger.File.Enabled && strings.TrimSpace(cfg.Logger.File.Path) == "" {
-		issues = append(issues, "logger.file.enabled is true but logger.file.path is empty")
-	}
-	return issues
+	return fmt.Sprintf("%s %q was not found", label, assetPath)
 }
 
 func snapshotAssetList(snapshot sourcecatalog.Snapshot) []*catalog.Asset {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/arcgolabs/observabilityx"
+	"github.com/samber/lo"
 )
 
 var (
@@ -165,10 +166,14 @@ func imageEngineSkipReason(err error) string {
 		return "error"
 	}
 	message := err.Error()
-	for _, rule := range imageEngineSkipReasonRules {
-		if strings.Contains(message, rule.contains) {
-			return rule.reason
-		}
+	rule, ok := lo.Find(imageEngineSkipReasonRules, func(rule struct {
+		contains string
+		reason   string
+	}) bool {
+		return strings.Contains(message, rule.contains)
+	})
+	if ok {
+		return rule.reason
 	}
 	return "skipped"
 }

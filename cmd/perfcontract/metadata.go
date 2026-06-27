@@ -30,11 +30,7 @@ func collectMetadata() metadata {
 }
 
 func firstNonEmpty(values ...string) string {
-	value, ok := lo.Find(values, func(value string) bool {
+	return lo.FindOrElse(values, "", func(value string) bool {
 		return strings.TrimSpace(value) != ""
 	})
-	if !ok {
-		return ""
-	}
-	return value
 }

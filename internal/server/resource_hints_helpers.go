@@ -18,6 +18,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/samber/lo"
+	"github.com/samber/mo"
 )
 
 func parseHTMLResourceHints(filePath string, cfg config.ResourceHints) (links *cxlist.List[string], err error) {
@@ -182,18 +184,24 @@ func (h resourceHint) Header() (string, bool) {
 		return "", false
 	}
 
-	parts := cxlist.NewList[string]("<"+h.url+">", "rel="+h.rel)
-	if h.as != "" {
-		parts.Add("as=" + h.as)
-	}
-	switch strings.ToLower(strings.TrimSpace(h.crossorigin)) {
+	parts := lo.Compact([]string{
+		"<" + h.url + ">",
+		"rel=" + h.rel,
+		lo.Ternary(h.as != "", "as="+h.as, ""),
+		resourceHintCrossoriginHeader(h.crossorigin),
+	})
+	return strings.Join(parts, "; "), true
+}
+
+func resourceHintCrossoriginHeader(crossorigin string) string {
+	switch strings.ToLower(strings.TrimSpace(crossorigin)) {
 	case "":
+		return ""
 	case "anonymous":
-		parts.Add("crossorigin")
+		return "crossorigin"
 	default:
-		parts.Add("crossorigin=" + h.crossorigin)
+		return "crossorigin=" + crossorigin
 	}
-	return parts.Join("; "), true
 }
 
 func htmlTagAttrs(tokenizer *html.Tokenizer) *cxmapping.Map[string, string] {
@@ -268,11 +276,9 @@ func resourceHintCacheKey(asset *catalog.Asset) string {
 	if asset == nil {
 		return ""
 	}
-	if hash := strings.TrimSpace(asset.SourceHash); hash != "" {
-		return asset.FullPath + "|" + hash
+	suffix := mo.EmptyableToOption(strings.TrimSpace(asset.SourceHash)).OrElse(strings.TrimSpace(asset.ETag))
+	if suffix == "" {
+		return asset.FullPath
 	}
-	if etag := strings.TrimSpace(asset.ETag); etag != "" {
-		return asset.FullPath + "|" + etag
-	}
-	return asset.FullPath
+	return asset.FullPath + "|" + suffix
 }

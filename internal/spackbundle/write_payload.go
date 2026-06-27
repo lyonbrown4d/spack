@@ -10,6 +10,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
+	"github.com/samber/lo"
 	"github.com/samber/oops"
 )
 
@@ -62,11 +63,9 @@ func prepareBundleFilePayload(ctx context.Context, file File) (bundleFilePayload
 }
 
 func bundlePayloadTotalBytes(payloads []bundleFilePayload) int64 {
-	totalBytes := int64(0)
-	for index := range payloads {
-		totalBytes += payloads[index].file.Size
-	}
-	return totalBytes
+	return lo.SumBy(payloads, func(payload bundleFilePayload) int64 {
+		return payload.file.Size
+	})
 }
 
 func writePreparedBundleFiles(ctx context.Context, tarWriter *tar.Writer, payloads []bundleFilePayload) error {

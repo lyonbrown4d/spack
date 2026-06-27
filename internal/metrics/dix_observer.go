@@ -9,6 +9,7 @@ import (
 
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/observabilityx"
+	"github.com/samber/lo"
 )
 
 type Option func(*config)
@@ -123,13 +124,12 @@ func (o *observer) OnStop(ctx context.Context, event dix.StopEvent) {
 }
 
 func (o *observer) OnHealthCheck(ctx context.Context, event dix.HealthCheckEvent) {
-	attrs := o.commonAttrs(event.Meta, event.Profile)
-	attrs = append(attrs,
+	attrs := lo.Concat(o.commonAttrs(event.Meta, event.Profile), []observabilityx.Attribute{
 		observabilityx.String("kind", string(event.Kind)),
 		observabilityx.String("result", resultOf(event.Err)),
-	)
+	})
 	if o.cfg.includeHealthCheckName && event.Name != "" {
-		attrs = append(attrs, observabilityx.String("check", event.Name))
+		attrs = lo.Concat(attrs, []observabilityx.Attribute{observabilityx.String("check", event.Name)})
 	}
 	o.counter("health_check_total", "app", "check", "kind", "profile", "result", "version").
 		Add(contextOrBackground(ctx), 1, attrs...)
@@ -138,11 +138,10 @@ func (o *observer) OnHealthCheck(ctx context.Context, event dix.HealthCheckEvent
 }
 
 func (o *observer) OnStateTransition(ctx context.Context, event dix.StateTransitionEvent) {
-	attrs := o.commonAttrs(event.Meta, event.Profile)
-	attrs = append(attrs,
+	attrs := lo.Concat(o.commonAttrs(event.Meta, event.Profile), []observabilityx.Attribute{
 		observabilityx.String("from", event.From.String()),
 		observabilityx.String("to", event.To.String()),
-	)
+	})
 	o.counter("state_transition_total", "app", "from", "profile", "to", "version").
 		Add(contextOrBackground(ctx), 1, attrs...)
 }
@@ -187,14 +186,13 @@ func (o *observer) commonAttrs(meta dix.AppMeta, profile dix.Profile) []observab
 		observabilityx.String("profile", string(profile)),
 	}
 	if o.cfg.includeVersionAttribute && strings.TrimSpace(meta.Version) != "" {
-		attrs = append(attrs, observabilityx.String("version", meta.Version))
+		return lo.Concat(attrs, []observabilityx.Attribute{observabilityx.String("version", meta.Version)})
 	}
 	return attrs
 }
 
 func (o *observer) withResultAttrs(meta dix.AppMeta, profile dix.Profile, err error) []observabilityx.Attribute {
-	attrs := o.commonAttrs(meta, profile)
-	return append(attrs, observabilityx.String("result", resultOf(err)))
+	return lo.Concat(o.commonAttrs(meta, profile), []observabilityx.Attribute{observabilityx.String("result", resultOf(err))})
 }
 
 func (o *observer) metricName(suffix string) string {

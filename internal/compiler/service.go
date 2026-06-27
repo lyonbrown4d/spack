@@ -10,7 +10,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
-	"github.com/samber/oops"
+  "github.com/samber/lo"
+  "github.com/samber/oops"
 	"github.com/spf13/pflag"
 )
 
@@ -83,7 +84,7 @@ func compileLoadOptions(assetsRoot string, base config.LoadOptions) (config.Load
 		return config.LoadOptions{}, oops.Wrapf(err, "set compile assets root")
 	}
 	return config.LoadOptions{
-		Files:   append([]string(nil), base.Files...),
+		Files:   lo.Clone(base.Files),
 		FlagSet: flags,
 	}, nil
 }

@@ -10,7 +10,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/samber/oops"
+  "github.com/samber/lo"
+  "github.com/samber/oops"
 )
 
 type collectorRegistration struct {
@@ -70,10 +71,10 @@ type collectorProvider interface {
 }
 
 func registerRuntimeCollectors(cfg *config.Config, providers []collectorProvider) error {
-	providers = append(providers,
+	providers = lo.Concat(providers, []collectorProvider{
 		metrics.NewBuildInfoMetrics("spack"),
 		metrics.NewRuntimeInfoMetrics("spack", cfg, time.Now().UTC()),
-	)
+	})
 	for _, provider := range providers {
 		if err := registerCollectorProvider(provider); err != nil {
 			return err

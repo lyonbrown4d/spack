@@ -7,7 +7,8 @@ import (
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/spf13/pflag"
+  "github.com/samber/lo"
+  "github.com/spf13/pflag"
 )
 
 type FlagKind string
@@ -35,7 +36,7 @@ type Flag struct {
 }
 
 func Flags() []Flag {
-	return append([]Flag(nil), configFlags...)
+	return lo.Clone(configFlags)
 }
 
 func RegisterFlags(flags *pflag.FlagSet, defaults config.Config) {
@@ -57,7 +58,7 @@ func (f Flag) Register(flags *pflag.FlagSet, defaults config.Config) {
 	case StringFlag:
 		flags.String(f.Name, f.stringDefault(defaults), f.Usage)
 	case StringSliceFlag:
-		flags.StringSlice(f.Name, append([]string(nil), f.stringSliceDefault(defaults)...), f.Usage)
+		flags.StringSlice(f.Name, lo.Clone(f.stringSliceDefault(defaults)), f.Usage)
 	default:
 		panic("unknown config flag kind: " + string(f.Kind))
 	}

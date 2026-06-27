@@ -12,6 +12,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/lo"
+	"github.com/samber/mo"
 	"github.com/samber/oops"
 )
 
@@ -40,32 +42,25 @@ func upsertCompileSnapshot(cat catalog.Catalog, snapshot sourcecatalog.Snapshot)
 func bundleFilesFromCatalog(root, output string, cat catalog.Catalog) []spackbundle.File {
 	assets := cat.AllAssets()
 	variants := cat.AllVariants()
-	files := make([]spackbundle.File, 0, assets.Len()+variants.Len())
-	excludedOutput, hasExcludedOutput := normalizedOptionalPath(output)
-	assets.Range(func(_ int, asset *catalog.Asset) bool {
-		files = appendBundleAssetFile(files, asset, excludedOutput, hasExcludedOutput)
-		return true
+	excludedOutput := normalizedOptionalPath(output)
+	assetFiles := lo.FilterMap(assets.Values(), func(asset *catalog.Asset, _ int) (spackbundle.File, bool) {
+		return bundleAssetFile(asset, excludedOutput)
 	})
-	variants.Range(func(_ int, variant *catalog.Variant) bool {
-		files = appendBundleVariantFile(files, root, variant, excludedOutput, hasExcludedOutput)
-		return true
+	variantFiles := lo.FilterMap(variants.Values(), func(variant *catalog.Variant, _ int) (spackbundle.File, bool) {
+		return bundleVariantFile(root, variant, excludedOutput)
 	})
+	files := lo.Concat(assetFiles, variantFiles)
 	slices.SortFunc(files, func(left, right spackbundle.File) int {
 		return cmp.Compare(left.Path, right.Path)
 	})
 	return files
 }
 
-func appendBundleAssetFile(
-	files []spackbundle.File,
-	asset *catalog.Asset,
-	excludedOutput string,
-	hasExcludedOutput bool,
-) []spackbundle.File {
-	if asset == nil || shouldExcludeBundlePath(asset.FullPath, excludedOutput, hasExcludedOutput) {
-		return files
+func bundleAssetFile(asset *catalog.Asset, excludedOutput mo.Option[string]) (spackbundle.File, bool) {
+	if asset == nil || shouldExcludeBundlePath(asset.FullPath, excludedOutput) {
+		return spackbundle.File{}, false
 	}
-	return append(files, spackbundle.File{
+	return spackbundle.File{
 		Path:       asset.Path,
 		FullPath:   asset.FullPath,
 		Kind:       "asset",
@@ -73,23 +68,21 @@ func appendBundleAssetFile(
 		MediaType:  asset.MediaType,
 		SourceHash: asset.SourceHash,
 		ETag:       asset.ETag,
-	})
+	}, true
 }
 
-func appendBundleVariantFile(
-	files []spackbundle.File,
+func bundleVariantFile(
 	root string,
 	variant *catalog.Variant,
-	excludedOutput string,
-	hasExcludedOutput bool,
-) []spackbundle.File {
+	excludedOutput mo.Option[string],
+) (spackbundle.File, bool) {
 	if variant == nil || strings.TrimSpace(variant.ArtifactPath) == "" ||
-		shouldExcludeBundlePath(variant.ArtifactPath, excludedOutput, hasExcludedOutput) {
-		return files
+		shouldExcludeBundlePath(variant.ArtifactPath, excludedOutput) {
+		return spackbundle.File{}, false
 	}
 	kind := bundleVariantKind(variant)
 	if kind == "" {
-		return files
+		return spackbundle.File{}, false
 	}
 	bundlePath := bundleVariantPath(root, variant)
 	allowExternal := false
@@ -98,9 +91,9 @@ func appendBundleVariantFile(
 		allowExternal = true
 	}
 	if bundlePath == "" {
-		return files
+		return spackbundle.File{}, false
 	}
-	return append(files, spackbundle.File{
+	return spackbundle.File{
 		Path:          bundlePath,
 		FullPath:      variant.ArtifactPath,
 		Kind:          kind,
@@ -113,7 +106,7 @@ func appendBundleVariantFile(
 		Format:        variant.Format,
 		Width:         variant.Width,
 		AllowExternal: allowExternal,
-	})
+	}, true
 }
 
 func bundleVariantKind(variant *catalog.Variant) string {
@@ -149,16 +142,13 @@ func bundleGeneratedVariantPath(kind string, variant *catalog.Variant) string {
 		return ""
 	}
 	base := path.Join("generated", sanitizeBundlePathComponent(kind), assetPath)
-	parts := make([]string, 0, 3)
-	if encoding := strings.TrimSpace(variant.Encoding); encoding != "" {
-		parts = append(parts, "encoding-"+sanitizeBundlePathComponent(encoding))
-	}
-	if format := strings.TrimSpace(variant.Format); format != "" {
-		parts = append(parts, "format-"+sanitizeBundlePathComponent(format))
-	}
-	if variant.Width > 0 {
-		parts = append(parts, fmt.Sprintf("w%d", variant.Width))
-	}
+	encoding := strings.TrimSpace(variant.Encoding)
+	format := strings.TrimSpace(variant.Format)
+	parts := lo.Compact([]string{
+		lo.Ternary(encoding != "", "encoding-"+sanitizeBundlePathComponent(encoding), ""),
+		lo.Ternary(format != "", "format-"+sanitizeBundlePathComponent(format), ""),
+		lo.Ternary(variant.Width > 0, fmt.Sprintf("w%d", variant.Width), ""),
+	})
 	if len(parts) > 0 {
 		base += "." + strings.Join(parts, ".")
 	}
@@ -184,25 +174,26 @@ func sanitizeBundlePathComponent(value string) string {
 	return replacer.Replace(value)
 }
 
-func shouldExcludeBundlePath(rawPath, excludedOutput string, hasExcludedOutput bool) bool {
-	return hasExcludedOutput && sameFilesystemPath(rawPath, excludedOutput)
+func shouldExcludeBundlePath(rawPath string, excludedOutput mo.Option[string]) bool {
+	output, ok := excludedOutput.Get()
+	return ok && sameFilesystemPath(rawPath, output)
 }
 
-func normalizedOptionalPath(rawPath string) (string, bool) {
+func normalizedOptionalPath(rawPath string) mo.Option[string] {
 	rawPath = strings.TrimSpace(rawPath)
 	if rawPath == "" {
-		return "", false
+		return mo.None[string]()
 	}
 	absolute, err := filepath.Abs(filepath.Clean(rawPath))
 	if err != nil {
-		return "", false
+		return mo.None[string]()
 	}
-	return absolute, true
+	return mo.Some(absolute)
 }
 
 func sameFilesystemPath(left, right string) bool {
-	left, leftOK := normalizedOptionalPath(left)
-	right, rightOK := normalizedOptionalPath(right)
+	left, leftOK := normalizedOptionalPath(left).Get()
+	right, rightOK := normalizedOptionalPath(right).Get()
 	if !leftOK || !rightOK {
 		return false
 	}

@@ -9,7 +9,8 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/observabilityx"
-	"golang.org/x/sync/errgroup"
+  "github.com/samber/lo"
+  "golang.org/x/sync/errgroup"
 )
 
 var (
@@ -180,7 +181,7 @@ func recordBatchRunMetrics(
 	startedAt time.Time,
 	err error,
 ) {
-	attrs := append(asyncAttrs(workload, mode), observabilityx.String("result", metricResult(err)))
+	attrs := lo.Concat(asyncAttrs(workload, mode), []observabilityx.Attribute{observabilityx.String("result", metricResult(err))})
 	obs.Counter(asyncBatchRunsTotalSpec).Add(ctx, 1, attrs...)
 	obs.Histogram(asyncBatchDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs...)
 }
@@ -193,16 +194,13 @@ func recordTaskRunMetrics(
 	startedAt time.Time,
 	err error,
 ) {
-	attrs := append(asyncAttrs(workload, mode), observabilityx.String("result", metricResult(err)))
+	attrs := lo.Concat(asyncAttrs(workload, mode), []observabilityx.Attribute{observabilityx.String("result", metricResult(err))})
 	obs.Counter(asyncTaskRunsTotalSpec).Add(ctx, 1, attrs...)
 	obs.Histogram(asyncTaskDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs...)
 }
 
 func recordTaskSubmission(ctx context.Context, obs observabilityx.Observability, workload string, submitted bool) {
-	result := "rejected"
-	if submitted {
-		result = "submitted"
-	}
+	result := lo.Ternary(submitted, "submitted", "rejected")
 	obs.Counter(asyncTaskSubmissionsTotalSpec).Add(ctx, 1,
 		observabilityx.String("workload", normalizeWorkload(workload)),
 		observabilityx.String("result", result),

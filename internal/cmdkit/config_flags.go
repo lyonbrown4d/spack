@@ -3,6 +3,7 @@ package cmdkit
 import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/configschema"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -19,7 +20,7 @@ func ConfigLoadOptions(cmd *cobra.Command) config.LoadOptions {
 		files = nil
 	}
 	return config.LoadOptions{
-		Files:   append([]string(nil), files...),
+		Files:   lo.Clone(files),
 		FlagSet: cmd.Flags(),
 	}
 }

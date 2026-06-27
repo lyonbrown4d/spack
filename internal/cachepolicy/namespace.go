@@ -22,10 +22,9 @@ func resolveNamespaceMaxAge(
 	namespace string,
 	fallback time.Duration,
 ) time.Duration {
-	if maxAge, ok := namespaceMaxAge.Get(namespace); ok && maxAge > 0 {
-		return maxAge
-	}
-	return fallback
+	return namespaceMaxAge.GetOption(namespace).Map(func(maxAge time.Duration) (time.Duration, bool) {
+		return maxAge, maxAge > 0
+	}).OrElse(fallback)
 }
 
 func variantNamespace(variant *catalog.Variant) string {

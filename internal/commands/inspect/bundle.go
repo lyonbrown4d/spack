@@ -1,12 +1,15 @@
 package inspectcmd
 
-import "github.com/lyonbrown4d/spack/internal/source"
+import (
+	"github.com/lyonbrown4d/spack/internal/source"
+	"github.com/samber/mo"
+)
 
-func inspectBundle(resolved source.Resolved) (bundleSummary, bool) {
+func inspectBundle(resolved source.Resolved) mo.Option[bundleSummary] {
 	if resolved.Type != source.TypeBundle || resolved.Bundle == nil {
-		return bundleSummary{}, false
+		return mo.None[bundleSummary]()
 	}
-	return summarizeBundleMetadata(resolved.Bundle), true
+	return mo.Some(summarizeBundleMetadata(resolved.Bundle))
 }
 
 func summarizeBundleMetadata(bundle *source.BundleMetadata) bundleSummary {

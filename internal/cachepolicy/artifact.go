@@ -64,10 +64,9 @@ func (p CompressionArtifactPolicy) MaxCacheBytes() int64 {
 
 func (p CompressionArtifactPolicy) MaxCacheBytesForNamespace(namespace string) int64 {
 	namespace = strings.TrimSpace(namespace)
-	if namespaceMaxBytes, ok := p.namespaceMaxCacheBytes.Get(namespace); ok && namespaceMaxBytes > 0 {
-		return namespaceMaxBytes
-	}
-	return p.maxCacheBytes
+	return p.namespaceMaxCacheBytes.GetOption(namespace).Map(func(maxBytes int64) (int64, bool) {
+		return maxBytes, maxBytes > 0
+	}).OrElse(p.maxCacheBytes)
 }
 
 func (p CompressionArtifactPolicy) ShouldRemoveExpired(namespace string, lastUsed, now time.Time) bool {

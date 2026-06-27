@@ -4,6 +4,7 @@ package configcmd
 import (
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/samber/lo"
 	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
@@ -103,8 +104,6 @@ func loadConfigRuntimeForCommand(cmd *cobra.Command, files []string) (cmdkit.Con
 
 func configCommandLoadOptions(cmd *cobra.Command, files []string) config.LoadOptions {
 	loadOptions := cmdkit.ConfigLoadOptions(cmd)
-	mergedFiles := append([]string(nil), loadOptions.Files...)
-	mergedFiles = append(mergedFiles, files...)
-	loadOptions.Files = mergedFiles
+	loadOptions.Files = lo.Concat(loadOptions.Files, files)
 	return loadOptions
 }

@@ -7,6 +7,8 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/source"
+	"github.com/samber/lo"
+	"github.com/samber/mo"
 )
 
 func buildExplicitBundleVariants(
@@ -19,9 +21,8 @@ func buildExplicitBundleVariants(
 		if !isExplicitBundleVariantFile(file) {
 			return true
 		}
-		assetPath := normalizeSourcePath(file.AssetPath)
-		asset, ok := assets.GetOption(assetPath).Get()
-		if !ok || asset == nil {
+		asset, ok := explicitBundleVariantAsset(assets, file).Get()
+		if !ok {
 			return true
 		}
 		variant := buildExplicitBundleVariant(file, asset)
@@ -29,6 +30,18 @@ func buildExplicitBundleVariants(
 		return true
 	})
 	return variants
+}
+
+func explicitBundleVariantAsset(
+	assets *cxmapping.Map[string, *catalog.Asset],
+	file source.File,
+) mo.Option[*catalog.Asset] {
+	assetPath := normalizeSourcePath(file.AssetPath)
+	asset, ok := assets.GetOption(assetPath).Get()
+	if !ok || asset == nil {
+		return mo.None[*catalog.Asset]()
+	}
+	return mo.Some(asset)
 }
 
 func isExplicitBundleVariantFile(file source.File) bool {
@@ -55,16 +68,17 @@ func buildExplicitBundleVariant(file source.File, asset *catalog.Asset) *catalog
 
 func explicitBundleVariantID(file source.File) string {
 	id := normalizeSourcePath(file.AssetPath)
-	if encoding := strings.TrimSpace(file.Encoding); encoding != "" {
-		id += "|encoding=" + encoding
+	encoding := strings.TrimSpace(file.Encoding)
+	format := strings.TrimSpace(file.Format)
+	suffixes := lo.Compact([]string{
+		lo.Ternary(encoding != "", "encoding="+encoding, ""),
+		lo.Ternary(format != "", "format="+format, ""),
+		lo.Ternary(file.Width > 0, "width="+strconv.Itoa(file.Width), ""),
+	})
+	if len(suffixes) == 0 {
+		return id
 	}
-	if format := strings.TrimSpace(file.Format); format != "" {
-		id += "|format=" + format
-	}
-	if file.Width > 0 {
-		id += "|width=" + strconv.Itoa(file.Width)
-	}
-	return id
+	return id + "|" + strings.Join(suffixes, "|")
 }
 
 func explicitBundleVariantMetadata(file source.File, assetPath, kind string) *cxmapping.Map[string, string] {
@@ -87,10 +101,7 @@ func normalizedExplicitBundleVariantKind(kind string) string {
 }
 
 func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
+	return lo.FindOrElse(values, "", func(value string) bool {
+		return strings.TrimSpace(value) != ""
+	})
 }

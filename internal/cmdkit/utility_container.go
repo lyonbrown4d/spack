@@ -18,6 +18,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/lyonbrown4d/spack/internal/validation"
+	"github.com/samber/lo"
 	"github.com/samber/oops"
 )
 
@@ -138,10 +139,7 @@ func compilerConfigForGeneration(cfg *config.Config) *config.Config {
 }
 
 func buildUtilityRuntime(name string, modules ...dix.Module) (*dix.Runtime, error) {
-	allModules := make([]dix.Module, 0, len(modules)+1)
-	allModules = append(allModules, mapx.Module)
-	allModules = append(allModules, modules...)
-	app := dix.New(name, dix.Modules(allModules...))
+	app := dix.New(name, dix.Modules(lo.Concat([]dix.Module{mapx.Module}, modules)...))
 	if err := app.Validate(); err != nil {
 		return nil, oops.Wrapf(err, "validate %s container", name)
 	}

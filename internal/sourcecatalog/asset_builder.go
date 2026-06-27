@@ -10,7 +10,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
-	"github.com/samber/oops"
+  "github.com/samber/mo"
+  "github.com/samber/oops"
 	"runtime"
 )
 
@@ -116,8 +117,7 @@ func collectAssetBuildCandidates(
 		if isExplicitBundleVariantFile(file) {
 			return true
 		}
-		if asset, ok := existingAssets.GetOption(path).Get(); ok && canReuseAsset(asset, file) {
-			asset.Metadata = catalog.MetadataWithModTime(asset.Metadata, file.ModTime)
+		if asset, ok := reusableAsset(existingAssets, path, file).Get(); ok {
 			assets.Set(path, asset)
 			return true
 		}
@@ -125,6 +125,19 @@ func collectAssetBuildCandidates(
 		return true
 	})
 	return assets, candidates
+}
+
+func reusableAsset(
+	existingAssets *cxmapping.Map[string, *catalog.Asset],
+	path string,
+	file source.File,
+) mo.Option[*catalog.Asset] {
+	asset, ok := existingAssets.GetOption(path).Get()
+	if !ok || !canReuseAsset(asset, file) {
+		return mo.None[*catalog.Asset]()
+	}
+	asset.Metadata = catalog.MetadataWithModTime(asset.Metadata, file.ModTime)
+	return mo.Some(asset)
 }
 
 func canReuseAsset(asset *catalog.Asset, file source.File) bool {

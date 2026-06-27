@@ -8,6 +8,7 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/samber/lo"
 )
 
 type preparedSnapshot struct {
@@ -29,6 +30,11 @@ type preparedRoute struct {
 type preparedImagePicker struct {
 	widths    []int
 	responses []*preparedResponse
+}
+
+type preparedImagePickCandidate struct {
+	width    int
+	response *preparedResponse
 }
 
 type preparedResponse struct {
@@ -96,26 +102,27 @@ func newPreparedImagePicker(responses *cxlist.List[*preparedResponse]) *prepared
 		return nil
 	}
 
-	picker := &preparedImagePicker{
-		widths:    make([]int, 0, responses.Len()),
-		responses: make([]*preparedResponse, 0, responses.Len()),
-	}
-	responses.Range(func(_ int, response *preparedResponse) bool {
+	candidates := lo.FilterMap(responses.Values(), func(response *preparedResponse, _ int) (preparedImagePickCandidate, bool) {
 		variant := response.variant()
 		if variant == nil || variant.Width < 0 {
-			return true
+			return preparedImagePickCandidate{}, false
 		}
-		if len(picker.widths) > 0 && picker.widths[len(picker.widths)-1] == variant.Width {
-			return true
-		}
-		picker.widths = append(picker.widths, variant.Width)
-		picker.responses = append(picker.responses, response)
-		return true
+		return preparedImagePickCandidate{width: variant.Width, response: response}, true
 	})
-	if len(picker.widths) == 0 {
+	candidates = lo.UniqBy(candidates, func(candidate preparedImagePickCandidate) int {
+		return candidate.width
+	})
+	if len(candidates) == 0 {
 		return nil
 	}
-	return picker
+	return &preparedImagePicker{
+		widths: lo.Map(candidates, func(candidate preparedImagePickCandidate, _ int) int {
+			return candidate.width
+		}),
+		responses: lo.Map(candidates, func(candidate preparedImagePickCandidate, _ int) *preparedResponse {
+			return candidate.response
+		}),
+	}
 }
 
 func (p *preparedImagePicker) closest(width int) *preparedResponse {

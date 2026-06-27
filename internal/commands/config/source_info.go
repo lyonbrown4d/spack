@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/source"
+	"github.com/samber/mo"
 	"github.com/samber/oops"
 )
 
@@ -34,9 +35,9 @@ func (u sourceInfoUseCase) Info(root string, redact bool) (map[string]any, error
 		"root_resolved": redactedPath(resolved.Root, redact),
 		"type":          string(resolved.Type),
 	}
-	if resolved.Bundle != nil {
-		out["bundle"] = sourceBundleInfo(resolved.Bundle)
-	}
+	mo.PointerToOption(resolved.Bundle).ForEach(func(bundle source.BundleMetadata) {
+		out["bundle"] = sourceBundleInfo(&bundle)
+	})
 	return out, nil
 }
 
