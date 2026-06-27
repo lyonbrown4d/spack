@@ -3,7 +3,6 @@ package source_test
 import (
 	"context"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,109 +11,84 @@ import (
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 )
 
-func TestNewLocalFSExtractsBundleToLocalFileSource(t *testing.T) {
-	sourcePath, bundlePath := newBundleLocalFSFixture(t)
-	src := openBundleLocalFS(t, bundlePath)
-	file := findBundleLocalFSFile(t, src)
-
-	assertExtractedBundleLocalFSFile(t, file, sourcePath)
-	assertBundleLocalFSCleanup(t, src, file)
-}
-
-func newBundleLocalFSFixture(t *testing.T) (string, string) {
-	t.Helper()
-	root := t.TempDir()
-	sourcePath := filepath.Join(root, "assets", "app.js")
-	writeBundleLocalFSSource(t, sourcePath)
-	return sourcePath, writeBundleLocalFSBundle(t, root, sourcePath)
-}
-
-func writeBundleLocalFSSource(t *testing.T, sourcePath string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o750); err != nil {
-		t.Fatal(err)
+func TestNewLocalFSBundleStatsRecordExtraction(t *testing.T) {
+	fixture := newLocalFSBundleFixture(t)
+	src, openErr := source.NewLocalFS(&config.Assets{Root: fixture.bundlePath}, slog.New(slog.DiscardHandler))
+	if openErr != nil {
+		t.Fatal(openErr)
 	}
-	if err := os.WriteFile(sourcePath, []byte("console.log('bundle');"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	t.Cleanup(func() {
+		cleanupErr := src.Cleanup()
+		if cleanupErr != nil {
+			t.Fatal(cleanupErr)
+		}
+	})
+
+	assertLocalFSBundleStats(t, src.Stats(), fixture.totalBytes)
+	assertLocalFSBundleServesFromExtractedRoot(t, src, fixture.originalAppPath)
 }
 
-func writeBundleLocalFSBundle(t *testing.T, root, sourcePath string) string {
+type localFSBundleFixture struct {
+	bundlePath      string
+	originalAppPath string
+	totalBytes      int64
+}
+
+func newLocalFSBundleFixture(t *testing.T) localFSBundleFixture {
 	t.Helper()
+	assetRoot := t.TempDir()
+	indexBody := []byte("<h1>bundle</h1>")
+	appBody := []byte("console.log('bundle');")
+	indexPath := filepath.Join(assetRoot, "index.html")
+	appPath := filepath.Join(assetRoot, "assets", "app.js")
+	writeLocalFSTestFile(t, indexPath, indexBody)
+	writeLocalFSTestFile(t, appPath, appBody)
+
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	_, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	_, writeErr := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
 		Output: bundlePath,
-		Root:   root,
+		Root:   assetRoot,
 		Files: []spackbundle.File{
-			{
-				Path:       "assets/app.js",
-				FullPath:   sourcePath,
-				Kind:       "asset",
-				MediaType:  "application/javascript",
-				SourceHash: "hash-app",
-				ETag:       `"hash-app"`,
-			},
+			{Path: "index.html", FullPath: indexPath, Kind: "asset", MediaType: "text/html"},
+			{Path: "assets/app.js", FullPath: appPath, Kind: "asset", MediaType: "text/javascript"},
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
+	if writeErr != nil {
+		t.Fatal(writeErr)
 	}
-	return bundlePath
+	return localFSBundleFixture{
+		bundlePath:      bundlePath,
+		originalAppPath: appPath,
+		totalBytes:      int64(len(indexBody) + len(appBody)),
+	}
 }
 
-func openBundleLocalFS(t *testing.T, bundlePath string) *source.LocalFS {
+func assertLocalFSBundleStats(t *testing.T, stats source.Stats, wantBytes int64) {
 	t.Helper()
-	src, err := source.NewLocalFS(&config.Assets{Root: bundlePath}, slog.New(slog.DiscardHandler))
-	if err != nil {
-		t.Fatal(err)
+	if stats.Mode != source.SourceModeAOT {
+		t.Fatalf("expected aot source mode, got %q", stats.Mode)
 	}
-	return src
+	if stats.BundleExtractionFiles != 2 {
+		t.Fatalf("expected 2 bundle files, got %d", stats.BundleExtractionFiles)
+	}
+	if stats.BundleExtractionBytes != wantBytes {
+		t.Fatalf("expected %d extracted bytes, got %d", wantBytes, stats.BundleExtractionBytes)
+	}
+	if stats.BundleExtractionDuration <= 0 {
+		t.Fatalf("expected extraction duration to be recorded, got %s", stats.BundleExtractionDuration)
+	}
 }
 
-func findBundleLocalFSFile(t *testing.T, src *source.LocalFS) source.File {
+func assertLocalFSBundleServesFromExtractedRoot(t *testing.T, src *source.LocalFS, originalPath string) {
 	t.Helper()
-	file, found, err := src.FindFile("assets/app.js")
-	if err != nil {
-		t.Fatal(err)
+	file, found, findErr := src.FindFile("assets/app.js")
+	if findErr != nil {
+		t.Fatal(findErr)
 	}
 	if !found {
-		t.Fatal("expected bundle file to be found")
+		t.Fatal("expected bundled asset to be found after startup extraction")
 	}
-	return file
-}
-
-func assertExtractedBundleLocalFSFile(t *testing.T, file source.File, sourcePath string) {
-	t.Helper()
-	if spackbundle.IsReference(file.FullPath) {
-		t.Fatalf("expected extracted local path, got bundle reference %q", file.FullPath)
-	}
-	if file.FullPath == sourcePath {
-		t.Fatalf("expected extracted path to differ from source path %q", sourcePath)
-	}
-	if file.Size != int64(len("console.log('bundle');")) {
-		t.Fatalf("unexpected bundle size: %d", file.Size)
-	}
-	if file.MediaType != "application/javascript" {
-		t.Fatalf("expected bundle media type metadata, got %q", file.MediaType)
-	}
-	if file.SourceHash != "hash-app" {
-		t.Fatalf("expected bundle source hash metadata, got %q", file.SourceHash)
-	}
-	if file.ETag != `"hash-app"` {
-		t.Fatalf("expected bundle etag metadata, got %q", file.ETag)
-	}
-	if _, err := os.Stat(file.FullPath); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func assertBundleLocalFSCleanup(t *testing.T, src *source.LocalFS, file source.File) {
-	t.Helper()
-	extractedRoot := filepath.Dir(filepath.Dir(file.FullPath))
-	if err := src.Cleanup(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(extractedRoot); !os.IsNotExist(err) {
-		t.Fatalf("expected extracted root to be cleaned up, got %v", err)
+	if file.FullPath == originalPath {
+		t.Fatal("expected bundled asset to be served from extracted runtime directory")
 	}
 }

@@ -40,10 +40,11 @@ func (f *SourceFactory) LocalFS(cfg *config.Assets) (*LocalFS, error) {
 	}
 	logSourceConfigured(f.logger, cfg.Root, resolved)
 	return &LocalFS{
-		root:        resolved.root,
-		rootInfo:    resolved.info,
-		logger:      f.logger,
-		bundle:      resolved.bundle,
-		cleanupRoot: resolved.cleanupRoot,
+		root:                     resolved.root,
+		rootInfo:                 resolved.info,
+		logger:                   f.logger,
+		bundle:                   resolved.bundle,
+		cleanupRoot:              resolved.cleanupRoot,
+		bundleExtractionDuration: resolved.bundleExtractionDuration,
 	}, nil
 }

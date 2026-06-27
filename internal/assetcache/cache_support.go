@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/arcgolabs/observabilityx"
@@ -54,6 +55,14 @@ var assetCacheCounterSpecs = cxmapping.NewMapFrom(map[string]observabilityx.Coun
 	),
 })
 
+var assetCacheHistogramSpecs = cxmapping.NewMapFrom(map[string]observabilityx.HistogramSpec{
+	metricAssetCacheWarmupDuration: observabilityx.NewHistogramSpec(
+		metricAssetCacheWarmupDuration,
+		observabilityx.WithDescription("Duration of in-memory asset cache warmup runs in seconds."),
+		observabilityx.WithUnit("s"),
+	),
+})
+
 func (c *Cache) readFile(path string) ([]byte, error) {
 	body, err := readResolvedAssetPath(path)
 	if err != nil {
@@ -84,7 +93,8 @@ func readResolvedAssetPath(path string) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Cache) recordWarmStats(ctx context.Context, stats WarmStats) {
+func (c *Cache) recordWarmStats(ctx context.Context, stats WarmStats, duration time.Duration) {
+	c.recordHistogramWithContext(ctx, metricAssetCacheWarmupDuration, duration.Seconds())
 	if stats.Entries == 0 {
 		return
 	}
@@ -112,4 +122,18 @@ func (c *Cache) addCounterWithContext(ctx context.Context, name string, value in
 		spec = observabilityx.NewCounterSpec(name)
 	}
 	c.obs.Counter(spec).Add(ctx, value)
+}
+
+func (c *Cache) recordHistogramWithContext(ctx context.Context, name string, value float64) {
+	if c == nil || c.obs == nil {
+		return
+	}
+	if value < 0 {
+		value = 0
+	}
+	spec, ok := assetCacheHistogramSpecs.Get(name)
+	if !ok {
+		spec = observabilityx.NewHistogramSpec(name)
+	}
+	c.obs.Histogram(spec).Record(ctx, value)
 }

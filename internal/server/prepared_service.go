@@ -22,6 +22,7 @@ type PreparedService struct {
 	logger        *slog.Logger
 	resourceHints *resourceHintService
 	bus           eventx.BusRuntime
+	metrics       *RuntimeMetrics
 	snapshot      atomic.Pointer[preparedSnapshot]
 	rebuildMu     sync.Mutex
 	unsubscribes  []func()
@@ -38,6 +39,7 @@ func newPreparedService(
 	logger *slog.Logger,
 	resourceHints *resourceHintService,
 	bus eventx.BusRuntime,
+	metrics *RuntimeMetrics,
 ) *PreparedService {
 	return &PreparedService{
 		cfg:           cfg,
@@ -45,6 +47,7 @@ func newPreparedService(
 		logger:        logger,
 		resourceHints: resourceHints,
 		bus:           bus,
+		metrics:       metrics,
 	}
 }
 
@@ -63,11 +66,13 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 		return preparedCompileError(err)
 	}
 	s.snapshot.Store(snapshot)
+	duration := time.Since(startedAt)
+	s.metrics.RecordPreparedSnapshot(duration, snapshot.assets, snapshot.assets+snapshot.variants)
 	if s.logger != nil {
 		s.logger.Info("Prepared snapshot ready",
 			slog.Int("assets", snapshot.assets),
 			slog.Int("variants", snapshot.variants),
-			slog.Duration("duration", time.Since(startedAt)),
+			slog.Duration("duration", duration),
 		)
 	}
 	return nil

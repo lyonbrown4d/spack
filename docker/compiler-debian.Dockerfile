@@ -3,14 +3,15 @@ FROM debian@sha256:34363c20bd149e41365fc77b086da067ed13ab2dff4cd0612788e12e6d52c
 
 ARG TARGETPLATFORM
 
-WORKDIR /opt
+WORKDIR /workspace
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libvips42 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --chmod=755 ${TARGETPLATFORM}/spack-compiler /opt/spack-compiler
+COPY --chmod=755 ${TARGETPLATFORM}/spack-compiler /usr/local/bin/spack-compiler
+
 
 USER 65532:65532
 
-ENTRYPOINT ["/opt/spack-compiler"]
+ENTRYPOINT ["spack-compiler"]

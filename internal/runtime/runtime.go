@@ -20,21 +20,44 @@ func bootstrapCatalogOnStart(
 	runtime catalogBootstrapRuntime,
 ) error {
 	bootstrapErr := oops.In("runtime").Owner("catalog bootstrap")
+	runtime.serverMetrics.SetReadiness(false)
+	runtime.serverMetrics.SetStartupPhase("catalog_scan")
+	startupReady := false
+	defer func() {
+		if !startupReady {
+			runtime.serverMetrics.SetStartupPhase("error")
+		}
+	}()
+
 	startedAt := time.Now()
+	sourceStats := runtime.scanner.SourceStats()
+	runtime.catMetrics.SetSourceStats(
+		sourceStats.Mode,
+		sourceStats.BundleExtractionDuration,
+		sourceStats.BundleExtractionFiles,
+		sourceStats.BundleExtractionBytes,
+	)
+
+	scanStartedAt := time.Now()
 	totalBytes, scanErr := scanCatalogAssets(ctx, runtime.scanner, runtime.cat)
 	if scanErr != nil {
 		return scanErr
 	}
-	go runtime.catMetrics.SyncCatalog(runtime.cat)
-	go runtime.catMetrics.SetSourceBytes(totalBytes)
+	runtime.catMetrics.RecordCatalogScan(time.Since(scanStartedAt), runtime.cat, totalBytes)
 
+	runtime.serverMetrics.SetStartupPhase("cache_warmup")
 	cacheStats, cacheErr := runtime.bodyCache.Warm(ctx, runtime.cat)
 	if cacheErr != nil {
 		return bootstrapErr.With("service", "asset memory cache").Wrap(cacheErr)
 	}
+	runtime.serverMetrics.SetStartupPhase("prepared_snapshot")
 	if err := runtime.prepared.Rebuild(ctx); err != nil {
 		return bootstrapErr.With("service", "prepared snapshot").Wrap(err)
 	}
+	runtime.serverMetrics.SetStartupDuration(time.Since(startedAt))
+	runtime.serverMetrics.SetStartupPhase("ready")
+	runtime.serverMetrics.SetReadiness(true)
+	startupReady = true
 
 	runtime.logger.LogAttrs(
 		ctx,

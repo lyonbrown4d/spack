@@ -29,6 +29,8 @@ func newRootCommand() *cobra.Command {
 		newConfigCommand(),
 		newInspectCommand(),
 		newCompileCommand(),
+		newVerifyCommand(),
+		newDecompileCommand(),
 	)
 	return command
 }

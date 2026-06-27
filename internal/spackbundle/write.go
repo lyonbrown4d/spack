@@ -1,7 +1,7 @@
 package spackbundle
 
 import (
-	"archive/zip"
+	"archive/tar"
 	"cmp"
 	"context"
 	"errors"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cxset "github.com/arcgolabs/collectionx/set"
+	"github.com/klauspost/compress/zstd"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
 )
@@ -22,6 +23,7 @@ type File struct {
 	FullPath      string
 	Kind          string
 	Size          int64
+	SHA256        string
 	MediaType     string
 	SourceHash    string
 	ETag          string
@@ -49,17 +51,21 @@ type WriteSummary struct {
 
 // Write creates a SPACK bundle at options.Output.
 func Write(ctx context.Context, options WriteOptions) (WriteSummary, error) {
-	output, root, files, err := normalizeWriteInputs(options)
+	output, _, files, err := normalizeWriteInputs(options)
 	if err != nil {
 		return WriteSummary{}, err
 	}
 
-	index := buildIndex(files, options.Now)
+	payloads, totalBytes, err := prepareBundleFilePayloads(ctx, files)
+	if err != nil {
+		return WriteSummary{}, err
+	}
+	index := buildIndex(payloads, options.Now)
 	temp, err := os.CreateTemp(filepath.Dir(output), filepath.Base(output)+".tmp-*")
 	if err != nil {
 		return WriteSummary{}, oops.Wrapf(err, "create bundle temp file")
 	}
-	return writeBundleToTemp(ctx, output, root, temp, index, files)
+	return writeBundleToTemp(ctx, output, temp, index, payloads, totalBytes)
 }
 
 func normalizeWriteInputs(options WriteOptions) (string, string, []File, error) {
@@ -81,26 +87,37 @@ func normalizeWriteInputs(options WriteOptions) (string, string, []File, error) 
 func writeBundleToTemp(
 	ctx context.Context,
 	output string,
-	root string,
 	temp *os.File,
 	index Index,
-	files []File,
+	payloads []bundleFilePayload,
+	totalBytes int64,
 ) (WriteSummary, error) {
-	_ = root
 	tempPath := temp.Name()
 	committed := false
 	defer cleanupTempBundle(tempPath, &committed)
 
-	zipWriter := zip.NewWriter(temp)
-	if indexErr := writeBundleIndex(zipWriter, index); indexErr != nil {
-		return WriteSummary{}, closeBundleWriters(zipWriter, temp, indexErr)
+	if _, err := temp.WriteString(bundleMagic); err != nil {
+		return WriteSummary{}, closeBundleFile(temp, oops.Wrapf(err, "write bundle magic"))
 	}
-	totalBytes, err := writeBundleFiles(ctx, zipWriter, files)
+	zstdWriter, err := zstd.NewWriter(temp,
+		zstd.WithEncoderLevel(zstd.SpeedBestCompression),
+		zstd.WithEncoderConcurrency(bundleFileParallelism(len(payloads))),
+	)
 	if err != nil {
-		return WriteSummary{}, closeBundleWriters(zipWriter, temp, err)
+		return WriteSummary{}, closeBundleFile(temp, oops.Wrapf(err, "create bundle zstd writer"))
 	}
-	if err := zipWriter.Close(); err != nil {
-		return WriteSummary{}, closeBundleFile(temp, oops.Wrapf(err, "close bundle zip writer"))
+	tarWriter := tar.NewWriter(zstdWriter)
+	if indexErr := writeBundleIndex(tarWriter, index); indexErr != nil {
+		return WriteSummary{}, closeBundleWriters(tarWriter, zstdWriter, temp, indexErr)
+	}
+	if err := writePreparedBundleFiles(ctx, tarWriter, payloads); err != nil {
+		return WriteSummary{}, closeBundleWriters(tarWriter, zstdWriter, temp, err)
+	}
+	if err := tarWriter.Close(); err != nil {
+		return WriteSummary{}, closeBundleZstdWriter(zstdWriter, temp, oops.Wrapf(err, "close bundle tar writer"))
+	}
+	if err := zstdWriter.Close(); err != nil {
+		return WriteSummary{}, closeBundleFile(temp, oops.Wrapf(err, "close bundle zstd writer"))
 	}
 	if err := temp.Close(); err != nil {
 		return WriteSummary{}, oops.Wrapf(err, "close bundle temp file")
@@ -115,7 +132,7 @@ func writeBundleToTemp(
 
 	return WriteSummary{
 		Output: output,
-		Files:  len(files),
+		Files:  len(payloads),
 		Bytes:  totalBytes,
 	}, nil
 }
@@ -211,17 +228,19 @@ func statBundleFile(root string, file File) (string, os.FileInfo, error) {
 	return fullPath, info, nil
 }
 
-func buildIndex(files []File, now func() time.Time) Index {
+func buildIndex(payloads []bundleFilePayload, now func() time.Time) Index {
 	if now == nil {
 		now = time.Now
 	}
 	return Index{
 		CreatedAt: now().UTC(),
-		Files: lo.Map(files, func(file File, _ int) IndexFile {
+		Files: lo.Map(payloads, func(payload bundleFilePayload, _ int) IndexFile {
+			file := payload.file
 			return IndexFile{
 				Path:       file.Path,
 				Kind:       file.Kind,
 				Size:       file.Size,
+				SHA256:     file.SHA256,
 				MediaType:  file.MediaType,
 				SourceHash: file.SourceHash,
 				ETag:       file.ETag,
@@ -234,21 +253,22 @@ func buildIndex(files []File, now func() time.Time) Index {
 	}
 }
 
-func writeBundleIndex(zipWriter *zip.Writer, index Index) error {
+func writeBundleIndex(tarWriter *tar.Writer, index Index) error {
 	body, err := marshalIndex(index)
 	if err != nil {
 		return err
 	}
-	header := &zip.FileHeader{
-		Name:   IndexPath,
-		Method: zip.Deflate,
+	header := &tar.Header{
+		Name:     IndexPath,
+		Mode:     0o600,
+		Size:     int64(len(body)),
+		ModTime:  index.CreatedAt,
+		Typeflag: tar.TypeReg,
 	}
-	header.SetMode(0o600)
-	writer, err := zipWriter.CreateHeader(header)
-	if err != nil {
+	if err := tarWriter.WriteHeader(header); err != nil {
 		return oops.Wrapf(err, "create bundle index")
 	}
-	if _, err := writer.Write(body); err != nil {
+	if _, err := tarWriter.Write(body); err != nil {
 		return oops.Wrapf(err, "write bundle index")
 	}
 	return nil

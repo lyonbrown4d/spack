@@ -83,7 +83,7 @@
       },
       "targets": [
         {
-          "expr": "count(count by (instance) (spack_build_info{instance=~\"$instance\"}))",
+          "expr": "count(count by (instance) (spack_build_info{job=~\"$job\",instance=~\"$instance\"}))",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -128,7 +128,7 @@
       },
       "targets": [
         {
-          "expr": "count(count by (version) (spack_build_info{instance=~\"$instance\"}))",
+          "expr": "count(count by (version) (spack_build_info{job=~\"$job\",instance=~\"$instance\"}))",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -173,7 +173,7 @@
       },
       "targets": [
         {
-          "expr": "spack_build_info{instance=~\"$instance\"}",
+          "expr": "spack_build_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{version}}",
           "refId": "A",
           "instant": true
@@ -217,7 +217,7 @@
       },
       "targets": [
         {
-          "expr": "spack_build_info{instance=~\"$instance\"}",
+          "expr": "spack_build_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{vcs_revision}}",
           "refId": "A",
           "instant": true
@@ -261,7 +261,7 @@
       },
       "targets": [
         {
-          "expr": "spack_build_info{instance=~\"$instance\"}",
+          "expr": "spack_build_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{go_version}}",
           "refId": "A",
           "instant": true
@@ -305,7 +305,7 @@
       },
       "targets": [
         {
-          "expr": "spack_build_info{instance=~\"$instance\"}",
+          "expr": "spack_build_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{vcs_modified}}",
           "refId": "A",
           "instant": true
@@ -349,7 +349,7 @@
       },
       "targets": [
         {
-          "expr": "spack_build_info{instance=~\"$instance\"}",
+          "expr": "spack_build_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{vcs_time}}",
           "refId": "A",
           "instant": true
@@ -393,7 +393,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{compression_mode}}",
           "refId": "A",
           "instant": true
@@ -437,7 +437,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{compression_pipeline_enabled}}",
           "refId": "A",
           "instant": true
@@ -481,8 +481,8 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
-          "legendFormat": "{{instance}}",
+          "expr": "max by (instance, mode) (spack_source_mode_current{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} {{mode}}",
           "refId": "A",
           "instant": true
         }
@@ -525,7 +525,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{image_enabled}}",
           "refId": "A",
           "instant": true
@@ -569,7 +569,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{memory_cache_enabled}}",
           "refId": "A",
           "instant": true
@@ -613,7 +613,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{memory_cache_warmup_enabled}}",
           "refId": "A",
           "instant": true
@@ -657,7 +657,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{debug_enabled}}",
           "refId": "A",
           "instant": true
@@ -701,7 +701,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{logger_level}}",
           "refId": "A",
           "instant": true
@@ -745,7 +745,7 @@
       },
       "targets": [
         {
-          "expr": "spack_config_info{instance=~\"$instance\"}",
+          "expr": "spack_config_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{robots_enabled}}",
           "refId": "A",
           "instant": true
@@ -789,7 +789,7 @@
       },
       "targets": [
         {
-          "expr": "count by (instance, app, version, vcs_revision, vcs_time, vcs_modified, go_version, module_path) (spack_build_info{instance=~\"$instance\"})",
+          "expr": "count by (instance, app, version, vcs_revision, vcs_time, vcs_modified, go_version, module_path) (spack_build_info{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "",
           "refId": "A",
           "format": "table",
@@ -831,7 +831,7 @@
       },
       "targets": [
         {
-          "expr": "count by (instance, app, compression_mode, compression_pipeline_enabled, debug_enabled, image_enabled, logger_level, memory_cache_enabled, memory_cache_warmup_enabled, metrics_enabled, robots_enabled) (spack_config_info{instance=~\"$instance\"})",
+          "expr": "count by (instance, app, compression_mode, compression_pipeline_enabled, debug_enabled, image_enabled, logger_level, memory_cache_enabled, memory_cache_warmup_enabled, metrics_enabled, robots_enabled) (spack_config_info{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "",
           "refId": "A",
           "format": "table",
@@ -886,7 +886,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (spack_catalog_assets_current{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_catalog_assets_current{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -931,7 +931,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (spack_catalog_variants_current{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_catalog_variants_current{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -976,7 +976,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (spack_catalog_source_bytes_current{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_catalog_source_bytes_current{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1021,7 +1021,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (spack_async_capacity_current{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_async_capacity_current{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1066,7 +1066,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (pipeline_queue_capacity{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_pipeline_queue_capacity{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1111,7 +1111,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (spack_task_scheduler_running{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_task_scheduler_running{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1158,7 +1158,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (instance) (spack_task_scheduler_jobs_registered_current{instance=~\"$instance\"})",
+          "expr": "sum by (instance) (spack_task_scheduler_jobs_registered_current{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1203,7 +1203,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (spack_runtime_start_time_seconds{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_runtime_start_time_seconds{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1247,7 +1247,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (process_start_time_seconds{instance=~\"$instance\"})",
+          "expr": "max by (instance) (process_start_time_seconds{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -1291,7 +1291,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(spack_asset_cache_warm_entries_total{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(sum(spack_asset_cache_warm_entries_total{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1336,7 +1336,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(spack_asset_cache_warm_bytes_total{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(sum(spack_asset_cache_warm_bytes_total{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1381,7 +1381,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(spack_dix_build_duration_ms_sum{instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_duration_ms_count{instance=~\"$instance\"})) or vector(0)), 1)",
+          "expr": "((sum(spack_dix_build_duration_ms_sum{job=~\"$job\",instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_duration_ms_count{job=~\"$job\",instance=~\"$instance\"})) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1426,7 +1426,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(spack_dix_build_modules_sum{instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_modules_count{instance=~\"$instance\"})) or vector(0)), 1)",
+          "expr": "((sum(spack_dix_build_modules_sum{job=~\"$job\",instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_modules_count{job=~\"$job\",instance=~\"$instance\"})) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1471,7 +1471,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(spack_dix_build_providers_sum{instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_providers_count{instance=~\"$instance\"})) or vector(0)), 1)",
+          "expr": "((sum(spack_dix_build_providers_sum{job=~\"$job\",instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_providers_count{job=~\"$job\",instance=~\"$instance\"})) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1516,7 +1516,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(spack_dix_build_hooks_sum{instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_hooks_count{instance=~\"$instance\"})) or vector(0)), 1)",
+          "expr": "((sum(spack_dix_build_hooks_sum{job=~\"$job\",instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_build_hooks_count{job=~\"$job\",instance=~\"$instance\"})) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1561,7 +1561,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(spack_dix_start_registered_hooks_sum{instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_start_registered_hooks_count{instance=~\"$instance\"})) or vector(0)), 1)",
+          "expr": "((sum(spack_dix_start_registered_hooks_sum{job=~\"$job\",instance=~\"$instance\"})) or vector(0)) / clamp_min(((sum(spack_dix_start_registered_hooks_count{job=~\"$job\",instance=~\"$instance\"})) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1619,7 +1619,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_http_requests_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_http_requests_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1664,7 +1664,7 @@
       },
       "targets": [
         {
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(spack_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))) or vector(0)",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(spack_http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1709,7 +1709,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(rate(spack_http_requests_total{instance=~\"$instance\",status=~\"5..\"}[$__rate_interval]))) or vector(0)) / clamp_min(((sum(rate(spack_http_requests_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)), 1)",
+          "expr": "((sum(rate(spack_http_requests_total{job=~\"$job\",instance=~\"$instance\",status=~\"5..\"}[$__rate_interval]))) or vector(0)) / clamp_min(((sum(rate(spack_http_requests_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1756,7 +1756,7 @@
       },
       "targets": [
         {
-          "expr": "(max(spack_http_requests_in_flight{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(spack_http_requests_in_flight{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -1801,7 +1801,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (instance) (rate(spack_http_requests_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(spack_http_requests_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -1851,7 +1851,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(spack_http_requests_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (status) (rate(spack_http_requests_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -1901,8 +1901,8 @@
       },
       "targets": [
         {
-          "expr": "topk(10, sum by (path) (rate(spack_http_requests_total{instance=~\"$instance\"}[$__rate_interval])))",
-          "legendFormat": "{{path}}",
+          "expr": "topk(10, sum by (route) (rate(spack_http_requests_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "{{route}}",
           "refId": "A"
         }
       ],
@@ -1951,17 +1951,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(spack_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(spack_http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(spack_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(spack_http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(spack_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(spack_http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -2011,7 +2011,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (instance, le) (rate(spack_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (instance, le) (rate(spack_http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -2061,8 +2061,8 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (path, le) (rate(spack_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
-          "legendFormat": "{{path}}",
+          "expr": "histogram_quantile(0.95, sum by (route, le) (rate(spack_http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "{{route}}",
           "refId": "A"
         }
       ],
@@ -2124,7 +2124,7 @@
       },
       "targets": [
         {
-          "expr": "((sum(rate(spack_asset_cache_hits_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)) / clamp_min(((sum(rate(spack_asset_cache_hits_total{instance=~\"$instance\"}[$__rate_interval])) + sum(rate(spack_asset_cache_misses_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)), 1)",
+          "expr": "((sum(rate(spack_asset_cache_hits_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)) / clamp_min(((sum(rate(spack_asset_cache_hits_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) + sum(rate(spack_asset_cache_misses_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)), 1)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2171,7 +2171,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_asset_cache_hits_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_hits_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2216,7 +2216,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_asset_cache_misses_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_misses_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2261,7 +2261,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_http_asset_delivery_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_http_asset_delivery_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2306,7 +2306,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (delivery) (rate(spack_http_asset_delivery_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (delivery) (rate(spack_http_asset_delivery_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{delivery}}",
           "refId": "A"
         }
@@ -2356,7 +2356,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (delivery, le) (rate(spack_http_asset_delivery_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (delivery, le) (rate(spack_http_asset_delivery_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{delivery}}",
           "refId": "A"
         }
@@ -2406,27 +2406,27 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_asset_cache_hits_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_hits_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "hits",
           "refId": "A"
         },
         {
-          "expr": "(sum(rate(spack_asset_cache_misses_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_misses_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "misses",
           "refId": "B"
         },
         {
-          "expr": "(sum(rate(spack_asset_cache_fills_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_fills_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "fills",
           "refId": "C"
         },
         {
-          "expr": "(sum(rate(spack_asset_cache_load_errors_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_load_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "load errors",
           "refId": "D"
         },
         {
-          "expr": "(sum(rate(spack_asset_cache_evictions_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_evictions_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "evictions",
           "refId": "E"
         }
@@ -2476,17 +2476,17 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_asset_cache_fill_bytes_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_fill_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "fill bytes/s",
           "refId": "A"
         },
         {
-          "expr": "(sum(rate(spack_asset_cache_warm_bytes_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_warm_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "warm bytes/s",
           "refId": "B"
         },
         {
-          "expr": "(sum(rate(spack_asset_cache_evicted_bytes_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_asset_cache_evicted_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "evicted bytes/s",
           "refId": "C"
         }
@@ -2549,7 +2549,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(spack_resolver_resolutions_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_resolver_resolutions_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2594,7 +2594,7 @@
       },
       "targets": [
         {
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))) or vector(0)",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2639,7 +2639,7 @@
       },
       "targets": [
         {
-          "expr": "(max(pipeline_queue_length{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(spack_pipeline_queue_length{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2684,7 +2684,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(pipeline_enqueue_dropped_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_pipeline_enqueue_dropped_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -2729,7 +2729,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (result) (rate(spack_resolver_resolutions_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (result) (rate(spack_resolver_resolutions_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{result}}",
           "refId": "A"
         }
@@ -2779,7 +2779,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (kind) (rate(spack_resolver_generation_requests_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (kind) (rate(spack_resolver_generation_requests_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{kind}}",
           "refId": "A"
         }
@@ -2829,17 +2829,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(spack_resolver_resolution_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -2889,12 +2889,12 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (pipeline_queue_length{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_pipeline_queue_length{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} length",
           "refId": "A"
         },
         {
-          "expr": "max by (instance) (pipeline_queue_capacity{instance=~\"$instance\"})",
+          "expr": "max by (instance) (spack_pipeline_queue_capacity{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} capacity",
           "refId": "B"
         }
@@ -2944,12 +2944,12 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(pipeline_enqueue_dropped_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_pipeline_enqueue_dropped_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "dropped",
           "refId": "A"
         },
         {
-          "expr": "(sum(rate(pipeline_enqueue_deduplicated_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_pipeline_enqueue_deduplicated_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "deduplicated",
           "refId": "B"
         }
@@ -2999,7 +2999,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (stage, result) (rate(spack_pipeline_stage_runs_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (stage, result) (rate(spack_pipeline_stage_runs_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{stage}} {{result}}",
           "refId": "A"
         }
@@ -3049,7 +3049,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (stage, result, le) (rate(spack_pipeline_stage_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (stage, result, le) (rate(spack_pipeline_stage_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{stage}} {{result}}",
           "refId": "A"
         }
@@ -3099,12 +3099,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (stage) (rate(spack_pipeline_variants_generated_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (stage) (rate(spack_pipeline_variants_generated_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{stage}} variants/s",
           "refId": "A"
         },
         {
-          "expr": "sum by (stage) (rate(spack_pipeline_variants_generated_bytes_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (stage) (rate(spack_pipeline_variants_generated_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{stage}} bytes/s",
           "refId": "B"
         }
@@ -3154,17 +3154,17 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(pipeline_cleanup_runs_total{instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
+          "expr": "(sum(rate(spack_pipeline_cleanup_runs_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "runs",
           "refId": "A"
         },
         {
-          "expr": "sum by (reason) (rate(pipeline_cleanup_removed_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (reason) (rate(spack_pipeline_cleanup_removed_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{reason}} files",
           "refId": "B"
         },
         {
-          "expr": "sum by (reason) (rate(pipeline_cleanup_removed_bytes_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (reason) (rate(spack_pipeline_cleanup_removed_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{reason}} bytes",
           "refId": "C"
         }
@@ -3227,12 +3227,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (workload, mode, result) (rate(spack_async_batch_runs_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (workload, mode, result) (rate(spack_async_batch_runs_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{workload}} {{mode}} {{result}} runs",
           "refId": "A"
         },
         {
-          "expr": "sum by (workload, mode) (rate(spack_async_batch_items_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (workload, mode) (rate(spack_async_batch_items_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{workload}} {{mode}} items",
           "refId": "B"
         }
@@ -3282,7 +3282,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (workload, mode, result, le) (rate(spack_async_batch_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (workload, mode, result, le) (rate(spack_async_batch_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{workload}} {{mode}} {{result}}",
           "refId": "A"
         }
@@ -3332,12 +3332,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (workload, result) (rate(spack_async_task_submissions_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (workload, result) (rate(spack_async_task_submissions_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{workload}} {{result}} submissions",
           "refId": "A"
         },
         {
-          "expr": "sum by (workload, mode, result) (rate(spack_async_task_runs_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (workload, mode, result) (rate(spack_async_task_runs_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{workload}} {{mode}} {{result}} runs",
           "refId": "B"
         }
@@ -3387,7 +3387,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (workload, mode, result, le) (rate(spack_async_task_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (workload, mode, result, le) (rate(spack_async_task_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{workload}} {{mode}} {{result}}",
           "refId": "A"
         }
@@ -3437,12 +3437,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (event_name, mode, result) (rate(spack_eventx_dispatch_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (event_name, mode, result) (rate(spack_eventx_dispatch_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{event_name}} {{mode}} {{result}} dispatch",
           "refId": "A"
         },
         {
-          "expr": "sum by (event_name, result) (rate(spack_eventx_async_enqueue_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (event_name, result) (rate(spack_eventx_async_enqueue_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{event_name}} {{result}} enqueue",
           "refId": "B"
         }
@@ -3492,12 +3492,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (event_name, mode, result, le) (rate(spack_eventx_dispatch_duration_ms_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (event_name, mode, result, le) (rate(spack_eventx_dispatch_duration_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{event_name}} dispatch",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (event_name, result, le) (rate(spack_eventx_async_enqueue_duration_ms_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (event_name, result, le) (rate(spack_eventx_async_enqueue_duration_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{event_name}} enqueue",
           "refId": "B"
         }
@@ -3560,12 +3560,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (job, event) (rate(spack_task_scheduler_job_events_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (job, event) (rate(spack_task_scheduler_job_events_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{job}} {{event}}",
           "refId": "A"
         },
         {
-          "expr": "sum by (event) (rate(spack_task_scheduler_events_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (event) (rate(spack_task_scheduler_events_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "scheduler {{event}}",
           "refId": "B"
         }
@@ -3615,7 +3615,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance, job) (spack_task_scheduler_jobs_running_current{instance=~\"$instance\"})",
+          "expr": "max by (instance, job) (spack_task_scheduler_jobs_running_current{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} {{job}}",
           "refId": "A"
         }
@@ -3665,12 +3665,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(spack_task_scheduler_job_execution_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(spack_task_scheduler_job_execution_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{job}} execution",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(spack_task_scheduler_job_scheduling_delay_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (job, le) (rate(spack_task_scheduler_job_scheduling_delay_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "{{job}} delay",
           "refId": "B"
         }
@@ -3720,7 +3720,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (job, limit_type) (rate(spack_task_scheduler_concurrency_limit_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (job, limit_type) (rate(spack_task_scheduler_concurrency_limit_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{job}} {{limit_type}}",
           "refId": "A"
         }
@@ -3770,17 +3770,17 @@
       },
       "targets": [
         {
-          "expr": "sum by (kind, result) (rate(spack_health_reports_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (kind, result) (rate(spack_health_reports_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "report {{kind}} {{result}}",
           "refId": "A"
         },
         {
-          "expr": "sum by (kind, check, result) (rate(spack_health_check_runs_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (kind, check, result) (rate(spack_health_check_runs_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "check {{kind}} {{check}} {{result}}",
           "refId": "B"
         },
         {
-          "expr": "sum by (kind, check, result) (rate(spack_dix_health_check_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (kind, check, result) (rate(spack_dix_health_check_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "dix {{kind}} {{check}} {{result}}",
           "refId": "C"
         }
@@ -3830,12 +3830,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (kind, result, le) (rate(spack_health_report_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (kind, result, le) (rate(spack_health_report_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "report {{kind}} {{result}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (kind, check, result, le) (rate(spack_health_check_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (kind, check, result, le) (rate(spack_health_check_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "check {{kind}} {{check}} {{result}}",
           "refId": "B"
         }
@@ -3885,27 +3885,27 @@
       },
       "targets": [
         {
-          "expr": "sum by (result) (rate(spack_dix_build_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (result) (rate(spack_dix_build_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "build {{result}}",
           "refId": "A"
         },
         {
-          "expr": "sum by (result) (rate(spack_dix_start_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (result) (rate(spack_dix_start_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "start {{result}}",
           "refId": "B"
         },
         {
-          "expr": "sum by (result) (rate(spack_dix_stop_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (result) (rate(spack_dix_stop_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "stop {{result}}",
           "refId": "C"
         },
         {
-          "expr": "sum by (result) (rate(spack_dix_start_rollback_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (result) (rate(spack_dix_start_rollback_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "rollback {{result}}",
           "refId": "D"
         },
         {
-          "expr": "sum by (result) (rate(spack_dix_stop_hook_error_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (result) (rate(spack_dix_stop_hook_error_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "stop hook {{result}}",
           "refId": "E"
         }
@@ -3955,22 +3955,22 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(spack_dix_build_duration_ms_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(spack_dix_build_duration_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "build {{result}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(spack_dix_start_duration_ms_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(spack_dix_start_duration_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "start {{result}}",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(spack_dix_stop_duration_ms_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(spack_dix_stop_duration_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "stop {{result}}",
           "refId": "C"
         },
         {
-          "expr": "histogram_quantile(0.95, sum by (kind, check, result, le) (rate(spack_dix_health_check_duration_ms_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (kind, check, result, le) (rate(spack_dix_health_check_duration_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "health {{kind}} {{check}} {{result}}",
           "refId": "D"
         }
@@ -4020,7 +4020,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (from, to) (rate(spack_dix_state_transition_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (from, to) (rate(spack_dix_state_transition_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{from}} -> {{to}}",
           "refId": "A"
         }
@@ -4083,7 +4083,7 @@
       },
       "targets": [
         {
-          "expr": "(max(time() - process_start_time_seconds{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(time() - process_start_time_seconds{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4128,7 +4128,7 @@
       },
       "targets": [
         {
-          "expr": "(max(go_goroutines{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(go_goroutines{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4173,7 +4173,7 @@
       },
       "targets": [
         {
-          "expr": "(max(go_threads{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(go_threads{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4218,7 +4218,7 @@
       },
       "targets": [
         {
-          "expr": "(max(go_sched_gomaxprocs_threads{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(go_sched_gomaxprocs_threads{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4263,7 +4263,7 @@
       },
       "targets": [
         {
-          "expr": "(max(process_resident_memory_bytes{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(process_resident_memory_bytes{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4308,7 +4308,7 @@
       },
       "targets": [
         {
-          "expr": "(max(go_memstats_heap_alloc_bytes{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(go_memstats_heap_alloc_bytes{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4353,7 +4353,7 @@
       },
       "targets": [
         {
-          "expr": "(max(go_memstats_heap_objects{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(go_memstats_heap_objects{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4398,7 +4398,7 @@
       },
       "targets": [
         {
-          "expr": "(max(process_open_fds{instance=~\"$instance\"})) or vector(0)",
+          "expr": "(max(process_open_fds{job=~\"$job\",instance=~\"$instance\"})) or vector(0)",
           "legendFormat": "value",
           "refId": "A",
           "instant": true
@@ -4443,72 +4443,72 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (go_memstats_heap_alloc_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_heap_alloc_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} heap alloc",
           "refId": "A"
         },
         {
-          "expr": "max by (instance) (go_memstats_heap_inuse_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_heap_inuse_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} heap inuse",
           "refId": "B"
         },
         {
-          "expr": "max by (instance) (go_memstats_heap_sys_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_heap_sys_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} heap sys",
           "refId": "C"
         },
         {
-          "expr": "max by (instance) (go_memstats_stack_inuse_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_stack_inuse_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} stack",
           "refId": "D"
         },
         {
-          "expr": "max by (instance) (go_memstats_heap_idle_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_heap_idle_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} heap idle",
           "refId": "E"
         },
         {
-          "expr": "max by (instance) (go_memstats_heap_released_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_heap_released_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} heap released",
           "refId": "F"
         },
         {
-          "expr": "max by (instance) (go_memstats_next_gc_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_next_gc_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} next gc",
           "refId": "G"
         },
         {
-          "expr": "max by (instance) (go_memstats_gc_sys_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_gc_sys_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} gc sys",
           "refId": "H"
         },
         {
-          "expr": "max by (instance) (go_memstats_other_sys_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_other_sys_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} other sys",
           "refId": "I"
         },
         {
-          "expr": "max by (instance) (go_memstats_mcache_inuse_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_mcache_inuse_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} mcache inuse",
           "refId": "J"
         },
         {
-          "expr": "max by (instance) (go_memstats_mspan_inuse_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_mspan_inuse_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} mspan inuse",
           "refId": "K"
         },
         {
-          "expr": "max by (instance) (go_memstats_buck_hash_sys_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_buck_hash_sys_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} bucket hash",
           "refId": "L"
         },
         {
-          "expr": "max by (instance) (go_memstats_stack_sys_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_stack_sys_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} stack sys",
           "refId": "M"
         },
         {
-          "expr": "max by (instance) (go_memstats_sys_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_sys_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} total sys",
           "refId": "N"
         }
@@ -4558,17 +4558,17 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (process_resident_memory_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (process_resident_memory_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} rss",
           "refId": "A"
         },
         {
-          "expr": "max by (instance) (process_virtual_memory_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (process_virtual_memory_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} virtual",
           "refId": "B"
         },
         {
-          "expr": "max by (instance) (process_virtual_memory_max_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (process_virtual_memory_max_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} virtual max",
           "refId": "C"
         }
@@ -4618,17 +4618,17 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (go_goroutines{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_goroutines{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} goroutines",
           "refId": "A"
         },
         {
-          "expr": "max by (instance) (go_threads{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_threads{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} threads",
           "refId": "B"
         },
         {
-          "expr": "max by (instance) (go_sched_gomaxprocs_threads{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_sched_gomaxprocs_threads{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} gomaxprocs",
           "refId": "C"
         }
@@ -4678,17 +4678,17 @@
       },
       "targets": [
         {
-          "expr": "sum by (instance) (rate(process_cpu_seconds_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(process_cpu_seconds_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{instance}} cpu cores",
           "refId": "A"
         },
         {
-          "expr": "max by (instance) (process_open_fds{instance=~\"$instance\"})",
+          "expr": "max by (instance) (process_open_fds{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} open fds",
           "refId": "B"
         },
         {
-          "expr": "max by (instance) (process_max_fds{instance=~\"$instance\"})",
+          "expr": "max by (instance) (process_max_fds{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} max fds",
           "refId": "C"
         }
@@ -4738,7 +4738,7 @@
       },
       "targets": [
         {
-          "expr": "go_gc_duration_seconds{instance=~\"$instance\",quantile=~\"0|0.5|0.75|1\"}",
+          "expr": "go_gc_duration_seconds{job=~\"$job\",instance=~\"$instance\",quantile=~\"0|0.5|0.75|1\"}",
           "legendFormat": "{{instance}} q{{quantile}}",
           "refId": "A"
         }
@@ -4788,17 +4788,17 @@
       },
       "targets": [
         {
-          "expr": "sum by (instance) (rate(go_memstats_alloc_bytes_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(go_memstats_alloc_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{instance}} allocated bytes/s",
           "refId": "A"
         },
         {
-          "expr": "sum by (instance) (rate(go_memstats_mallocs_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(go_memstats_mallocs_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{instance}} mallocs/s",
           "refId": "B"
         },
         {
-          "expr": "sum by (instance) (rate(go_memstats_frees_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(go_memstats_frees_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{instance}} frees/s",
           "refId": "C"
         }
@@ -4848,7 +4848,7 @@
       },
       "targets": [
         {
-          "expr": "go_info{instance=~\"$instance\"}",
+          "expr": "go_info{job=~\"$job\",instance=~\"$instance\"}",
           "legendFormat": "{{instance}} {{version}}",
           "refId": "A",
           "instant": true
@@ -4893,7 +4893,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (go_gc_gogc_percent{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_gc_gogc_percent{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -4938,7 +4938,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (go_gc_gomemlimit_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_gc_gomemlimit_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -4983,7 +4983,7 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (go_memstats_last_gc_time_seconds{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_last_gc_time_seconds{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}}",
           "refId": "A",
           "instant": true
@@ -5028,17 +5028,17 @@
       },
       "targets": [
         {
-          "expr": "(sum by (instance) (spack_dix_build_setups_sum{instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_dix_build_setups_count{instance=~\"$instance\"}), 1)",
+          "expr": "(sum by (instance) (spack_dix_build_setups_sum{job=~\"$job\",instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_dix_build_setups_count{job=~\"$job\",instance=~\"$instance\"}), 1)",
           "legendFormat": "{{instance}} setups",
           "refId": "A"
         },
         {
-          "expr": "(sum by (instance) (spack_dix_build_invokes_sum{instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_dix_build_invokes_count{instance=~\"$instance\"}), 1)",
+          "expr": "(sum by (instance) (spack_dix_build_invokes_sum{job=~\"$job\",instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_dix_build_invokes_count{job=~\"$job\",instance=~\"$instance\"}), 1)",
           "legendFormat": "{{instance}} invokes",
           "refId": "B"
         },
         {
-          "expr": "(sum by (instance) (spack_dix_start_completed_hooks_sum{instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_dix_start_completed_hooks_count{instance=~\"$instance\"}), 1)",
+          "expr": "(sum by (instance) (spack_dix_start_completed_hooks_sum{job=~\"$job\",instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_dix_start_completed_hooks_count{job=~\"$job\",instance=~\"$instance\"}), 1)",
           "legendFormat": "{{instance}} completed start hooks",
           "refId": "C"
         }
@@ -5088,17 +5088,17 @@
       },
       "targets": [
         {
-          "expr": "max by (instance) (go_gc_gogc_percent{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_gc_gogc_percent{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} GOGC",
           "refId": "A"
         },
         {
-          "expr": "max by (instance) (go_gc_gomemlimit_bytes{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_gc_gomemlimit_bytes{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} GOMEMLIMIT",
           "refId": "B"
         },
         {
-          "expr": "max by (instance) (go_memstats_last_gc_time_seconds{instance=~\"$instance\"})",
+          "expr": "max by (instance) (go_memstats_last_gc_time_seconds{job=~\"$job\",instance=~\"$instance\"})",
           "legendFormat": "{{instance}} last GC",
           "refId": "C"
         }
@@ -5138,6 +5138,484 @@
         "x": 12,
         "y": 238
       }
+    },
+    {
+      "id": 109,
+      "type": "row",
+      "title": "Stable - Runtime Startup, Source, Prepared Snapshot",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 246
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Server Readiness by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance, state) (spack_server_readiness_current{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} {{state}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "0",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 110,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 247
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Server Startup Phase by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance, phase) (spack_server_startup_phase_current{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} {{phase}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "0",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 111,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 247
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Startup / Catalog Scan Duration by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (spack_server_startup_duration_seconds{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} startup",
+          "refId": "A"
+        },
+        {
+          "expr": "max by (instance) (spack_catalog_scan_duration_seconds{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} catalog scan",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 112,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 255
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Source Mode by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance, mode) (spack_source_mode_current{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} {{mode}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "0",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 113,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 255
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Bundle Extraction Duration by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (spack_source_bundle_extraction_duration_seconds{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 114,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 263
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Bundle Extraction Size by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (spack_source_bundle_extraction_files{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} files",
+          "refId": "A"
+        },
+        {
+          "expr": "max by (instance) (spack_source_bundle_extraction_bytes{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} bytes",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 115,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 263
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prepared Snapshot Shape by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (spack_prepared_snapshot_routes_current{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} routes",
+          "refId": "A"
+        },
+        {
+          "expr": "max by (instance) (spack_prepared_snapshot_responses_current{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} responses",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "0",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 116,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 271
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prepared Snapshot Duration by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (spack_prepared_snapshot_duration_seconds{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 117,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 271
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache Warmup Duration by Instance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "(sum by (instance) (spack_asset_cache_warmup_duration_seconds_sum{job=~\"$job\",instance=~\"$instance\"})) / clamp_min(sum by (instance) (spack_asset_cache_warmup_duration_seconds_count{job=~\"$job\",instance=~\"$instance\"}), 1)",
+          "legendFormat": "{{instance}} avg",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 118,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 279
+      }
     }
   ],
   "refresh": "10s",
@@ -5163,6 +5641,34 @@
         }
       },
       {
+        "name": "job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "label": "Job",
+        "definition": "label_values(spack_build_info, job)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(spack_build_info, job)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        }
+      },
+      {
         "name": "instance",
         "type": "query",
         "datasource": {
@@ -5174,10 +5680,10 @@
         "allValue": ".*",
         "multi": true,
         "label": "Instance",
-        "definition": "label_values(spack_build_info, instance)",
+        "definition": "label_values(spack_build_info{job=~\"$job\"}, instance)",
         "query": {
           "qryType": 1,
-          "query": "label_values(spack_build_info, instance)",
+          "query": "label_values(spack_build_info{job=~\"$job\"}, instance)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "current": {

@@ -2,7 +2,9 @@
 FROM golang:1.26.4-bookworm AS build
 
 ARG TARGETARCH=amd64
+ARG GOPROXY=https://goproxy.cn,direct
 ENV DEBIAN_FRONTEND=noninteractive
+ENV GOPROXY=${GOPROXY}
 
 WORKDIR /src
 
@@ -20,14 +22,14 @@ FROM debian@sha256:34363c20bd149e41365fc77b086da067ed13ab2dff4cd0612788e12e6d52c
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /opt
+WORKDIR /workspace
 
 RUN apt-get -o Acquire::Retries=5 update \
     && apt-get -o Acquire::Retries=5 install -y --no-install-recommends ca-certificates libvips42 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build --chmod=755 /out/spack-compiler /opt/spack-compiler
+COPY --from=build --chmod=755 /out/spack-compiler /usr/local/bin/spack-compiler
 
 USER 65532:65532
 
-ENTRYPOINT ["/opt/spack-compiler"]
+ENTRYPOINT ["spack-compiler"]

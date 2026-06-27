@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
@@ -65,11 +66,12 @@ func (c *Cache) WarmSelected(ctx context.Context, cat catalog.Catalog) (WarmStat
 		return WarmStats{}, nil
 	}
 
+	startedAt := time.Now()
 	stats := WarmStats{}
 	if err := c.warmAssets(ctx, cat, &stats); err != nil {
 		return WarmStats{}, oops.Wrapf(err, "warm selected memory cache")
 	}
-	c.recordWarmStats(ctx, stats)
+	c.recordWarmStats(ctx, stats, time.Since(startedAt))
 	return stats, nil
 }
 
@@ -78,11 +80,12 @@ func (c *Cache) Warm(ctx context.Context, cat catalog.Catalog) (WarmStats, error
 		return WarmStats{}, nil
 	}
 
+	startedAt := time.Now()
 	stats := WarmStats{}
 	if err := c.warmAssets(ctx, cat, &stats); err != nil {
 		return WarmStats{}, oops.Wrapf(err, "warm memory cache")
 	}
-	c.recordWarmStats(ctx, stats)
+	c.recordWarmStats(ctx, stats, time.Since(startedAt))
 
 	return stats, nil
 }

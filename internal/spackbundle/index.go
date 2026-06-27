@@ -15,8 +15,6 @@ import (
 const (
 	// IndexPath is the reserved path of the binary bundle index inside a SPACK archive.
 	IndexPath = ".spack/index.bin"
-	// FormatVersion is the current SPACK bundle format version.
-	FormatVersion = "spack.io/aot/v1alpha1"
 )
 
 var indexMagic = []byte("SPACKIDX\x00")
@@ -34,6 +32,7 @@ type IndexFile struct {
 	Path       string `json:"path"`
 	Kind       string `json:"kind"`
 	Size       int64  `json:"size"`
+	SHA256     string `json:"sha256"`
 	MediaType  string `json:"media_type,omitempty"`
 	SourceHash string `json:"source_hash,omitempty"`
 	ETag       string `json:"etag,omitempty"`

@@ -1,11 +1,10 @@
 package spackbundle
 
 import (
-	"archive/zip"
+	"bytes"
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/samber/oops"
 )
@@ -13,8 +12,6 @@ import (
 // Reader is a closeable handle for reading files from one SPACK bundle.
 type Reader struct {
 	path        string
-	archive     *zip.ReadCloser
-	files       map[string]*zip.File
 	index       Index
 	indexLoaded bool
 }
@@ -25,21 +22,16 @@ type FileStat struct {
 	Size uint64
 }
 
-// OpenReader opens a SPACK bundle once and indexes its zip entries by bundle path.
+// OpenReader opens a SPACK bundle handle.
 func OpenReader(bundlePath string) (*Reader, error) {
 	absolute, err := normalizedBundlePath(bundlePath)
 	if err != nil {
 		return nil, err
 	}
-	archive, err := zip.OpenReader(absolute)
-	if err != nil {
-		return nil, oops.Wrapf(err, "open bundle")
+	if err := checkBundleMagic(absolute); err != nil {
+		return nil, err
 	}
-	return &Reader{
-		path:    absolute,
-		archive: archive,
-		files:   indexZipFiles(archive.File),
-	}, nil
+	return &Reader{path: absolute}, nil
 }
 
 // Path returns the normalized absolute bundle path.
@@ -50,15 +42,8 @@ func (r *Reader) Path() string {
 	return r.path
 }
 
-// Close closes the underlying bundle archive.
+// Close closes the bundle handle.
 func (r *Reader) Close() error {
-	if r == nil || r.archive == nil {
-		return nil
-	}
-	if err := r.archive.Close(); err != nil {
-		return oops.Wrapf(err, "close bundle")
-	}
-	r.archive = nil
 	return nil
 }
 
@@ -70,16 +55,18 @@ func (r *Reader) Index() (Index, error) {
 	if r.indexLoaded {
 		return r.index, nil
 	}
-	file, ok := r.files[IndexPath]
-	if !ok {
-		return Index{}, oops.Errorf("bundle index %q was not found", IndexPath)
-	}
-	body, err := readZipFile(file, IndexPath)
+	body, err := readBundleEntry(r.path, IndexPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return Index{}, oops.Errorf("bundle index %q was not found", IndexPath)
+		}
 		return Index{}, err
 	}
 	index, err := unmarshalIndex(body)
 	if err != nil {
+		return Index{}, err
+	}
+	if err := validateIndex(index); err != nil {
 		return Index{}, err
 	}
 	r.index = index
@@ -89,63 +76,84 @@ func (r *Reader) Index() (Index, error) {
 
 // ReadFile reads one file from the bundle.
 func (r *Reader) ReadFile(filePath string) ([]byte, error) {
-	file, cleanPath, err := r.lookupFile(filePath)
+	cleanPath, expected, err := r.lookupIndexFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	return readZipFile(file, cleanPath)
+	body, err := readBundleEntry(r.path, cleanPath)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyBody(expected, body); err != nil {
+		return nil, err
+	}
+	return body, nil
 }
 
 // OpenFile opens one file from the bundle. The caller must close the returned reader.
 func (r *Reader) OpenFile(filePath string) (io.ReadCloser, error) {
-	file, cleanPath, err := r.lookupFile(filePath)
+	body, err := r.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	source, err := file.Open()
-	if err != nil {
-		return nil, oops.Wrapf(err, "open bundle file %q", cleanPath)
-	}
-	return source, nil
+	return io.NopCloser(bytes.NewReader(body)), nil
 }
 
 // Stat returns size metadata for one bundle file.
 func (r *Reader) Stat(filePath string) (FileStat, error) {
-	file, cleanPath, err := r.lookupFile(filePath)
+	cleanPath, file, err := r.lookupIndexFile(filePath)
 	if err != nil {
 		return FileStat{}, err
 	}
-	return FileStat{
-		Path: cleanPath,
-		Size: file.UncompressedSize64,
-	}, nil
+	if file.Size < 0 {
+		return FileStat{}, oops.Errorf("bundle file %q has negative size", cleanPath)
+	}
+	return FileStat{Path: cleanPath, Size: uint64(file.Size)}, nil
 }
 
-func (r *Reader) lookupFile(filePath string) (*zip.File, string, error) {
+func (r *Reader) lookupIndexFile(filePath string) (string, IndexFile, error) {
 	if r == nil {
-		return nil, "", oops.In("spackbundle").Owner("reader").Wrap(errors.New("bundle reader is nil"))
+		return "", IndexFile{}, oops.In("spackbundle").Owner("reader").Wrap(errors.New("bundle reader is nil"))
 	}
 	cleanPath, err := cleanBundlePath(filePath)
 	if err != nil {
-		return nil, "", err
+		return "", IndexFile{}, err
 	}
-	file, ok := r.files[cleanPath]
+	index, err := r.Index()
+	if err != nil {
+		return "", IndexFile{}, err
+	}
+	file, ok := indexFileMap(index)[cleanPath]
 	if !ok {
-		return nil, "", os.ErrNotExist
+		return "", IndexFile{}, os.ErrNotExist
 	}
-	return file, cleanPath, nil
+	return cleanPath, file, nil
 }
 
-func indexZipFiles(files []*zip.File) map[string]*zip.File {
-	indexed := make(map[string]*zip.File, len(files))
-	for _, file := range files {
-		if file == nil {
+func readBundleEntry(bundlePath, filePath string) ([]byte, error) {
+	stream, err := openBundleStream(bundlePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		discardError(stream.Close())
+	}()
+
+	for {
+		header, err := stream.tarReader.Next()
+		if errors.Is(err, io.EOF) {
+			return nil, os.ErrNotExist
+		}
+		if err != nil {
+			return nil, oops.Wrapf(err, "read bundle tar entry")
+		}
+		path, err := cleanTarEntryPath(header)
+		if err != nil {
+			return nil, err
+		}
+		if path != filePath {
 			continue
 		}
-		name := filepath.ToSlash(file.Name)
-		if _, exists := indexed[name]; !exists {
-			indexed[name] = file
-		}
+		return readTarEntryBody(stream.tarReader, header, path)
 	}
-	return indexed
 }

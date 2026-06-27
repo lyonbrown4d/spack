@@ -19,7 +19,7 @@ var Module = dix.NewModule("server",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),
 		dix.Provider2(newResourceHintService),
-		dix.Provider5(newPreparedService),
+		dix.Provider6(newPreparedService),
 		dix.Provider4(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
 		dix.Provider4(newDiagnosticsRoutesRuntime),

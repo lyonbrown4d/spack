@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
@@ -25,11 +26,12 @@ var (
 )
 
 type LocalFS struct {
-	root        string
-	rootInfo    fs.FileInfo
-	logger      *slog.Logger
-	bundle      *bundleSource
-	cleanupRoot string
+	root                     string
+	rootInfo                 fs.FileInfo
+	logger                   *slog.Logger
+	bundle                   *bundleSource
+	cleanupRoot              string
+	bundleExtractionDuration time.Duration
 }
 
 func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
@@ -49,10 +51,11 @@ func (s *LocalFS) Cleanup() error {
 }
 
 type resolvedLocalFSRoot struct {
-	root        string
-	info        fs.FileInfo
-	bundle      *bundleSource
-	cleanupRoot string
+	root                     string
+	info                     fs.FileInfo
+	bundle                   *bundleSource
+	cleanupRoot              string
+	bundleExtractionDuration time.Duration
 }
 
 func resolveLocalFSResolvedRoot(resolved Resolved) (resolvedLocalFSRoot, error) {
@@ -67,7 +70,9 @@ func resolveLocalFSResolvedRoot(resolved Resolved) (resolvedLocalFSRoot, error) 
 }
 
 func resolveLocalFSBundleRoot(root string) (resolvedLocalFSRoot, error) {
+	startedAt := time.Now()
 	extracted, err := spackbundle.ExtractReadOnly(context.Background(), root)
+	extractionDuration := time.Since(startedAt)
 	if err != nil {
 		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(err)
 	}
@@ -84,6 +89,7 @@ func resolveLocalFSBundleRoot(root string) (resolvedLocalFSRoot, error) {
 	}
 	resolved.bundle = bundle
 	resolved.cleanupRoot = extracted.Root
+	resolved.bundleExtractionDuration = extractionDuration
 	return resolved, nil
 }
 

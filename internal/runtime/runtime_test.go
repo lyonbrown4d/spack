@@ -1,18 +1,26 @@
 package runtime_test
 
 import (
-	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/lyonbrown4d/spack/internal/assetcache"
-	"github.com/lyonbrown4d/spack/internal/catalog"
-	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/runtime"
-	"github.com/lyonbrown4d/spack/internal/source"
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	cxmapping "github.com/arcgolabs/collectionx/mapping"
+	"github.com/lyonbrown4d/spack/internal/assetcache"
+	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/contentcoding"
+	"github.com/lyonbrown4d/spack/internal/runtime"
+	"github.com/lyonbrown4d/spack/internal/server"
+	"github.com/lyonbrown4d/spack/internal/source"
+	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func TestBuildCatalogAssetSetsHashETagAndMtime(t *testing.T) {
@@ -92,6 +100,108 @@ func TestCatalogReadyAttrsIncludeCacheAndCompressionState(t *testing.T) {
 	assertCountAttr(t, attrMap, "variant_encodings", "br", 1)
 }
 
+func TestHTTPListenConfigDisablesPrefork(t *testing.T) {
+	listenCfg := runtime.MainHTTPListenConfigForTest()
+	if listenCfg.EnablePrefork {
+		t.Fatal("expected prefork to be disabled")
+	}
+	if !listenCfg.DisableStartupMessage {
+		t.Fatal("expected startup message to stay disabled")
+	}
+}
+
+func TestBootstrapCatalogRecordsAOTStartupMetrics(t *testing.T) {
+	assetRoot := t.TempDir()
+	indexBody := []byte("<h1>ok</h1>")
+	appBody := []byte("console.log('ok');")
+	indexPath := filepath.Join(assetRoot, "index.html")
+	appPath := filepath.Join(assetRoot, "assets", "app.js")
+	writeRuntimeTestFile(t, indexPath, indexBody)
+	writeRuntimeTestFile(t, appPath, appBody)
+
+	bundlePath := filepath.Join(t.TempDir(), "app.spack")
+	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+		Output: bundlePath,
+		Root:   assetRoot,
+		Files: []spackbundle.File{
+			{Path: "index.html", FullPath: indexPath, Kind: "asset", MediaType: "text/html"},
+			{Path: "assets/app.js", FullPath: appPath, Kind: "asset", MediaType: "text/javascript"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.DefaultConfigForTest()
+	cfg.Assets.Root = bundlePath
+	cfg.HTTP.MemoryCache.Warmup = false
+	logger := slog.New(slog.DiscardHandler)
+	src, err := source.NewLocalFS(&cfg.Assets, logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := src.Cleanup(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	cat := catalog.NewInMemoryCatalog()
+	catMetrics := catalog.NewRuntimeMetrics()
+	serverMetrics := server.NewRuntimeMetrics()
+	bodyCache := assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger)
+	prepared := server.NewPreparedServiceWithRuntimeMetricsForTest(&cfg, logger, cat, serverMetrics)
+	scanner := sourcecatalog.NewScannerWithAssets(
+		src,
+		contentcoding.NewRegistry(contentcoding.Options{}, cfg.Compression.NormalizedEncodings()),
+		&cfg.Assets,
+	)
+
+	if err := runtime.BootstrapCatalogForTest(context.Background(), &cfg, scanner, cat, catMetrics, serverMetrics, bodyCache, prepared, logger); err != nil {
+		t.Fatal(err)
+	}
+
+	assertRuntimeStartupMetrics(t, catMetrics, serverMetrics, len(indexBody)+len(appBody))
+}
+
+func assertRuntimeStartupMetrics(
+	t *testing.T,
+	catMetrics *catalog.RuntimeMetrics,
+	serverMetrics *server.RuntimeMetrics,
+	wantBytes int,
+) {
+	t.Helper()
+	assertGaugeEqual(t, catMetrics.SourceMode.WithLabelValues("aot"), 1, "aot source mode")
+	assertGaugeEqual(t, catMetrics.SourceBundleExtractionFiles, 2, "extracted bundle files")
+	assertGaugeEqual(t, catMetrics.SourceBundleExtractionBytes, float64(wantBytes), "extracted bundle bytes")
+	assertGaugeEqual(t, catMetrics.AssetsCurrent, 2, "catalog assets")
+	assertGaugeAtLeastZero(t, catMetrics.CatalogScanDuration, "catalog scan duration")
+	assertGaugePositive(t, serverMetrics.StartupDuration, "startup duration")
+	assertGaugeEqual(t, serverMetrics.StartupPhase.WithLabelValues("ready"), 1, "ready startup phase")
+	assertGaugeEqual(t, serverMetrics.Readiness.WithLabelValues("ready"), 1, "ready readiness")
+	assertGaugeEqual(t, serverMetrics.PreparedSnapshotRoutesCurrent, 2, "prepared routes")
+	assertGaugeAtLeastZero(t, serverMetrics.PreparedSnapshotDuration, "prepared snapshot duration")
+}
+
+func assertGaugeEqual(t *testing.T, collector prometheus.Collector, want float64, label string) {
+	t.Helper()
+	if got := testutil.ToFloat64(collector); got != want {
+		t.Fatalf("expected %s gauge %v, got %v", label, want, got)
+	}
+}
+
+func assertGaugePositive(t *testing.T, collector prometheus.Collector, label string) {
+	t.Helper()
+	if got := testutil.ToFloat64(collector); got <= 0 {
+		t.Fatalf("expected %s to be recorded, got %v", label, got)
+	}
+}
+
+func assertGaugeAtLeastZero(t *testing.T, collector prometheus.Collector, label string) {
+	t.Helper()
+	if got := testutil.ToFloat64(collector); got < 0 {
+		t.Fatalf("expected %s to be non-negative, got %v", label, got)
+	}
+}
 func assertCountAttr(t *testing.T, attrs *cxmapping.Map[string, any], attrKey, countKey string, want int) {
 	t.Helper()
 
@@ -108,12 +218,12 @@ func assertCountAttr(t *testing.T, attrs *cxmapping.Map[string, any], attrKey, c
 	}
 }
 
-func TestHTTPListenConfigDisablesPrefork(t *testing.T) {
-	listenCfg := runtime.MainHTTPListenConfigForTest()
-	if listenCfg.EnablePrefork {
-		t.Fatal("expected prefork to be disabled")
+func writeRuntimeTestFile(t *testing.T, path string, body []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
 	}
-	if !listenCfg.DisableStartupMessage {
-		t.Fatal("expected startup message to stay disabled")
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
 	}
 }

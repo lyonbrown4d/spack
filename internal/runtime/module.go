@@ -35,6 +35,7 @@ var Module = dix.NewModule("runtime",
 				dix.TypedService[sourcecatalog.Scanner](),
 				dix.TypedService[catalog.Catalog](),
 				dix.TypedService[*catalog.RuntimeMetrics](),
+				dix.TypedService[*server.RuntimeMetrics](),
 				dix.TypedService[*assetcache.Cache](),
 				dix.TypedService[*server.PreparedService](),
 				dix.TypedService[*slog.Logger](),
@@ -55,13 +56,14 @@ var Module = dix.NewModule("runtime",
 )
 
 type catalogBootstrapRuntime struct {
-	cfg        *config.Config          `do:""`
-	scanner    sourcecatalog.Scanner   `do:""`
-	cat        catalog.Catalog         `do:""`
-	catMetrics *catalog.RuntimeMetrics `do:""`
-	bodyCache  *assetcache.Cache       `do:""`
-	prepared   *server.PreparedService `do:""`
-	logger     *slog.Logger            `do:""`
+	cfg           *config.Config          `do:""`
+	scanner       sourcecatalog.Scanner   `do:""`
+	cat           catalog.Catalog         `do:""`
+	catMetrics    *catalog.RuntimeMetrics `do:""`
+	serverMetrics *server.RuntimeMetrics  `do:""`
+	bodyCache     *assetcache.Cache       `do:""`
+	prepared      *server.PreparedService `do:""`
+	logger        *slog.Logger            `do:""`
 }
 
 type mainHTTPRuntime struct {

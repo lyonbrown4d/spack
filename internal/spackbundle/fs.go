@@ -1,11 +1,12 @@
 package spackbundle
 
 import (
-	"archive/zip"
+	"archive/tar"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/samber/oops"
 )
 
@@ -16,9 +17,16 @@ func cleanupTempBundle(path string, committed *bool) {
 	discardError(os.Remove(path))
 }
 
-func closeBundleWriters(zipWriter *zip.Writer, temp *os.File, err error) error {
-	if closeErr := zipWriter.Close(); closeErr != nil {
-		err = oops.Join(err, oops.Wrapf(closeErr, "close bundle zip writer"))
+func closeBundleWriters(tarWriter *tar.Writer, zstdWriter *zstd.Encoder, temp *os.File, err error) error {
+	if closeErr := tarWriter.Close(); closeErr != nil {
+		err = oops.Join(err, oops.Wrapf(closeErr, "close bundle tar writer"))
+	}
+	return closeBundleZstdWriter(zstdWriter, temp, err)
+}
+
+func closeBundleZstdWriter(zstdWriter *zstd.Encoder, temp *os.File, err error) error {
+	if closeErr := zstdWriter.Close(); closeErr != nil {
+		err = oops.Join(err, oops.Wrapf(closeErr, "close bundle zstd writer"))
 	}
 	return closeBundleFile(temp, err)
 }

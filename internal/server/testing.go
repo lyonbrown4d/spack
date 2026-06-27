@@ -148,9 +148,17 @@ func NewPreparedServiceForTest(
 	logger *slog.Logger,
 	cat catalog.Catalog,
 ) *PreparedService {
-	return newPreparedService(cfg, cat, logger, newResourceHintService(&cfg.Frontend, logger), nil)
+	return newPreparedService(cfg, cat, logger, newResourceHintService(&cfg.Frontend, logger), nil, nil)
 }
 
+func NewPreparedServiceWithRuntimeMetricsForTest(
+	cfg *config.Config,
+	logger *slog.Logger,
+	cat catalog.Catalog,
+	metrics *RuntimeMetrics,
+) *PreparedService {
+	return newPreparedService(cfg, cat, logger, newResourceHintService(&cfg.Frontend, logger), nil, metrics)
+}
 func ResolvePreparedForTest(
 	svc *PreparedService,
 	request resolver.Request,

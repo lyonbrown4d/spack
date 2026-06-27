@@ -102,6 +102,13 @@ func (s Scanner) SidecarMatchers() *cxlist.List[SidecarMatcher] {
 	})
 }
 
+func (s Scanner) SourceStats() source.Stats {
+	if s.src == nil {
+		return source.Stats{Mode: source.SourceModeUnknown}
+	}
+	return s.src.Stats()
+}
+
 func (s Scanner) Watch(ctx context.Context) (<-chan source.ChangeEvent, error) {
 	changes, err := s.src.Watch(ctx)
 	if err != nil {
