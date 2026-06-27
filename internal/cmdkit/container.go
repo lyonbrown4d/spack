@@ -11,6 +11,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/metrics"
 	"github.com/lyonbrown4d/spack/internal/runtime"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/lyonbrown4d/spack/internal/task"
 	"github.com/lyonbrown4d/spack/internal/validation"
 	"github.com/samber/oops"
@@ -19,7 +20,7 @@ import (
 const dixRecentEventCapacity = 128
 
 func CreateContainer(loadOptions config.LoadOptions, userModules ...dix.Module) (*dix.App, error) {
-	allModules := cxlist.NewListWithCapacity[dix.Module](9 + len(userModules))
+	allModules := cxlist.NewListWithCapacity[dix.Module](10 + len(userModules))
 	allModules.Add(appmeta.Module,
 		validation.Module,
 		mapx.Module,
@@ -27,6 +28,7 @@ func CreateContainer(loadOptions config.LoadOptions, userModules ...dix.Module) 
 		spacklogger.Module,
 		metrics.Module,
 		catalog.Module,
+		spackbundle.Module,
 		runtime.Module,
 		task.Module,
 	)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
+	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/samber/oops"
@@ -138,15 +139,15 @@ func resizeLibvipsImage(source *vips.ImageRef, sourceWidth, width int) (*vips.Im
 }
 
 func closeLibvipsPyramid(pyramid map[int]*vips.ImageRef, source *vips.ImageRef) {
-	closed := map[*vips.ImageRef]struct{}{source: {}}
+	closed := cxset.NewSet[*vips.ImageRef](source)
 	for _, image := range pyramid {
 		if image == nil {
 			continue
 		}
-		if _, ok := closed[image]; ok {
+		if closed.Contains(image) {
 			continue
 		}
-		closed[image] = struct{}{}
+		closed.Add(image)
 		image.Close()
 	}
 }

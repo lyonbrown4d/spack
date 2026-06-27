@@ -36,9 +36,8 @@ type Service struct {
 	sf             singleflight.Group
 	pending        *cxset.ConcurrentSet[string]
 
-	cleanupMu   sync.Mutex
-	cleanupStop chan struct{}
-	cleanupDone chan struct{}
+	cleanupMu sync.Mutex
+	cleanup   *cleanupRuntime
 
 	variantHits *cxmapping.ConcurrentMap[string, time.Time]
 	warmWorkers *asyncx.Settings

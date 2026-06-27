@@ -134,9 +134,8 @@ func (s *Service) startCleanupIfNeeded(ctx context.Context) {
 	}
 
 	interval := s.cfg.ParsedCleanupInterval()
-	s.cleanupStop = make(chan struct{})
-	s.cleanupDone = make(chan struct{})
-	go s.cleanupLoop(ctx, interval)
+	s.cleanup = newCleanupRuntime(interval, s.cleanupOnce)
+	s.cleanup.Start(ctx)
 	s.logger.Info("Pipeline cleanup enabled",
 		slog.String("interval", interval.String()),
 		slog.String("max_age", s.artifactPolicy.DefaultMaxAge().String()),
@@ -161,17 +160,14 @@ func (s *Service) stop(ctx context.Context) error {
 }
 
 func (s *Service) stopCleanup(ctx context.Context) error {
-	if s.cleanupStop == nil {
+	if s.cleanup == nil {
 		return nil
 	}
-
-	close(s.cleanupStop)
-	select {
-	case <-s.cleanupDone:
-		return nil
-	case <-ctx.Done():
-		return oops.Wrapf(ctx.Err(), "wait for cleanup shutdown")
+	if err := s.cleanup.Stop(ctx); err != nil {
+		return err
 	}
+	s.cleanup = nil
+	return nil
 }
 
 func (s *Service) executeStageTask(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) *catalog.Variant {

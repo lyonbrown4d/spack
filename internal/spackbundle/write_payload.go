@@ -10,8 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
+	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/samber/oops"
-	"golang.org/x/sync/errgroup"
 )
 
 type bundleFilePayload struct {
@@ -61,20 +62,19 @@ func writeBundleFiles(ctx context.Context, zipWriter *zip.Writer, files []File) 
 
 func prepareBundleFilePayloads(ctx context.Context, files []File) ([]bundleFilePayload, int64, error) {
 	payloads := make([]bundleFilePayload, len(files))
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(bundleFileParallelism(len(files)))
+	indexes := cxlist.NewListWithCapacity[int](len(files))
 	for index := range files {
-		fileIndex := index
-		group.Go(func() error {
-			payload, err := prepareBundleFilePayload(groupCtx, files[fileIndex])
-			if err != nil {
-				return err
-			}
-			payloads[fileIndex] = payload
-			return nil
-		})
+		indexes.Add(index)
 	}
-	if err := group.Wait(); err != nil {
+	settings := &asyncx.Settings{Size: bundleFileParallelism(len(files))}
+	if err := asyncx.RunList(ctx, nil, settings, "spack_bundle_compress", indexes, func(runCtx context.Context, fileIndex int) error {
+		payload, err := prepareBundleFilePayload(runCtx, files[fileIndex])
+		if err != nil {
+			return err
+		}
+		payloads[fileIndex] = payload
+		return nil
+	}); err != nil {
 		cleanupBundleFilePayloads(payloads)
 		return nil, 0, oops.Wrapf(err, "prepare bundle files")
 	}

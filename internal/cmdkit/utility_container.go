@@ -16,6 +16,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/pipeline"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
+	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/lyonbrown4d/spack/internal/validation"
 	"github.com/samber/oops"
 )
@@ -63,6 +64,7 @@ func ResolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {
 		contentcoding.Module,
 		source.Module,
 		sourcecatalog.Module,
+		spackbundle.Module,
 	)
 	if err != nil {
 		return sourcecatalog.Scanner{}, err
@@ -75,9 +77,10 @@ func ResolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {
 }
 
 type CompilerRuntime struct {
-	Scanner  sourcecatalog.Scanner
-	Catalog  catalog.Catalog
-	Pipeline *pipeline.Service
+	Scanner      sourcecatalog.Scanner
+	Catalog      catalog.Catalog
+	Pipeline     *pipeline.Service
+	BundleWriter spackbundle.BundleWriter
 }
 
 func ResolveCompilerWithDix(cfg *config.Config) (CompilerRuntime, error) {
@@ -92,6 +95,7 @@ func ResolveCompilerWithDix(cfg *config.Config) (CompilerRuntime, error) {
 		contentcoding.Module,
 		source.Module,
 		sourcecatalog.Module,
+		spackbundle.Module,
 		artifact.Module,
 		pipeline.Module,
 	)
@@ -110,10 +114,15 @@ func ResolveCompilerWithDix(cfg *config.Config) (CompilerRuntime, error) {
 	if err != nil {
 		return CompilerRuntime{}, oops.Wrapf(err, "resolve compiler pipeline")
 	}
+	bundleWriter, err := dix.ResolveAs[spackbundle.BundleWriter](rt.Container())
+	if err != nil {
+		return CompilerRuntime{}, oops.Wrapf(err, "resolve bundle writer")
+	}
 	return CompilerRuntime{
-		Scanner:  scanner,
-		Catalog:  cat,
-		Pipeline: pipelineSvc,
+		Scanner:      scanner,
+		Catalog:      cat,
+		Pipeline:     pipelineSvc,
+		BundleWriter: bundleWriter,
 	}, nil
 }
 

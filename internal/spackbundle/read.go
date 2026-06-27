@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	cxlist "github.com/arcgolabs/collectionx/list"
+	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/samber/oops"
-	"golang.org/x/sync/errgroup"
 )
 
 const maxExtractedFileBytes = 2 << 30
@@ -121,18 +122,14 @@ func extractFiles(ctx context.Context, root string, files []*zip.File) error {
 	if err != nil {
 		return err
 	}
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(bundleFileParallelism(len(tasks)))
-	for index := range tasks {
-		task := tasks[index]
-		group.Go(func() error {
-			if err := groupCtx.Err(); err != nil {
-				return oops.Wrapf(err, "extract bundle canceled")
-			}
-			return extractFile(root, task.path, task.file)
-		})
-	}
-	if err := group.Wait(); err != nil {
+	settings := &asyncx.Settings{Size: bundleFileParallelism(len(tasks))}
+	taskList := cxlist.NewList(tasks...)
+	if err := asyncx.RunList(ctx, nil, settings, "spack_bundle_extract", taskList, func(runCtx context.Context, task extractTask) error {
+		if err := runCtx.Err(); err != nil {
+			return oops.Wrapf(err, "extract bundle canceled")
+		}
+		return extractFile(root, task.path, task.file)
+	}); err != nil {
 		return oops.Wrapf(err, "extract bundle files")
 	}
 	return nil

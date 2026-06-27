@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
+	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -41,7 +42,7 @@ func warnUnsupportedConfiguredImageFormats(logger *slog.Logger, cfg *config.Imag
 	supported := imageFormatSet(engine.SupportedTargetFormats())
 	formats.Range(func(_ int, format string) bool {
 		format = strings.TrimSpace(format)
-		if _, ok := supported[format]; format != "" && !ok {
+		if format != "" && !supported.Contains(format) {
 			logger.Warn("Configured image output format is not supported by image engine",
 				slog.String("engine", engine.Name()),
 				slog.String("format", format),
@@ -51,13 +52,13 @@ func warnUnsupportedConfiguredImageFormats(logger *slog.Logger, cfg *config.Imag
 	})
 }
 
-func imageFormatSet(formats *cxlist.List[string]) map[string]struct{} {
-	supported := map[string]struct{}{}
+func imageFormatSet(formats *cxlist.List[string]) *cxset.Set[string] {
+	supported := cxset.NewSet[string]()
 	if formats == nil {
 		return supported
 	}
 	formats.Range(func(_ int, format string) bool {
-		supported[strings.TrimSpace(format)] = struct{}{}
+		supported.Add(strings.TrimSpace(format))
 		return true
 	})
 	return supported

@@ -33,29 +33,7 @@ type LocalFS struct {
 }
 
 func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
-	root := strings.TrimSpace(cfg.Root)
-	if root == "" {
-		return nil, oops.Owner("source").Wrap(errors.New("assets root is required"))
-	}
-
-	root, err := filepath.Abs(filepath.Clean(root))
-	if err != nil {
-		return nil, oops.Wrap(err)
-	}
-
-	resolved, err := resolveLocalFSRoot(root)
-	if err != nil {
-		return nil, err
-	}
-
-	logSourceConfigured(logger, cfg.Root, resolved)
-	return &LocalFS{
-		root:        resolved.root,
-		rootInfo:    resolved.info,
-		logger:      logger,
-		bundle:      resolved.bundle,
-		cleanupRoot: resolved.cleanupRoot,
-	}, nil
+	return NewSourceFactory(NewResolver(), logger).LocalFS(cfg)
 }
 
 func (s *LocalFS) Cleanup() error {
@@ -77,21 +55,15 @@ type resolvedLocalFSRoot struct {
 	cleanupRoot string
 }
 
-func resolveLocalFSRoot(root string) (resolvedLocalFSRoot, error) {
-	info, err := os.Lstat(root)
-	if err != nil {
-		return resolvedLocalFSRoot{}, oops.Wrap(err)
+func resolveLocalFSResolvedRoot(resolved Resolved) (resolvedLocalFSRoot, error) {
+	switch resolved.Type {
+	case TypeDirectory:
+		return resolveLocalFSDirectoryRoot(resolved.Root)
+	case TypeBundle:
+		return resolveLocalFSBundleRoot(resolved.Root)
+	default:
+		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", resolved.Root))
 	}
-	if isSymlink(info) {
-		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, root))
-	}
-	if info.IsDir() {
-		return resolveLocalFSDirectoryRoot(root)
-	}
-	if info.Mode().IsRegular() && spackbundle.IsBundlePath(root) {
-		return resolveLocalFSBundleRoot(root)
-	}
-	return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", root))
 }
 
 func resolveLocalFSBundleRoot(root string) (resolvedLocalFSRoot, error) {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/samber/oops"
 )
 
@@ -155,7 +156,7 @@ func normalizedRootPath(root string) (string, error) {
 
 func normalizeFiles(root string, files []File) ([]File, error) {
 	normalized := make([]File, 0, len(files))
-	seen := map[string]struct{}{}
+	seen := cxset.NewSetWithCapacity[string](len(files))
 	for index := range files {
 		file, err := normalizeFile(root, files[index], seen)
 		if err != nil {
@@ -169,12 +170,12 @@ func normalizeFiles(root string, files []File) ([]File, error) {
 	return normalized, nil
 }
 
-func normalizeFile(root string, file File, seen map[string]struct{}) (File, error) {
+func normalizeFile(root string, file File, seen *cxset.Set[string]) (File, error) {
 	path, err := cleanBundlePath(file.Path)
 	if err != nil {
 		return File{}, err
 	}
-	if _, ok := seen[path]; ok {
+	if seen.Contains(path) {
 		return File{}, oops.Errorf("bundle path %q is duplicated", path)
 	}
 	fullPath, info, err := statBundleFile(root, file)
@@ -184,7 +185,7 @@ func normalizeFile(root string, file File, seen map[string]struct{}) (File, erro
 	file.Path = path
 	file.FullPath = fullPath
 	file.Size = info.Size()
-	seen[path] = struct{}{}
+	seen.Add(path)
 	return file, nil
 }
 

@@ -35,22 +35,6 @@ type cleanupResult struct {
 	removedSizeBytes int64
 }
 
-func (s *Service) cleanupLoop(ctx context.Context, interval time.Duration) {
-	defer close(s.cleanupDone)
-	s.cleanupOnce(ctx)
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-s.cleanupStop:
-			return
-		case <-ticker.C:
-			s.cleanupOnce(ctx)
-		}
-	}
-}
-
 func (s *Service) cleanupOnce(ctx context.Context) {
 	result := s.cleanupArtifacts(ctx, time.Now())
 	if s.metrics != nil {

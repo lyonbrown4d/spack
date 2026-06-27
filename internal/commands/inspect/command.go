@@ -15,6 +15,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
@@ -104,8 +105,27 @@ func NewCommand() *cobra.Command {
 }
 
 func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, error) {
-	if strings.TrimSpace(cfg.Assets.Root) == "" {
+	return newInspectUseCase(source.NewResolver()).Inspect(ctx, cfg)
+}
+
+type inspectUseCase struct {
+	resolver *source.Resolver
+}
+
+func newInspectUseCase(resolver *source.Resolver) inspectUseCase {
+	if resolver == nil {
+		resolver = source.NewResolver()
+	}
+	return inspectUseCase{resolver: resolver}
+}
+
+func (u inspectUseCase) Inspect(ctx context.Context, cfg *config.Config) (inspectReport, error) {
+	if cfg == nil || strings.TrimSpace(cfg.Assets.Root) == "" {
 		return inspectReport{}, oops.In("inspect").Wrap(errors.New("assets root is required; pass --assets or configure assets.root"))
+	}
+	resolvedSource, err := u.resolver.Resolve(cfg.Assets.Root)
+	if err != nil {
+		return inspectReport{}, oops.Wrapf(err, "resolve inspected source")
 	}
 	scanner, err := cmdkit.ResolveScannerWithDix(cfg)
 	if err != nil {
@@ -115,10 +135,7 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 	if err != nil {
 		return inspectReport{}, oops.Wrapf(err, "scan assets")
 	}
-	bundle, hasBundle, err := inspectBundle(cfg.Assets.Root)
-	if err != nil {
-		return inspectReport{}, err
-	}
+	bundle, hasBundle := inspectBundle(resolvedSource)
 	var bundlePointer *bundleSummary
 	if hasBundle {
 		bundlePointer = &bundle
@@ -126,7 +143,7 @@ func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, erro
 
 	report := inspectReport{
 		AssetsRoot:           filepath.Clean(cfg.Assets.Root),
-		SourceType:           inspectSourceType(hasBundle),
+		SourceType:           string(resolvedSource.Type),
 		AssetCount:           snapshot.Assets.Len(),
 		SourceSidecarCount:   snapshot.Variants.Len(),
 		TotalSourceBytes:     snapshot.TotalBytes,

@@ -1,5 +1,4 @@
-// Package compilecmd implements the spack compile command.
-package compilecmd
+package compiler
 
 import (
 	"cmp"
