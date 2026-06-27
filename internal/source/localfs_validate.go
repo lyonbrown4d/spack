@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/samber/oops"
 )
 
@@ -17,17 +16,7 @@ func (s *LocalFS) validateRoot() error {
 	if isSymlink(info) {
 		return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, s.root))
 	}
-	if s.bundle != nil {
-		return s.validateBundleRoot(info)
-	}
 	return s.validateDirectoryRoot(info)
-}
-
-func (s *LocalFS) validateBundleRoot(info fs.FileInfo) error {
-	if !info.Mode().IsRegular() || !spackbundle.IsBundlePath(s.root) {
-		return oops.Owner("source").Wrap(fmt.Errorf("assets root must be a .spack bundle: %s", s.root))
-	}
-	return s.validateStableRoot(info)
 }
 
 func (s *LocalFS) validateDirectoryRoot(info fs.FileInfo) error {

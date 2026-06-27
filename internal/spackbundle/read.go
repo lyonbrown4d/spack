@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/samber/oops"
+	"golang.org/x/sync/errgroup"
 )
 
 const maxExtractedFileBytes = 2 << 30
@@ -50,6 +51,19 @@ func ReadFile(bundlePath, filePath string) ([]byte, error) {
 	return reader.ReadFile(filePath)
 }
 
+// ExtractReadOnly unpacks a SPACK bundle into a temporary read-only directory.
+func ExtractReadOnly(ctx context.Context, bundlePath string) (Extracted, error) {
+	extracted, err := Extract(ctx, bundlePath)
+	if err != nil {
+		return Extracted{}, err
+	}
+	if err := makeExtractedTreeReadOnly(extracted.Root); err != nil {
+		discardError(extracted.Cleanup())
+		return Extracted{}, err
+	}
+	return extracted, nil
+}
+
 // Extract unpacks a SPACK bundle into a temporary directory.
 func Extract(ctx context.Context, bundlePath string) (Extracted, error) {
 	reader, err := OpenReader(bundlePath)
@@ -88,29 +102,55 @@ func (e Extracted) Cleanup() error {
 	if strings.TrimSpace(e.Root) == "" {
 		return nil
 	}
+	if err := makeExtractedTreeWritable(e.Root); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return oops.Wrapf(err, "prepare extracted bundle root cleanup")
+	}
 	if err := os.RemoveAll(e.Root); err != nil {
 		return oops.Wrapf(err, "cleanup extracted bundle root")
 	}
 	return nil
 }
 
+type extractTask struct {
+	path string
+	file *zip.File
+}
+
 func extractFiles(ctx context.Context, root string, files []*zip.File) error {
+	tasks, err := collectExtractTasks(files)
+	if err != nil {
+		return err
+	}
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(bundleFileParallelism(len(tasks)))
+	for index := range tasks {
+		task := tasks[index]
+		group.Go(func() error {
+			if err := groupCtx.Err(); err != nil {
+				return oops.Wrapf(err, "extract bundle canceled")
+			}
+			return extractFile(root, task.path, task.file)
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return oops.Wrapf(err, "extract bundle files")
+	}
+	return nil
+}
+
+func collectExtractTasks(files []*zip.File) ([]extractTask, error) {
+	tasks := make([]extractTask, 0, len(files))
 	for _, file := range files {
 		if file == nil || file.FileInfo().IsDir() || isMetadataPath(file.Name) {
 			continue
 		}
-		if err := ctx.Err(); err != nil {
-			return oops.Wrapf(err, "extract bundle canceled")
-		}
 		path, err := cleanBundlePath(file.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if err := extractFile(root, path, file); err != nil {
-			return err
-		}
+		tasks = append(tasks, extractTask{path: path, file: file})
 	}
-	return nil
+	return tasks, nil
 }
 
 func extractFile(root, path string, file *zip.File) error {

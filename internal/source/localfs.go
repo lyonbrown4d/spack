@@ -2,6 +2,7 @@
 package source
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -24,10 +25,11 @@ var (
 )
 
 type LocalFS struct {
-	root     string
-	rootInfo fs.FileInfo
-	logger   *slog.Logger
-	bundle   *bundleSource
+	root        string
+	rootInfo    fs.FileInfo
+	logger      *slog.Logger
+	bundle      *bundleSource
+	cleanupRoot string
 }
 
 func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
@@ -48,21 +50,31 @@ func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
 
 	logSourceConfigured(logger, cfg.Root, resolved)
 	return &LocalFS{
-		root:     resolved.root,
-		rootInfo: resolved.info,
-		logger:   logger,
-		bundle:   resolved.bundle,
+		root:        resolved.root,
+		rootInfo:    resolved.info,
+		logger:      logger,
+		bundle:      resolved.bundle,
+		cleanupRoot: resolved.cleanupRoot,
 	}, nil
 }
 
 func (s *LocalFS) Cleanup() error {
+	if s == nil || strings.TrimSpace(s.cleanupRoot) == "" {
+		return nil
+	}
+	extracted := spackbundle.Extracted{Root: s.cleanupRoot}
+	if err := extracted.Cleanup(); err != nil {
+		return oops.Owner("source").Wrap(err)
+	}
+	s.cleanupRoot = ""
 	return nil
 }
 
 type resolvedLocalFSRoot struct {
-	root   string
-	info   fs.FileInfo
-	bundle *bundleSource
+	root        string
+	info        fs.FileInfo
+	bundle      *bundleSource
+	cleanupRoot string
 }
 
 func resolveLocalFSRoot(root string) (resolvedLocalFSRoot, error) {
@@ -77,13 +89,36 @@ func resolveLocalFSRoot(root string) (resolvedLocalFSRoot, error) {
 		return resolveLocalFSDirectoryRoot(root)
 	}
 	if info.Mode().IsRegular() && spackbundle.IsBundlePath(root) {
-		bundle, err := newBundleSource(root)
-		if err != nil {
-			return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(err)
-		}
-		return resolvedLocalFSRoot{root: root, info: info, bundle: bundle}, nil
+		return resolveLocalFSBundleRoot(root)
 	}
 	return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", root))
+}
+
+func resolveLocalFSBundleRoot(root string) (resolvedLocalFSRoot, error) {
+	extracted, err := spackbundle.ExtractReadOnly(context.Background(), root)
+	if err != nil {
+		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(err)
+	}
+
+	resolved, err := resolveLocalFSDirectoryRoot(extracted.Root)
+	if err != nil {
+		discardExtractedCleanup(extracted)
+		return resolvedLocalFSRoot{}, err
+	}
+	bundle, err := newBundleSource(root, extracted.Root, extracted.Index)
+	if err != nil {
+		discardExtractedCleanup(extracted)
+		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(err)
+	}
+	resolved.bundle = bundle
+	resolved.cleanupRoot = extracted.Root
+	return resolved, nil
+}
+
+func discardExtractedCleanup(extracted spackbundle.Extracted) {
+	if err := extracted.Cleanup(); err != nil {
+		return
+	}
 }
 
 func resolveLocalFSDirectoryRoot(root string) (resolvedLocalFSRoot, error) {
@@ -137,9 +172,10 @@ func logSourceConfigured(logger *slog.Logger, configuredRoot string, resolved re
 		)
 		return
 	}
-	logger.Info("Source bundle configured",
+	logger.Info("Source bundle extracted",
 		slog.String("bundle", configuredRoot),
-		slog.Int("files", len(resolved.bundle.entries)),
+		slog.String("root", resolved.root),
+		slog.Int("files", resolved.bundle.entries.Len()),
 	)
 }
 

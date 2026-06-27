@@ -5,7 +5,6 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -254,45 +253,4 @@ func writeBundleIndex(zipWriter *zip.Writer, index Index) error {
 		return oops.Wrapf(err, "write bundle index")
 	}
 	return nil
-}
-
-func writeBundleFiles(ctx context.Context, zipWriter *zip.Writer, files []File) (int64, error) {
-	totalBytes := int64(0)
-	for index := range files {
-		if err := ctx.Err(); err != nil {
-			return 0, oops.Wrapf(err, "write bundle canceled")
-		}
-		file := files[index]
-		written, err := writeBundleFile(zipWriter, file)
-		if err != nil {
-			return 0, err
-		}
-		totalBytes += written
-	}
-	return totalBytes, nil
-}
-
-func writeBundleFile(zipWriter *zip.Writer, file File) (int64, error) {
-	source, err := os.Open(file.FullPath)
-	if err != nil {
-		return 0, oops.Wrapf(err, "open bundle file %q", file.Path)
-	}
-	defer func() {
-		discardError(source.Close())
-	}()
-
-	header := &zip.FileHeader{
-		Name:   file.Path,
-		Method: zip.Deflate,
-	}
-	header.SetMode(0o600)
-	writer, err := zipWriter.CreateHeader(header)
-	if err != nil {
-		return 0, oops.Wrapf(err, "create bundle file %q", file.Path)
-	}
-	written, err := io.Copy(writer, source)
-	if err != nil {
-		return 0, oops.Wrapf(err, "write bundle file %q", file.Path)
-	}
-	return written, nil
 }

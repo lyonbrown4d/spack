@@ -21,7 +21,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/task"
 )
 
-func TestBundleAssetRouteServesRangeFromSourceBundle(t *testing.T) {
+func TestBundleAssetRouteServesRangeFromExtractedSourceBundle(t *testing.T) {
 	app := newBundleRouteTestApp(t)
 	response := sendBundleRangeRequest(t, app)
 	defer func() {
@@ -100,6 +100,11 @@ func scanBundleRouteCatalog(t *testing.T, cfg *config.Config, logger *slog.Logge
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if cleanupErr := src.Cleanup(); cleanupErr != nil {
+			t.Fatal(cleanupErr)
+		}
+	})
 	cat := catalog.NewInMemoryCatalog()
 	if _, syncErr := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); syncErr != nil {
 		t.Fatal(syncErr)
@@ -114,8 +119,11 @@ func assertBundleCatalogAsset(t *testing.T, cat catalog.Catalog) {
 	if !ok || asset == nil {
 		t.Fatal("expected bundle asset in catalog")
 	}
-	if !spackbundle.IsReference(asset.FullPath) {
-		t.Fatalf("expected bundle reference full path, got %q", asset.FullPath)
+	if spackbundle.IsReference(asset.FullPath) {
+		t.Fatalf("expected extracted local full path, got bundle reference %q", asset.FullPath)
+	}
+	if _, err := os.Stat(asset.FullPath); err != nil {
+		t.Fatal(err)
 	}
 	if asset.ETag != `"hash-app"` {
 		t.Fatalf("expected bundle etag, got %q", asset.ETag)

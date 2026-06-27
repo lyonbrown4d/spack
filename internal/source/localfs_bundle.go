@@ -2,42 +2,34 @@ package source
 
 import (
 	"fmt"
-	"strings"
+	"path/filepath"
 
+	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
-	"github.com/samber/lo"
 	"github.com/samber/oops"
 )
 
 type bundleSource struct {
 	path    string
+	root    string
 	index   spackbundle.Index
-	entries map[string]spackbundle.IndexFile
+	entries *cxmapping.Map[string, spackbundle.IndexFile]
 }
 
-func newBundleSource(root string) (*bundleSource, error) {
-	reader, err := spackbundle.OpenReader(root)
-	if err != nil {
-		return nil, fmt.Errorf("open source bundle: %w", err)
+func newBundleSource(bundlePath, extractedRoot string, index spackbundle.Index) (*bundleSource, error) {
+	entries := cxmapping.NewMapWithCapacity[string, spackbundle.IndexFile](len(index.Files))
+	for fileIndex := range index.Files {
+		file := index.Files[fileIndex]
+		filePath, ok := cleanRelativeAssetPath(file.Path)
+		if !ok {
+			return nil, fmt.Errorf("invalid bundle index path %q", file.Path)
+		}
+		file.Path = filePath
+		entries.Set(filePath, file)
 	}
-	index, err := reader.Index()
-	closeErr := reader.Close()
-	if err != nil {
-		return nil, fmt.Errorf("read source bundle index: %w", err)
-	}
-	if closeErr != nil {
-		return nil, fmt.Errorf("close source bundle: %w", closeErr)
-	}
-	entries := lo.SliceToMap(
-		lo.Filter(index.Files, func(file spackbundle.IndexFile, _ int) bool {
-			return strings.TrimSpace(file.Path) != ""
-		}),
-		func(file spackbundle.IndexFile) (string, spackbundle.IndexFile) {
-			return file.Path, file
-		},
-	)
 	return &bundleSource{
-		path:    reader.Path(),
+		path:    bundlePath,
+		root:    extractedRoot,
 		index:   index,
 		entries: entries,
 	}, nil
@@ -58,7 +50,7 @@ func (s *LocalFS) walkBundle(walkFn func(File) error) error {
 }
 
 func (s *LocalFS) findBundleFile(relativePath string) (File, bool, error) {
-	entry, ok := s.bundle.entries[relativePath]
+	entry, ok := s.bundle.entries.GetOption(relativePath).Get()
 	if !ok {
 		return File{}, false, nil
 	}
@@ -70,13 +62,13 @@ func (s *LocalFS) findBundleFile(relativePath string) (File, bool, error) {
 }
 
 func (s *LocalFS) bundleFile(entry spackbundle.IndexFile) (File, error) {
-	reference, err := spackbundle.NewReference(s.bundle.path, entry.Path)
-	if err != nil {
-		return File{}, oops.Wrap(err)
+	relativePath, ok := cleanRelativeAssetPath(entry.Path)
+	if !ok {
+		return File{}, oops.Errorf("invalid bundle index path %q", entry.Path)
 	}
 	return File{
-		Path:       entry.Path,
-		FullPath:   reference,
+		Path:       relativePath,
+		FullPath:   filepath.Join(s.bundle.root, filepath.FromSlash(relativePath)),
 		Kind:       entry.Kind,
 		Size:       entry.Size,
 		ModTime:    s.bundle.index.CreatedAt,

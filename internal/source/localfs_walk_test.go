@@ -78,7 +78,7 @@ func TestLocalFSWalkReturnsDeterministicSortedEntries(t *testing.T) {
 	}
 }
 
-func TestLocalFSWalkBundleSourceUnaffected(t *testing.T) {
+func TestLocalFSWalkBundleSourceUsesExtractedLocalPaths(t *testing.T) {
 	root := t.TempDir()
 	sourcePath := filepath.Join(root, "assets", "app.js")
 	writeLocalFSTestFile(t, sourcePath, []byte("console.log('bundle');"))
