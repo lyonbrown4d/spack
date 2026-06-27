@@ -170,6 +170,16 @@ dockers_v2:
       - latest
       - debian
       - debian-{{ .Tag }}
+  - id: alpine
+    ids:
+      - spack-runtime-linux
+    dockerfile: docker/alpine.Dockerfile
+    images:
+      - ghcr.io/lyonbrown4d/spack
+      - lyonbrown4d/spack
+    tags:
+      - alpine
+      - alpine-{{ .Tag }}
   - id: compiler-debian
     ids:
       - spack-compiler-linux
