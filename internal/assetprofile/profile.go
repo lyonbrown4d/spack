@@ -189,14 +189,7 @@ func ratio(part, total int) float64 {
 }
 
 func assetList(assets *cxmapping.Map[string, *catalog.Asset]) []*catalog.Asset {
-	out := make([]*catalog.Asset, 0, assets.Len())
-	assets.Range(func(_ string, asset *catalog.Asset) bool {
-		if asset != nil {
-			out = append(out, asset)
-		}
-		return true
-	})
-	return out
+	return lo.Compact(assets.Values())
 }
 
 func totalDeclaredAssetBytes(assets []*catalog.Asset) int64 {

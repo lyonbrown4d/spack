@@ -13,7 +13,6 @@ import (
 	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/mo"
 	"github.com/samber/oops"
-	"golang.org/x/sync/errgroup"
 )
 
 func buildSidecarVariants(
@@ -45,23 +44,21 @@ func buildSidecarVariantsForCandidates(
 		results.Add(nil)
 	}
 
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(sourceScanBuildParallelism(candidates.Len()))
-	candidates.Range(func(index int, candidate sidecarVariantBuildCandidate) bool {
-		group.Go(func() error {
-			if err := scanContextErr(groupCtx); err != nil {
-				return err
-			}
-			variant, err := buildSidecarVariant(candidate.sidecar, candidate.asset)
-			if err != nil {
-				return err
-			}
-			results.Set(index, variant)
+	if err := runSourceBuildIndexes(ctx, candidates.Len(), "sourcecatalog_sidecar_build", func(runCtx context.Context, index int) error {
+		if err := scanContextErr(runCtx); err != nil {
+			return err
+		}
+		candidate, ok := candidates.Get(index)
+		if !ok {
 			return nil
-		})
-		return true
-	})
-	if err := group.Wait(); err != nil {
+		}
+		variant, err := buildSidecarVariant(candidate.sidecar, candidate.asset)
+		if err != nil {
+			return err
+		}
+		results.Set(index, variant)
+		return nil
+	}); err != nil {
 		return nil, oops.In("sourcecatalog").Owner("sidecar build").Wrap(err)
 	}
 	return results, nil

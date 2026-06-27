@@ -95,24 +95,14 @@ func listStringToString(values *cxlist.List[string], joiner string) string {
 	if values == nil || values.IsEmpty() {
 		return ""
 	}
-
-	serialized := make([]string, 0, values.Len())
-	values.Range(func(_ int, value string) bool {
-		serialized = append(serialized, value)
-		return true
-	})
-	return strings.Join(serialized, joiner)
+	return values.Join(joiner)
 }
 
 func listIntToString(values *cxlist.List[int]) string {
 	if values == nil || values.IsEmpty() {
 		return ""
 	}
-
-	serialized := make([]string, 0, values.Len())
-	values.Range(func(_ int, value int) bool {
-		serialized = append(serialized, strconv.Itoa(value))
-		return true
+	return values.Join(",", func(_ int, value int) string {
+		return strconv.Itoa(value)
 	})
-	return strings.Join(serialized, ",")
 }

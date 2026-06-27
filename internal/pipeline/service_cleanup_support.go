@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
+	"github.com/charlievieth/fastwalk"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
@@ -221,8 +223,12 @@ func (s *Service) clearVariantHit(path string) {
 }
 
 func collectCleanupFiles(root string) ([]cleanupFile, error) {
-	files := cxlist.NewList[cleanupFile]()
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	files := cxlist.NewConcurrentListWithCapacity[cleanupFile](128)
+	conf := fastwalk.Config{
+		Follow: false,
+		Sort:   fastwalk.SortDirsFirst,
+	}
+	err := fastwalk.Walk(&conf, root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -247,5 +253,7 @@ func collectCleanupFiles(root string) ([]cleanupFile, error) {
 		}
 		return nil, oops.Wrapf(err, "walk cleanup directory")
 	}
-	return files.Values(), nil
+	return files.Snapshot().Sort(func(left, right cleanupFile) int {
+		return strings.Compare(left.path, right.path)
+	}).Values(), nil
 }

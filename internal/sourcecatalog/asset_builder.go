@@ -11,7 +11,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/oops"
-	"golang.org/x/sync/errgroup"
 	"runtime"
 )
 
@@ -77,26 +76,23 @@ func buildAssets(
 	for range candidates.Len() {
 		results.Add(assetBuildResult{})
 	}
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(sourceScanBuildParallelism(candidates.Len()))
-	candidates.Range(func(index int, candidate assetBuildCandidate) bool {
-		group.Go(func() error {
-			if err := scanContextErr(groupCtx); err != nil {
-				return err
-			}
-			asset, err := BuildAsset(candidate.file)
-			if err != nil {
-				return err
-			}
-			results.Set(index, assetBuildResult{path: candidate.path, asset: asset})
+	if err := runSourceBuildIndexes(ctx, candidates.Len(), "sourcecatalog_asset_build", func(runCtx context.Context, index int) error {
+		if err := scanContextErr(runCtx); err != nil {
+			return err
+		}
+		candidate, ok := candidates.Get(index)
+		if !ok {
 			return nil
-		})
-		return true
-	})
-	if err := group.Wait(); err != nil {
+		}
+		asset, err := BuildAsset(candidate.file)
+		if err != nil {
+			return err
+		}
+		results.Set(index, assetBuildResult{path: candidate.path, asset: asset})
+		return nil
+	}); err != nil {
 		return nil, oops.In("sourcecatalog").Owner("asset build").Wrap(err)
 	}
-
 	results.Snapshot().Range(func(_ int, result assetBuildResult) bool {
 		assets.Set(result.path, result.asset)
 		return true

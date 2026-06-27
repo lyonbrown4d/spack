@@ -253,25 +253,11 @@ func inspectPotentialIssues(cfg *config.Config, snapshot sourcecatalog.Snapshot)
 }
 
 func snapshotAssetList(snapshot sourcecatalog.Snapshot) []*catalog.Asset {
-	assets := make([]*catalog.Asset, 0, snapshot.Assets.Len())
-	snapshot.Assets.Range(func(_ string, asset *catalog.Asset) bool {
-		if asset != nil {
-			assets = append(assets, asset)
-		}
-		return true
-	})
-	return assets
+	return lo.Compact(snapshot.Assets.Values())
 }
 
 func snapshotVariantList(snapshot sourcecatalog.Snapshot) []*catalog.Variant {
-	variants := make([]*catalog.Variant, 0, snapshot.Variants.Len())
-	snapshot.Variants.Range(func(_ string, variant *catalog.Variant) bool {
-		if variant != nil {
-			variants = append(variants, variant)
-		}
-		return true
-	})
-	return variants
+	return lo.Compact(snapshot.Variants.Values())
 }
 
 func boolToInt(value bool) int {

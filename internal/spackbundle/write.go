@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cxset "github.com/arcgolabs/collectionx/set"
+	"github.com/samber/lo"
 	"github.com/samber/oops"
 )
 
@@ -214,26 +215,23 @@ func buildIndex(files []File, now func() time.Time) Index {
 	if now == nil {
 		now = time.Now
 	}
-	index := Index{
+	return Index{
 		CreatedAt: now().UTC(),
-		Files:     make([]IndexFile, 0, len(files)),
+		Files: lo.Map(files, func(file File, _ int) IndexFile {
+			return IndexFile{
+				Path:       file.Path,
+				Kind:       file.Kind,
+				Size:       file.Size,
+				MediaType:  file.MediaType,
+				SourceHash: file.SourceHash,
+				ETag:       file.ETag,
+				AssetPath:  file.AssetPath,
+				Encoding:   file.Encoding,
+				Format:     file.Format,
+				Width:      file.Width,
+			}
+		}),
 	}
-	for fileIndex := range files {
-		file := files[fileIndex]
-		index.Files = append(index.Files, IndexFile{
-			Path:       file.Path,
-			Kind:       file.Kind,
-			Size:       file.Size,
-			MediaType:  file.MediaType,
-			SourceHash: file.SourceHash,
-			ETag:       file.ETag,
-			AssetPath:  file.AssetPath,
-			Encoding:   file.Encoding,
-			Format:     file.Format,
-			Width:      file.Width,
-		})
-	}
-	return index
 }
 
 func writeBundleIndex(zipWriter *zip.Writer, index Index) error {
