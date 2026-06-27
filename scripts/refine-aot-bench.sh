@@ -15,6 +15,11 @@ PATHS_ENV="$WORK_DIR/paths.env"
 COMPOSE_FILE="$ROOT_DIR/deploy/bench/docker-compose.refine-aot.yml"
 RESULTS_DIR="$ROOT_DIR/tmp/k6/results"
 BENCH_GOARCH="${BENCH_GOARCH:-amd64}"
+RUNTIME_IMAGE="${SPACK_RUNTIME_BENCH_IMAGE:-spack-k6-bench:local}"
+COMPILER_IMAGE="${SPACK_COMPILER_BENCH_IMAGE:-spack-compiler-bench:local}"
+SPACK_RUNTIME_BENCH_BUILD="${SPACK_RUNTIME_BENCH_BUILD:-true}"
+SPACK_COMPILER_BENCH_BUILD="${SPACK_COMPILER_BENCH_BUILD:-true}"
+export SPACK_RUNTIME_BENCH_IMAGE="$RUNTIME_IMAGE"
 REFINE_EXAMPLE_REPO="${REFINE_EXAMPLE_REPO:-https://github.com/refinedev/refine.git}"
 REFINE_EXAMPLE_REF="${REFINE_EXAMPLE_REF:-@refinedev/core@5.0.12}"
 REFINE_EXAMPLE_PATH="${REFINE_EXAMPLE_PATH:-examples/app-crm-minimal}"
@@ -31,7 +36,7 @@ fi
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/refine-aot-bench.sh <prepare|smoke|perf|down>
+Usage: scripts/refine-aot-bench.sh <prepare|smoke|perf|stress|baseline|down>
 
 Environment:
   REFINE_SOURCE_DIR    Existing Refine project to build instead of cloning an example.
@@ -40,6 +45,14 @@ Environment:
   REFINE_FIXTURE_PACKAGES
                       Extra npm packages imported by the benchmark fixture entry.
   REFINE_BUILD_MODE    Build mode: vite or package. Default: vite.
+  SPACK_RUNTIME_BENCH_IMAGE
+                      Runtime image used by direct and AOT containers. Default: spack-k6-bench:local.
+  SPACK_COMPILER_BENCH_IMAGE
+                      Compiler image used to produce the .spack bundle in Docker. Default: spack-compiler-bench:local.
+  SPACK_RUNTIME_BENCH_BUILD
+                      Build the local runtime image before running. Default: true.
+  SPACK_COMPILER_BENCH_BUILD
+                      Build the local compiler image before running. Default: true.
   K6_VUS               k6 virtual users. Default: 64, Taskfile smoke defaults to 1.
   K6_DURATION          k6 duration. Default: 30s, Taskfile smoke defaults to 5s.
   ACCEPT_ENCODING      Accept-Encoding header for k6. Default: br,gzip.
@@ -61,6 +74,14 @@ main() {
       K6_VUS="${K6_VUS:-64}"
       K6_DURATION="${K6_DURATION:-30s}"
       run_workload "perf"
+      ;;
+    stress)
+      K6_VUS="${K6_VUS:-256}"
+      K6_DURATION="${K6_DURATION:-2m}"
+      run_workload "stress"
+      ;;
+    baseline)
+      run_baseline
       ;;
     down)
       down
@@ -86,8 +107,9 @@ prepare() {
   build_refine_dist
   enrich_dist_assets
   write_paths_env
-  compile_aot_bundle
   build_runtime_image
+  build_compiler_image
+  compile_aot_bundle
 }
 
 run_workload() {
@@ -187,35 +209,225 @@ EOF
 }
 
 compile_aot_bundle() {
-  local compiler_bundle_path compiler_cache_dir compiler_dist_dir
+  local compiler_dist_dir compiler_cache_dir compiler_out_dir
   compiler_dist_dir="$(native_path "$DIST_DIR")"
-  compiler_bundle_path="$(native_path "$BUNDLE_PATH")"
   compiler_cache_dir="$(native_path "$CACHE_DIR")"
+  compiler_out_dir="$(native_path "$WORK_DIR")"
 
   rm -rf "$CACHE_DIR"
   mkdir -p "$CACHE_DIR"
-  MSYS2_ARG_CONV_EXCL="*" go run ./cmd/spack-compiler \
+  rm -f "$BUNDLE_PATH"
+  chmod 0777 "$CACHE_DIR" "$WORK_DIR" 2>/dev/null || true
+
+  local user_args=()
+  if command -v id >/dev/null 2>&1; then
+    user_args=(--user "$(id -u):$(id -g)")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="*" docker run --rm \
+    "${user_args[@]}" \
+    -v "$compiler_dist_dir:/workspace/dist:ro" \
+    -v "$compiler_cache_dir:/workspace/cache" \
+    -v "$compiler_out_dir:/workspace/out" \
+    "$COMPILER_IMAGE" \
     --assets.path=/ \
     --assets.entry=index.html \
     --assets.fallback.on=not_found \
     --assets.fallback.target=index.html \
     --compression.enable=true \
     --compression.mode=warmup \
-    --compression.cache_dir="$compiler_cache_dir" \
+    --compression.cache_dir=/workspace/cache \
     --image.enable="${SPACK_IMAGE_ENABLE:-false}" \
     --frontend.resource_hints.enable=false \
-    compile "$compiler_dist_dir" -o "$compiler_bundle_path"
+    compile /workspace/dist -o /workspace/out/app.spack
+
+  chmod 0644 "$BUNDLE_PATH" 2>/dev/null || true
+
+  if [[ ! -f "$BUNDLE_PATH" ]]; then
+    echo "Compiler container did not produce $BUNDLE_PATH" >&2
+    exit 1
+  fi
 }
 
+run_baseline() {
+  local rounds="${SPACK_PERF_ROUNDS:-3}"
+  if ! [[ "$rounds" =~ ^[0-9]+$ ]] || (( rounds < 1 )); then
+    echo "SPACK_PERF_ROUNDS must be a positive integer, got: $rounds" >&2
+    exit 1
+  fi
+
+  export K6_VUS="${K6_VUS:-256}"
+  export K6_DURATION="${K6_DURATION:-2m}"
+  export ACCEPT_ENCODING="${ACCEPT_ENCODING:-br,gzip}"
+
+  local round mode
+  for ((round = 1; round <= rounds; round++)); do
+    mode="baseline-r${round}"
+    echo "Running Refine AOT baseline sample ${round}/${rounds} with K6_VUS=$K6_VUS K6_DURATION=$K6_DURATION"
+    down
+    run_workload "$mode"
+    down
+  done
+
+  write_baseline_summary "$rounds"
+}
+
+write_baseline_summary() {
+  local rounds="$1"
+  node - "$RESULTS_DIR" "$rounds" "$K6_VUS" "$K6_DURATION" <<'NODE'
+const fs = require("fs");
+const path = require("path");
+
+const [resultsDir, roundsRaw, vusRaw, duration] = process.argv.slice(2);
+const rounds = Number.parseInt(roundsRaw, 10);
+const vus = Number.parseInt(vusRaw, 10);
+const scenarios = [
+  ["refine-direct", "direct page"],
+  ["refine-aot", "AOT page"],
+  ["refine-direct-static", "direct static"],
+  ["refine-aot-static", "AOT static"],
+];
+const metrics = [
+  ["failed_rate", (body) => valueAt(body, ["metrics", "http_req_failed", "rate"]) ?? valueAt(body, ["metrics", "http_req_failed", "value"])],
+  ["reqs_per_sec", (body) => valueAt(body, ["metrics", "http_reqs", "rate"])],
+  ["iters_per_sec", (body) => valueAt(body, ["metrics", "iterations", "rate"])],
+  ["p95_ms", (body) => valueAt(body, ["metrics", "http_req_duration", "p(95)"])],
+  ["p99_ms", (body) => valueAt(body, ["metrics", "http_req_duration", "p(99)"])],
+];
+
+function valueAt(body, parts) {
+  let current = body;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object" || !(part in current)) {
+      return null;
+    }
+    current = current[part];
+  }
+  return Number.isFinite(current) ? current : null;
+}
+
+function summarize(values) {
+  const samples = values.filter(Number.isFinite);
+  if (samples.length === 0) {
+    return { samples: 0, min: null, max: null, mean: null, stdev: null };
+  }
+  const sum = samples.reduce((acc, value) => acc + value, 0);
+  const mean = sum / samples.length;
+  const variance = samples.reduce((acc, value) => acc + (value - mean) ** 2, 0) / samples.length;
+  return {
+    samples: samples.length,
+    min: Math.min(...samples),
+    max: Math.max(...samples),
+    mean,
+    stdev: Math.sqrt(variance),
+  };
+}
+
+function round(value, digits = 3) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function fmt(value, digits = 2) {
+  if (!Number.isFinite(value)) {
+    return "n/a";
+  }
+  return value.toFixed(digits);
+}
+
+const summary = {
+  generatedAt: new Date().toISOString(),
+  rounds,
+  vus: Number.isFinite(vus) ? vus : vusRaw,
+  duration,
+  scenarios: {},
+};
+
+for (const [prefix, label] of scenarios) {
+  const scenario = { label, files: [], metrics: {} };
+  const valuesByMetric = Object.fromEntries(metrics.map(([name]) => [name, []]));
+  for (let round = 1; round <= rounds; round += 1) {
+    const fileName = `${prefix}-baseline-r${round}.json`;
+    const filePath = path.join(resultsDir, fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`missing k6 summary: ${filePath}`);
+    }
+    const body = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    scenario.files.push(fileName);
+    for (const [name, pick] of metrics) {
+      valuesByMetric[name].push(pick(body));
+    }
+  }
+  for (const [name] of metrics) {
+    const stat = summarize(valuesByMetric[name]);
+    scenario.metrics[name] = {
+      samples: stat.samples,
+      min: round(stat.min),
+      max: round(stat.max),
+      mean: round(stat.mean),
+      stdev: round(stat.stdev),
+    };
+  }
+  summary.scenarios[prefix] = scenario;
+}
+
+const jsonPath = path.join(resultsDir, "refine-aot-baseline-summary.json");
+fs.writeFileSync(jsonPath, `${JSON.stringify(summary, null, 2)}\n`);
+
+const lines = [
+  "# Refine AOT performance baseline",
+  "",
+  `Generated at: ${summary.generatedAt}`,
+  `Rounds: ${summary.rounds}`,
+  `VUs: ${summary.vus}`,
+  `Duration: ${summary.duration}`,
+  "",
+  "| scenario | failed max | req/s mean | req/s stdev | p95 mean | p99 mean |",
+  "|---|---:|---:|---:|---:|---:|",
+];
+for (const [prefix] of scenarios) {
+  const scenario = summary.scenarios[prefix];
+  lines.push(
+    `| ${scenario.label} | ${fmt(scenario.metrics.failed_rate.max, 6)} | ${fmt(scenario.metrics.reqs_per_sec.mean)} | ${fmt(scenario.metrics.reqs_per_sec.stdev)} | ${fmt(scenario.metrics.p95_ms.mean)}ms | ${fmt(scenario.metrics.p99_ms.mean)}ms |`,
+  );
+}
+lines.push("");
+lines.push("Raw k6 summaries are stored next to this file as `*-baseline-rN.json`.");
+
+const markdownPath = path.join(resultsDir, "refine-aot-baseline-summary.md");
+fs.writeFileSync(markdownPath, `${lines.join("\n")}\n`);
+console.log(`Wrote ${jsonPath}`);
+console.log(`Wrote ${markdownPath}`);
+NODE
+}
 build_runtime_image() {
+  if [[ "$SPACK_RUNTIME_BENCH_BUILD" != "true" ]]; then
+    return
+  fi
+
   CGO_ENABLED=0 GOOS=linux GOARCH="$BENCH_GOARCH" \
     go build -trimpath -ldflags="-s -w -buildid=" -o "$ROOT_DIR/tmp/k6/linux/$BENCH_GOARCH/spack-runtime" ./cmd/spack-runtime
 
   docker build \
     --build-arg "TARGETPLATFORM=linux/$BENCH_GOARCH" \
-    -t spack-k6-bench:local \
+    -t "$RUNTIME_IMAGE" \
     -f "$ROOT_DIR/docker/debian.Dockerfile" \
     "$ROOT_DIR/tmp/k6"
+}
+
+build_compiler_image() {
+  if [[ "$SPACK_COMPILER_BENCH_BUILD" != "true" ]]; then
+    return
+  fi
+
+  docker build \
+    --platform "linux/$BENCH_GOARCH" \
+    -t "$COMPILER_IMAGE" \
+    -f "$ROOT_DIR/docker/compiler-bench.Dockerfile" \
+    "$ROOT_DIR"
 }
 
 up() {

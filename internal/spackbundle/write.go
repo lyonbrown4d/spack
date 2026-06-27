@@ -104,6 +104,9 @@ func writeBundleToTemp(
 	if err := temp.Close(); err != nil {
 		return WriteSummary{}, oops.Wrapf(err, "close bundle temp file")
 	}
+	if err := os.Chmod(tempPath, bundleOutputFileMode()); err != nil {
+		return WriteSummary{}, oops.Wrapf(err, "set bundle file mode")
+	}
 	if err := os.Rename(tempPath, output); err != nil {
 		return WriteSummary{}, oops.Wrapf(err, "publish bundle")
 	}
@@ -114,6 +117,10 @@ func writeBundleToTemp(
 		Files:  len(files),
 		Bytes:  totalBytes,
 	}, nil
+}
+
+func bundleOutputFileMode() os.FileMode {
+	return os.FileMode(0o600) | os.FileMode(0o044)
 }
 
 func normalizedOutputPath(output string) (string, error) {

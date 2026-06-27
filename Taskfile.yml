@@ -240,6 +240,19 @@ tasks:
     cmds:
       - '{{.GOYEK}} refine-aot-perf'
 
+  perf:aot:refine:stress:
+    desc: 使用真实 Refine dist 对比 direct runtime 与 compiler 容器 AOT runtime 的高并发压力测试
+    vars:
+      K6_VUS: '{{default "256" .K6_VUS}}'
+      K6_DURATION: '{{default "2m" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+    env:
+      K6_VUS: "{{.K6_VUS}}"
+      K6_DURATION: "{{.K6_DURATION}}"
+      ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+    cmds:
+      - '{{.GOYEK}} refine-aot-stress'
+
   perf:aot:refine:prepare:
     desc: 准备 Refine dist、AOT bundle 和本地 runtime bench 镜像
     cmds:
@@ -264,6 +277,11 @@ tasks:
     desc: Run the Refine AOT performance benchmark through goyek
     cmds:
       - '{{.GOYEK}} refine-aot-perf'
+
+  refine-aot-stress:
+    desc: Run the Refine AOT stress benchmark through goyek
+    cmds:
+      - '{{.GOYEK}} refine-aot-stress'
 
   refine-aot-down:
     desc: Stop Refine AOT benchmark resources through goyek
@@ -419,3 +437,17 @@ tasks:
       - task: release
         vars:
           VERSION: '{{.VERSION}}'
+  perf:aot:refine:baseline:
+    desc: Run the multi-round Refine AOT performance baseline
+    env:
+      SPACK_PERF_ROUNDS: '{{default "3" .SPACK_PERF_ROUNDS}}'
+      K6_VUS: '{{default "256" .K6_VUS}}'
+      K6_DURATION: '{{default "2m" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+    cmds:
+      - '{{.GOYEK}} refine-aot-baseline'
+
+  refine-aot-baseline:
+    internal: true
+    cmds:
+      - '{{.GOYEK}} refine-aot-baseline'

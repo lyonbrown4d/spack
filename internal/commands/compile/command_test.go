@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -39,6 +40,27 @@ func TestCompileBundleExcludesOutputInsideAssetsRoot(t *testing.T) {
 		if file.Path == "app.spack" {
 			t.Fatal("expected compiler output file to be excluded from bundle")
 		}
+	}
+}
+
+func TestCompileBundleWritesReadableOutput(t *testing.T) {
+	root := t.TempDir()
+	writeCompileTestFile(t, filepath.Join(root, "index.html"), []byte("<h1>ok</h1>"))
+	output := filepath.Join(t.TempDir(), "app.spack")
+
+	if _, err := compilecmd.BundleForTest(context.Background(), root, output); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := info.Mode().Perm()
+	if got&0o444 != 0o444 {
+		t.Fatalf("expected bundle to be readable, got mode %04o", got)
+	}
+	if runtime.GOOS != "windows" && got != 0o644 {
+		t.Fatalf("expected bundle mode 0644, got %04o", got)
 	}
 }
 

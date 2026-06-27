@@ -2,7 +2,7 @@ name: spack-refine-aot-bench
 
 services:
   spack-direct:
-    image: spack-k6-bench:local
+    image: ${SPACK_RUNTIME_BENCH_IMAGE:-spack-k6-bench:local}
     ports:
       - "127.0.0.1:18082:80"
     volumes:
@@ -25,7 +25,7 @@ services:
       SPACK_LOGGER_CONSOLE_ENABLED: "false"
 
   spack-aot:
-    image: spack-k6-bench:local
+    image: ${SPACK_RUNTIME_BENCH_IMAGE:-spack-k6-bench:local}
     ports:
       - "127.0.0.1:18083:80"
     volumes:

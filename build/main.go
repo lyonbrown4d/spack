@@ -93,6 +93,21 @@ var refineAOTPerf = goyek.Define(goyek.Task{
 	},
 })
 
+var refineAOTStress = goyek.Define(goyek.Task{
+	Name:  "refine-aot-stress",
+	Usage: "run the Refine AOT stress benchmark",
+	Action: func(a *goyek.A) {
+		run(a, goCommand("run", "./cmd/perfcontract", "refine-aot", "stress"))
+	},
+})
+
+var refineAOTBaseline = goyek.Define(goyek.Task{
+	Name:  "refine-aot-baseline",
+	Usage: "run the multi-round Refine AOT performance baseline",
+	Action: func(a *goyek.A) {
+		run(a, goCommand("run", "./cmd/perfcontract", "refine-aot", "baseline"))
+	},
+})
 var refineAOTDown = goyek.Define(goyek.Task{
 	Name:  "refine-aot-down",
 	Usage: "stop and remove Refine AOT benchmark resources",

@@ -30,7 +30,7 @@ func RunRefineAOT(ctx context.Context, args []string) error {
 
 // RefineAOTUsage returns command help for the Refine AOT workflow.
 func RefineAOTUsage() string {
-	return `Usage: go run ./cmd/perfcontract refine-aot <prepare|smoke|perf|down>
+	return `Usage: go run ./cmd/perfcontract refine-aot <prepare|smoke|perf|stress|baseline|down>
 
 Environment:
   REFINE_AOT_DIR       Workspace for cloned source, dist, cache, and bundle. Default: tmp/refine-aot.
@@ -43,6 +43,14 @@ Environment:
   REFINE_PACKAGE_MANAGER
                       Package manager command, or auto. Default: auto.
   BENCH_GOARCH         Linux runtime architecture for the Docker image. Default: amd64.
+  SPACK_RUNTIME_BENCH_IMAGE
+                      Runtime image used by direct and AOT containers. Default: spack-k6-bench:local.
+  SPACK_COMPILER_BENCH_IMAGE
+                      Compiler image used to produce the .spack bundle in Docker. Default: spack-compiler-bench:local.
+  SPACK_RUNTIME_BENCH_BUILD
+                      Build the local runtime image before running. Default: true.
+  SPACK_COMPILER_BENCH_BUILD
+                      Build the local compiler image before running. Default: true.
   K6_VUS               k6 virtual users. Default: 64, smoke defaults to 1.
   K6_DURATION          k6 duration. Default: 30s, smoke defaults to 5s.
   ACCEPT_ENCODING      Accept-Encoding header for k6. Default: br,gzip.
@@ -60,7 +68,7 @@ func refineAOTCommand(args []string) (string, error) {
 	switch command {
 	case "", "smoke":
 		return "smoke", nil
-	case "prepare", "perf", "down":
+	case "prepare", "perf", "stress", "baseline", "down":
 		return command, nil
 	case "-h", "--help", "help":
 		return "help", nil
@@ -102,6 +110,10 @@ func refineAOTScriptCommand(ctx context.Context, command string) (*exec.Cmd, err
 		return exec.CommandContext(ctx, "bash", "scripts/refine-aot-bench.sh", "smoke"), nil
 	case "perf":
 		return exec.CommandContext(ctx, "bash", "scripts/refine-aot-bench.sh", "perf"), nil
+	case "stress":
+		return exec.CommandContext(ctx, "bash", "scripts/refine-aot-bench.sh", "stress"), nil
+	case "baseline":
+		return exec.CommandContext(ctx, "bash", "scripts/refine-aot-bench.sh", "baseline"), nil
 	case "down":
 		return exec.CommandContext(ctx, "bash", "scripts/refine-aot-bench.sh", "down"), nil
 	default:
