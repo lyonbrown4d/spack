@@ -8,7 +8,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/go-playground/validator/v10"
-	"github.com/lyonbrown4d/spack/internal/normalizex"
+	"github.com/lyonbrown4d/spack/pkg"
 )
 
 type validationRule struct {
@@ -42,7 +42,7 @@ func New() (*validator.Validate, error) {
 }
 
 func validatePositiveDuration(fl validator.FieldLevel) bool {
-	raw := normalizex.Trim(fl.Field().String())
+	raw := pkg.Trim(fl.Field().String())
 	if raw == "" {
 		return true
 	}
@@ -51,7 +51,7 @@ func validatePositiveDuration(fl validator.FieldLevel) bool {
 }
 
 func validatePositiveFlexibleDuration(fl validator.FieldLevel) bool {
-	raw := normalizex.Trim(fl.Field().String())
+	raw := pkg.Trim(fl.Field().String())
 	if raw == "" {
 		return true
 	}
@@ -63,7 +63,7 @@ func validateRelativePath(fl validator.FieldLevel) bool {
 }
 
 func validateWidths(fl validator.FieldLevel) bool {
-	raw := normalizex.Trim(fl.Field().String())
+	raw := pkg.Trim(fl.Field().String())
 	if raw == "" {
 		return true
 	}
@@ -71,7 +71,7 @@ func validateWidths(fl validator.FieldLevel) bool {
 }
 
 func IsRelativePath(raw string) bool {
-	raw = normalizex.Trim(raw)
+	raw = pkg.Trim(raw)
 	if raw == "" {
 		return false
 	}

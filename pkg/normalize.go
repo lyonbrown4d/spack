@@ -1,5 +1,4 @@
-// Package normalizex centralizes small normalization helpers shared by internal packages.
-package normalizex
+package pkg
 
 import (
 	"cmp"
@@ -32,6 +31,15 @@ func TrimLower(value string) string {
 
 func IsBlank(value string) bool {
 	return strings.TrimSpace(value) == ""
+}
+
+func FirstNonBlank(values ...string) string {
+	for _, value := range values {
+		if !IsBlank(value) {
+			return value
+		}
+	}
+	return ""
 }
 
 func NormalizeStringList(

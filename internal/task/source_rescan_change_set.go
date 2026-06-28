@@ -141,12 +141,12 @@ func (r *sourceRescanRun) rebuildSourceSidecarsForAsset(asset *catalog.Asset) er
 
 	var rebuildErr error
 	r.scanner.SidecarMatchers().Range(func(_ int, matcher sourcecatalog.SidecarMatcher) bool {
-		variant, err := r.buildSidecarVariant(asset, matcher)
+		variant, ok, err := r.buildSidecarVariant(asset, matcher)
 		if err != nil {
 			rebuildErr = oops.In("task").Owner("source rescan").With("asset_path", asset.Path).Wrap(err)
 			return false
 		}
-		if variant == nil {
+		if !ok {
 			return true
 		}
 		if err := r.cat.UpsertVariant(variant); err != nil {
@@ -164,14 +164,14 @@ func (r *sourceRescanRun) rebuildSourceSidecarsForAsset(asset *catalog.Asset) er
 func (r *sourceRescanRun) buildSidecarVariant(
 	asset *catalog.Asset,
 	matcher sourcecatalog.SidecarMatcher,
-) (*catalog.Variant, error) {
+) (*catalog.Variant, bool, error) {
 	sidecarPath := asset.Path + matcher.Suffix
 	file, found, findErr := r.scanner.FindFile(sidecarPath)
 	if findErr != nil {
-		return nil, oops.In("task").Owner("source rescan").With("asset_path", asset.Path).With("sidecar_path", sidecarPath).Wrap(findErr)
+		return nil, false, oops.In("task").Owner("source rescan").With("asset_path", asset.Path).With("sidecar_path", sidecarPath).Wrap(findErr)
 	}
 	if !found {
-		return nil, nil //nolint:nilnil // no sidecar variant exists for this matcher.
+		return nil, false, nil
 	}
 	variant, buildErr := sourcecatalog.BuildSourceSidecarVariant(file, sourcecatalog.SidecarMatch{
 		AssetPath: asset.Path,
@@ -179,9 +179,9 @@ func (r *sourceRescanRun) buildSidecarVariant(
 		Suffix:    matcher.Suffix,
 	}, asset)
 	if buildErr != nil {
-		return nil, oops.In("task").Owner("source rescan").With("asset_path", asset.Path).With("sidecar_path", sidecarPath).Wrap(buildErr)
+		return nil, false, oops.In("task").Owner("source rescan").With("asset_path", asset.Path).With("sidecar_path", sidecarPath).Wrap(buildErr)
 	}
-	return variant, nil
+	return variant, true, nil
 }
 
 func (r *sourceRescanRun) processChangedSourceSidecars(changedSidecars *cxmapping.Map[string, sourceRescanSidecarChange]) error {

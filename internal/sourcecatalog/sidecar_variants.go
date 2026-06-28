@@ -112,7 +112,7 @@ func reusableSidecarVariant(
 }
 
 func updateReusableSidecarVariant(variant *catalog.Variant, sidecar sidecarFile, asset *catalog.Asset) {
-	variant.ID = asset.Path + sidecar.suffix
+	variant.ID = sidecar.assetPath + sidecar.suffix
 	variant.AssetPath = asset.Path
 	variant.ArtifactPath = sidecar.FullPath
 	variant.Size = sidecar.Size

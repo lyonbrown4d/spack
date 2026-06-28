@@ -3,7 +3,7 @@ package resolver
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	contentcodingspec "github.com/lyonbrown4d/spack/internal/contentcoding/spec"
-	"github.com/lyonbrown4d/spack/internal/normalizex"
+	"github.com/lyonbrown4d/spack/pkg"
 	"slices"
 )
 
@@ -41,7 +41,7 @@ func parseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.
 }
 
 func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	if normalizex.IsBlank(header) {
+	if pkg.IsBlank(header) {
 		return nil
 	}
 
@@ -50,7 +50,7 @@ func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.
 }
 
 func ParseAcceptEncodingNormalized(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	if normalizex.IsBlank(header) {
+	if pkg.IsBlank(header) {
 		return nil
 	}
 
@@ -201,8 +201,8 @@ func wildcardEncodingQuality(prefs encodingPreferences) (float64, bool) {
 }
 
 func encodingSupportedCandidates(supported *cxlist.List[string]) *cxlist.List[string] {
-	supported = normalizex.NilIfEmpty(
-		normalizex.NormalizeStringList(supported, normalizex.TrimLower, normalizex.PreserveOrder),
+	supported = pkg.NilIfEmpty(
+		pkg.NormalizeStringList(supported, pkg.TrimLower, pkg.PreserveOrder),
 	)
 	if supported == nil {
 		return defaultSupportedEncodings

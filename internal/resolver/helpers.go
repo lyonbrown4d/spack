@@ -1,13 +1,14 @@
 package resolver
 
 import (
+	"strings"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/media"
-	"github.com/samber/lo"
+	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/oops"
-	"strings"
 )
 
 var supportedImageFormats = media.SupportedImageFormats()
@@ -140,13 +141,7 @@ func variantFormat(variant *catalog.Variant, sourceFormat string) string {
 	if variant == nil {
 		return sourceFormat
 	}
-	return firstNonEmpty(variant.Format, sourceFormat)
-}
-
-func firstNonEmpty(values ...string) string {
-	return lo.FindOrElse[string](values, "", func(value string) bool {
-		return strings.TrimSpace(value) != ""
-	})
+	return pkg.FirstNonBlank(variant.Format, sourceFormat)
 }
 
 func preferredWidths(width int) *cxlist.List[int] {

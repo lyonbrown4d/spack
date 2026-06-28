@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"strconv"
+	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 )
@@ -50,18 +51,24 @@ func prepareVariant(variant *Variant) *Variant {
 	return cloned
 }
 
-func defaultVariantID(variant *Variant) string {
-	id := variant.AssetPath
-	if variant.Encoding != "" {
-		id += "|encoding=" + variant.Encoding
+func VariantID(assetPath, encoding, format string, width int) string {
+	id := strings.TrimSpace(assetPath)
+	encoding = strings.TrimSpace(encoding)
+	format = strings.TrimSpace(format)
+	if encoding != "" {
+		id += "|encoding=" + encoding
 	}
-	if variant.Format != "" {
-		id += "|format=" + variant.Format
+	if format != "" {
+		id += "|format=" + format
 	}
-	if variant.Width > 0 {
-		id += "|width=" + strconv.Itoa(variant.Width)
+	if width > 0 {
+		id += "|width=" + strconv.Itoa(width)
 	}
 	return id
+}
+
+func defaultVariantID(variant *Variant) string {
+	return VariantID(variant.AssetPath, variant.Encoding, variant.Format, variant.Width)
 }
 
 func cloneVariantRecords(records *cxlist.List[*variantRecord]) *cxlist.List[*Variant] {

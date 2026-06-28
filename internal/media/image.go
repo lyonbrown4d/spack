@@ -6,7 +6,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	"github.com/lyonbrown4d/spack/internal/normalizex"
+	"github.com/lyonbrown4d/spack/pkg"
 )
 
 type ImageFormatDescriptor struct {
@@ -65,19 +65,19 @@ func SupportedImageFormats() *cxlist.List[string] {
 }
 
 func LookupImageDescriptor(format string) (ImageFormatDescriptor, bool) {
-	return imageDescriptorsByName.Get(normalizex.TrimLower(format))
+	return imageDescriptorsByName.Get(pkg.TrimLower(format))
 }
 
 func LookupImageDescriptorByMediaType(mediaType string) (ImageFormatDescriptor, bool) {
-	return imageDescriptorsByMediaType.Get(normalizex.TrimLower(mediaType))
+	return imageDescriptorsByMediaType.Get(pkg.TrimLower(mediaType))
 }
 
 func LookupImageDescriptorByAcceptToken(token string) (ImageFormatDescriptor, bool) {
-	return imageDescriptorsByAcceptToken.Get(normalizex.TrimLower(token))
+	return imageDescriptorsByAcceptToken.Get(pkg.TrimLower(token))
 }
 
 func NormalizeImageFormat(format string) string {
-	normalized := normalizex.TrimLower(format)
+	normalized := pkg.TrimLower(format)
 	switch normalized {
 	case "jpg":
 		return "jpeg"
@@ -97,14 +97,14 @@ func ImageFormat(mediaType string) string {
 }
 
 func IsImageMediaType(mediaType string) bool {
-	return strings.HasPrefix(normalizex.TrimLower(mediaType), "image/")
+	return strings.HasPrefix(pkg.TrimLower(mediaType), "image/")
 }
 
 func NormalizeImageFormats(formats *cxlist.List[string]) *cxlist.List[string] {
 	if formats == nil || formats.IsEmpty() {
 		return nil
 	}
-	return normalizex.NormalizeStringList(formats, NormalizeImageFormat, normalizex.PreserveOrder)
+	return pkg.NormalizeStringList(formats, NormalizeImageFormat, pkg.PreserveOrder)
 }
 
 func buildImageDescriptorsByAcceptToken(
@@ -113,7 +113,7 @@ func buildImageDescriptorsByAcceptToken(
 	out := cxmapping.NewMap[string, ImageFormatDescriptor]()
 	descriptors.Range(func(_ int, descriptor ImageFormatDescriptor) bool {
 		descriptor.AcceptTokens.Range(func(_ int, token string) bool {
-			normalized := normalizex.TrimLower(token)
+			normalized := pkg.TrimLower(token)
 			if normalized != "" {
 				out.Set(normalized, descriptor)
 			}

@@ -5,11 +5,11 @@ import (
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/lyonbrown4d/spack/internal/normalizex"
+	"github.com/lyonbrown4d/spack/pkg"
 )
 
 func ParseFlexibleDuration(raw string) time.Duration {
-	raw = normalizex.Trim(raw)
+	raw = pkg.Trim(raw)
 	if raw == "" {
 		return 0
 	}
@@ -29,5 +29,5 @@ func ParseFlexibleDuration(raw string) time.Duration {
 }
 
 func ParseWidths(raw string) *cxlist.List[int] {
-	return normalizex.ParsePositiveIntCSV(raw)
+	return pkg.ParsePositiveIntCSV(raw)
 }

@@ -6,6 +6,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/pkg"
 )
 
 func (r *Resolver) resolvePreferredVariant(
@@ -53,8 +54,8 @@ func (r *Resolver) resolveImageVariant(
 		Asset:        asset,
 		Variant:      variant,
 		FilePath:     variant.ArtifactPath,
-		MediaType:    firstNonEmpty(variant.MediaType, asset.MediaType),
-		ETag:         firstNonEmpty(variant.ETag, asset.ETag),
+		MediaType:    pkg.FirstNonBlank(variant.MediaType, asset.MediaType),
+		ETag:         pkg.FirstNonBlank(variant.ETag, asset.ETag),
 		FallbackUsed: fallbackUsed,
 	}
 	r.recordMetrics(ctx, startedAt, result, nil)
@@ -82,7 +83,7 @@ func (r *Resolver) resolveEncodingVariant(
 		FilePath:        variant.ArtifactPath,
 		MediaType:       asset.MediaType,
 		ContentEncoding: variant.Encoding,
-		ETag:            firstNonEmpty(variant.ETag, asset.ETag),
+		ETag:            pkg.FirstNonBlank(variant.ETag, asset.ETag),
 		FallbackUsed:    fallbackUsed,
 	}
 	r.recordMetrics(ctx, startedAt, result, nil)

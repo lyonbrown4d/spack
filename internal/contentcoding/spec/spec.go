@@ -3,7 +3,7 @@ package spec
 
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
-	"github.com/lyonbrown4d/spack/internal/normalizex"
+	"github.com/lyonbrown4d/spack/pkg"
 )
 
 func DefaultNames() *cxlist.List[string] {
@@ -15,11 +15,11 @@ func IsSupported(name string) bool {
 }
 
 func ParseNames(raw string) *cxlist.List[string] {
-	if normalizex.IsBlank(raw) {
+	if pkg.IsBlank(raw) {
 		return cxlist.NewList[string]()
 	}
-	return normalizex.NilIfEmpty(
-		normalizex.NormalizeCSVStrings(raw, NormalizeName, normalizex.PreserveOrder),
+	return pkg.NilIfEmpty(
+		pkg.NormalizeCSVStrings(raw, NormalizeName, pkg.PreserveOrder),
 	)
 }
 
@@ -32,13 +32,13 @@ func ResolveNames(raw string) *cxlist.List[string] {
 }
 
 func NormalizeNames(values *cxlist.List[string]) *cxlist.List[string] {
-	return normalizex.NilIfEmpty(
-		normalizex.NormalizeStringList(values, NormalizeName, normalizex.PreserveOrder),
+	return pkg.NilIfEmpty(
+		pkg.NormalizeStringList(values, NormalizeName, pkg.PreserveOrder),
 	)
 }
 
 func NormalizeName(raw string) string {
-	switch normalizex.TrimLower(raw) {
+	switch pkg.TrimLower(raw) {
 	case "br":
 		return "br"
 	case "zstd":

@@ -4,7 +4,7 @@ import (
 	"cmp"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/media"
-	"github.com/lyonbrown4d/spack/internal/normalizex"
+	"github.com/lyonbrown4d/spack/pkg"
 	"slices"
 )
 
@@ -43,7 +43,7 @@ func parseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List
 }
 
 func ParseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
-	if normalizex.IsBlank(header) {
+	if pkg.IsBlank(header) {
 		return nil
 	}
 

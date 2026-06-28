@@ -1,13 +1,12 @@
 package sourcecatalog
 
 import (
-	"strconv"
 	"strings"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/source"
-	"github.com/samber/lo"
+	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/mo"
 )
 
@@ -51,34 +50,19 @@ func isExplicitBundleVariantFile(file source.File) bool {
 func buildExplicitBundleVariant(file source.File, asset *catalog.Asset) *catalog.Variant {
 	kind := normalizedExplicitBundleVariantKind(file.Kind)
 	variant := &catalog.Variant{
-		ID:           explicitBundleVariantID(file),
+		ID:           catalog.VariantID(normalizeSourcePath(file.AssetPath), file.Encoding, file.Format, file.Width),
 		AssetPath:    asset.Path,
 		ArtifactPath: file.FullPath,
 		Size:         file.Size,
-		MediaType:    firstNonEmpty(file.MediaType, asset.MediaType),
-		SourceHash:   firstNonEmpty(file.SourceHash, asset.SourceHash),
-		ETag:         firstNonEmpty(file.ETag, asset.ETag),
+		MediaType:    pkg.FirstNonBlank(file.MediaType, asset.MediaType),
+		SourceHash:   pkg.FirstNonBlank(file.SourceHash, asset.SourceHash),
+		ETag:         pkg.FirstNonBlank(file.ETag, asset.ETag),
 		Encoding:     strings.TrimSpace(file.Encoding),
 		Format:       strings.TrimSpace(file.Format),
 		Width:        file.Width,
 		Metadata:     explicitBundleVariantMetadata(file, asset.Path, kind),
 	}
 	return variant
-}
-
-func explicitBundleVariantID(file source.File) string {
-	id := normalizeSourcePath(file.AssetPath)
-	encoding := strings.TrimSpace(file.Encoding)
-	format := strings.TrimSpace(file.Format)
-	suffixes := lo.Compact([]string{
-		lo.Ternary(encoding != "", "encoding="+encoding, ""),
-		lo.Ternary(format != "", "format="+format, ""),
-		lo.Ternary(file.Width > 0, "width="+strconv.Itoa(file.Width), ""),
-	})
-	if len(suffixes) == 0 {
-		return id
-	}
-	return id + "|" + strings.Join(suffixes, "|")
 }
 
 func explicitBundleVariantMetadata(file source.File, assetPath, kind string) *cxmapping.Map[string, string] {
@@ -98,10 +82,4 @@ func normalizedExplicitBundleVariantKind(kind string) string {
 	default:
 		return ""
 	}
-}
-
-func firstNonEmpty(values ...string) string {
-	return lo.FindOrElse(values, "", func(value string) bool {
-		return strings.TrimSpace(value) != ""
-	})
 }
