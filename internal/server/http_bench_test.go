@@ -77,11 +77,7 @@ func runHTTPRouteBenchmarkIteration(b *testing.B, app *fiber.App, requestURL str
 func newHTTPBenchmarkApp(b *testing.B, memoryCacheEnabled bool, assetName string, payload []byte) *fiber.App {
 	b.Helper()
 
-	//nolint:usetesting // Windows sendfile may still hold the file during benchmark cleanup.
-	root, err := os.MkdirTemp("", "spack-http-bench-*")
-	if err != nil {
-		b.Fatal(err)
-	}
+	root := b.TempDir()
 	assetPath := filepath.Join(root, assetName)
 	if err := os.WriteFile(assetPath, payload, 0o600); err != nil {
 		b.Fatal(err)
