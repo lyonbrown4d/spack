@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -77,7 +78,10 @@ func runHTTPRouteBenchmarkIteration(b *testing.B, app *fiber.App, requestURL str
 func newHTTPBenchmarkApp(b *testing.B, memoryCacheEnabled bool, assetName string, payload []byte) *fiber.App {
 	b.Helper()
 
-	root := b.TempDir()
+	root := filepath.Join(os.TempDir(), "spack-http-bench-"+strconv.FormatInt(time.Now().UnixNano(), 36))
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		b.Fatal(err)
+	}
 	assetPath := filepath.Join(root, assetName)
 	if err := os.WriteFile(assetPath, payload, 0o600); err != nil {
 		b.Fatal(err)
