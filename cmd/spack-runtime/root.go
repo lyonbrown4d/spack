@@ -19,7 +19,7 @@ func newRootCommand() *cobra.Command {
 		Short: "Serve optimized frontend assets from a local directory or SPACK bundle.",
 	}
 	cmdkit.BindConfigFlags(command)
-	cmdkit.BindRuntimeRoot(command)
+	bindRuntimeRoot(command)
 	command.AddCommand(
 		newConfigCommand(),
 		newInspectCommand(),

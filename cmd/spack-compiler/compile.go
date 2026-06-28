@@ -6,5 +6,5 @@ import (
 )
 
 func newCompileCommand() *cobra.Command {
-	return compilecmd.NewCommand()
+	return compilecmd.NewCommand(resolveCompilerRuntimeWithDix)
 }

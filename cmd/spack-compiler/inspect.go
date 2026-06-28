@@ -6,5 +6,5 @@ import (
 )
 
 func newInspectCommand() *cobra.Command {
-	return inspectcmd.NewCommand()
+	return inspectcmd.NewCommand(inspectcmd.Dependencies{ResolveConfig: resolveConfigWithDix, ResolveScanner: resolveScannerWithDix})
 }

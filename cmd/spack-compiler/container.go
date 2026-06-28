@@ -1,13 +1,18 @@
-package cmdkit
+package main
 
 import (
+	"encoding/csv"
 	"log/slog"
+	"strings"
 
 	"github.com/arcgolabs/dix"
 	"github.com/arcgolabs/mapper"
 	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/cmdkit"
+	configcmd "github.com/lyonbrown4d/spack/internal/commands/config"
+	"github.com/lyonbrown4d/spack/internal/compiler"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	"github.com/lyonbrown4d/spack/internal/event"
@@ -20,45 +25,38 @@ import (
 	"github.com/lyonbrown4d/spack/internal/validation"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
+	"github.com/spf13/pflag"
 )
 
-type ConfigRuntime struct {
-	Config *config.Config
-	Mapper *mapper.Mapper
-}
-
-func ResolveConfigWithDix(loadOptions config.LoadOptions) (*config.Config, error) {
-	rt, err := ResolveConfigRuntimeWithDix(loadOptions)
+func resolveConfigWithDix(loadOptions config.LoadOptions) (*config.Config, error) {
+	rt, err := resolveConfigRuntimeWithDix(loadOptions)
 	if err != nil {
 		return nil, err
 	}
 	return rt.Config, nil
 }
 
-func ResolveConfigRuntimeWithDix(loadOptions config.LoadOptions) (ConfigRuntime, error) {
+func resolveConfigRuntimeWithDix(loadOptions config.LoadOptions) (configcmd.Runtime, error) {
 	rt, err := buildUtilityRuntime(
 		"spack-config",
 		validation.Module,
 		config.NewModule(loadOptions),
 	)
 	if err != nil {
-		return ConfigRuntime{}, err
+		return configcmd.Runtime{}, err
 	}
 	cfg, err := dix.ResolveAs[*config.Config](rt.Container())
 	if err != nil {
-		return ConfigRuntime{}, oops.Wrapf(err, "resolve config")
+		return configcmd.Runtime{}, oops.Wrapf(err, "resolve config")
 	}
 	instance, err := dix.ResolveAs[*mapper.Mapper](rt.Container())
 	if err != nil {
-		return ConfigRuntime{}, oops.Wrapf(err, "resolve mapper")
+		return configcmd.Runtime{}, oops.Wrapf(err, "resolve mapper")
 	}
-	return ConfigRuntime{
-		Config: cfg,
-		Mapper: instance,
-	}, nil
+	return configcmd.Runtime{Config: cfg, Mapper: instance}, nil
 }
 
-func ResolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {
+func resolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {
 	rt, err := buildUtilityRuntime(
 		"spack-inspect",
 		inspectConfigModule(cfg),
@@ -77,14 +75,15 @@ func ResolveScannerWithDix(cfg *config.Config) (sourcecatalog.Scanner, error) {
 	return scanner, nil
 }
 
-type CompilerRuntime struct {
-	Scanner      sourcecatalog.Scanner
-	Catalog      catalog.Catalog
-	Pipeline     *pipeline.Service
-	BundleWriter spackbundle.BundleWriter
-}
-
-func ResolveCompilerWithDix(cfg *config.Config) (CompilerRuntime, error) {
+func resolveCompilerRuntimeWithDix(loadOptions config.LoadOptions, assetsRoot string) (compiler.Runtime, error) {
+	compileOptions, err := compileLoadOptions(assetsRoot, loadOptions)
+	if err != nil {
+		return compiler.Runtime{}, err
+	}
+	cfg, err := resolveConfigWithDix(compileOptions)
+	if err != nil {
+		return compiler.Runtime{}, oops.Wrapf(err, "resolve compile config")
+	}
 	compilerCfg := compilerConfigForGeneration(cfg)
 	rt, err := buildUtilityRuntime(
 		"spack-compiler",
@@ -101,28 +100,29 @@ func ResolveCompilerWithDix(cfg *config.Config) (CompilerRuntime, error) {
 		pipeline.Module,
 	)
 	if err != nil {
-		return CompilerRuntime{}, err
+		return compiler.Runtime{}, err
 	}
 	scanner, err := dix.ResolveAs[sourcecatalog.Scanner](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, oops.Wrapf(err, "resolve source scanner")
+		return compiler.Runtime{}, oops.Wrapf(err, "resolve source scanner")
 	}
 	cat, err := dix.ResolveAs[catalog.Catalog](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, oops.Wrapf(err, "resolve catalog")
+		return compiler.Runtime{}, oops.Wrapf(err, "resolve catalog")
 	}
 	pipelineSvc, err := dix.ResolveAs[*pipeline.Service](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, oops.Wrapf(err, "resolve compiler pipeline")
+		return compiler.Runtime{}, oops.Wrapf(err, "resolve compiler pipeline")
 	}
 	bundleWriter, err := dix.ResolveAs[spackbundle.BundleWriter](rt.Container())
 	if err != nil {
-		return CompilerRuntime{}, oops.Wrapf(err, "resolve bundle writer")
+		return compiler.Runtime{}, oops.Wrapf(err, "resolve bundle writer")
 	}
-	return CompilerRuntime{
+	return compiler.Runtime{
+		Config:       compilerCfg,
 		Scanner:      scanner,
 		Catalog:      cat,
-		Pipeline:     pipelineSvc,
+		Generator:    pipelineSvc,
 		BundleWriter: bundleWriter,
 	}, nil
 }
@@ -138,8 +138,65 @@ func compilerConfigForGeneration(cfg *config.Config) *config.Config {
 	return &compilerCfg
 }
 
+func compileLoadOptions(assetsRoot string, base config.LoadOptions) (config.LoadOptions, error) {
+	flags, err := cloneVisitedConfigFlags(base.FlagSet)
+	if err != nil {
+		return config.LoadOptions{}, err
+	}
+	if err := flags.Set("assets.root", assetsRoot); err != nil {
+		return config.LoadOptions{}, oops.Wrapf(err, "set compile assets root")
+	}
+	return config.LoadOptions{
+		Files:   lo.Clone(base.Files),
+		FlagSet: flags,
+	}, nil
+}
+
+func cloneVisitedConfigFlags(sourceFlags *pflag.FlagSet) (*pflag.FlagSet, error) {
+	flags := cmdkit.NewConfigFlagSet()
+	if sourceFlags == nil {
+		return flags, nil
+	}
+	var cloneErr error
+	sourceFlags.Visit(func(flag *pflag.Flag) {
+		if flags.Lookup(flag.Name) == nil {
+			return
+		}
+		value, err := cloneConfigFlagValue(flag)
+		if err != nil {
+			cloneErr = oops.Wrapf(err, "clone config flag %s", flag.Name)
+			return
+		}
+		if err := flags.Set(flag.Name, value); err != nil {
+			cloneErr = oops.Wrapf(err, "clone config flag %s", flag.Name)
+		}
+	})
+	if cloneErr != nil {
+		return nil, cloneErr
+	}
+	return flags, nil
+}
+
+func cloneConfigFlagValue(flag *pflag.Flag) (string, error) {
+	if slice, ok := flag.Value.(pflag.SliceValue); ok {
+		return encodeStringSliceFlagValue(slice.GetSlice())
+	}
+	return flag.Value.String(), nil
+}
+
+func encodeStringSliceFlagValue(values []string) (string, error) {
+	var builder strings.Builder
+	writer := csv.NewWriter(&builder)
+	if err := writer.Write(values); err != nil {
+		return "", oops.Wrapf(err, "write string slice flag value")
+	}
+	writer.Flush()
+	return strings.TrimSuffix(builder.String(), "\n"), nil
+}
+
 func buildUtilityRuntime(name string, modules ...dix.Module) (*dix.Runtime, error) {
-	app := dix.New(name, dix.Modules(lo.Concat([]dix.Module{mapx.Module}, modules)...))
+	allModules := append([]dix.Module{mapx.Module}, modules...)
+	app := dix.New(name, dix.Modules(allModules...))
 	if err := app.Validate(); err != nil {
 		return nil, oops.Wrapf(err, "validate %s container", name)
 	}

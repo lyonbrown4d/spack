@@ -1,7 +1,6 @@
 package compilecmd_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestCompileBundleRejectsBundleInput(t *testing.T) {
-	_, err := compilecmd.BundleForTest(context.Background(), filepath.Join(t.TempDir(), "app.spack"), filepath.Join(t.TempDir(), "out.spack"))
+	_, err := compilecmd.BundleForTest(filepath.Join(t.TempDir(), "app.spack"), filepath.Join(t.TempDir(), "out.spack"))
 	if err == nil {
 		t.Fatal("expected bundle input to be rejected")
 	}
@@ -28,7 +27,7 @@ func TestCompileBundleExcludesOutputInsideAssetsRoot(t *testing.T) {
 	output := filepath.Join(root, "app.spack")
 	writeCompileTestFile(t, output, []byte("old bundle"))
 
-	if _, err := compilecmd.BundleForTest(context.Background(), root, output); err != nil {
+	if _, err := compilecmd.BundleForTest(root, output); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,7 +47,7 @@ func TestCompileBundleWritesReadableOutput(t *testing.T) {
 	writeCompileTestFile(t, filepath.Join(root, "index.html"), []byte("<h1>ok</h1>"))
 	output := filepath.Join(t.TempDir(), "app.spack")
 
-	if _, err := compilecmd.BundleForTest(context.Background(), root, output); err != nil {
+	if _, err := compilecmd.BundleForTest(root, output); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(output)

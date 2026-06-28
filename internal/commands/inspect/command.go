@@ -75,20 +75,23 @@ type memoryCacheSummary struct {
 	EstimatedWarmBytes int64 `json:"estimated_warm_bytes"`
 }
 
-func NewCommand() *cobra.Command {
+func NewCommand(deps Dependencies) *cobra.Command {
 	options := inspectOptions{}
 	command := &cobra.Command{
 		Use:   "inspect",
 		Short: "Inspect an asset directory or .spack bundle without starting the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := cmdkit.ResolveConfigWithDix(cmdkit.ConfigLoadOptions(cmd))
+			if deps.ResolveConfig == nil {
+				return oops.In("inspect").Owner("runtime").Errorf("config resolver is required")
+			}
+			cfg, err := deps.ResolveConfig(cmdkit.ConfigLoadOptions(cmd))
 			if err != nil {
 				return oops.Wrapf(err, "resolve inspect config")
 			}
 			if strings.TrimSpace(options.assets) != "" {
 				cfg.Assets.Root = options.assets
 			}
-			report, err := inspectAssets(cmd.Context(), cfg)
+			report, err := inspectAssets(cmd.Context(), cfg, deps.ResolveScanner)
 			if err != nil {
 				return err
 			}
@@ -104,19 +107,20 @@ func NewCommand() *cobra.Command {
 	return command
 }
 
-func inspectAssets(ctx context.Context, cfg *config.Config) (inspectReport, error) {
-	return newInspectUseCase(source.NewResolver()).Inspect(ctx, cfg)
+func inspectAssets(ctx context.Context, cfg *config.Config, resolveScanner ScannerResolver) (inspectReport, error) {
+	return newInspectUseCase(source.NewResolver(), resolveScanner).Inspect(ctx, cfg)
 }
 
 type inspectUseCase struct {
-	resolver *source.Resolver
+	resolver       *source.Resolver
+	resolveScanner ScannerResolver
 }
 
-func newInspectUseCase(resolver *source.Resolver) inspectUseCase {
+func newInspectUseCase(resolver *source.Resolver, resolveScanner ScannerResolver) inspectUseCase {
 	if resolver == nil {
 		resolver = source.NewResolver()
 	}
-	return inspectUseCase{resolver: resolver}
+	return inspectUseCase{resolver: resolver, resolveScanner: resolveScanner}
 }
 
 func (u inspectUseCase) Inspect(ctx context.Context, cfg *config.Config) (inspectReport, error) {
@@ -127,7 +131,10 @@ func (u inspectUseCase) Inspect(ctx context.Context, cfg *config.Config) (inspec
 	if err != nil {
 		return inspectReport{}, oops.Wrapf(err, "resolve inspected source")
 	}
-	scanner, err := cmdkit.ResolveScannerWithDix(cfg)
+	if u.resolveScanner == nil {
+		return inspectReport{}, oops.In("inspect").Owner("runtime").Errorf("scanner resolver is required")
+	}
+	scanner, err := u.resolveScanner(cfg)
 	if err != nil {
 		return inspectReport{}, oops.Wrapf(err, "resolve source scanner")
 	}

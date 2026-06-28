@@ -48,6 +48,77 @@ var Module = dix.NewModule("server",
 	),
 )
 
+var CoreModule = dix.NewModule("server_core",
+	dix.WithModuleProviders(
+		dix.Provider0(NewRuntimeMetrics),
+		dix.Provider2(newResourceHintService),
+		dix.Provider6(newPreparedService),
+		dix.Provider2(newEventPublisher),
+		dix.Provider4(newServerFromDeps),
+	),
+	dix.WithModuleHooks(
+		dix.OnStart(func(ctx context.Context, svc *PreparedService) error {
+			return svc.start(ctx)
+		}),
+		dix.OnStop(func(ctx context.Context, svc *PreparedService) error {
+			return svc.stop(ctx)
+		}),
+	),
+)
+
+var MiddlewareModule = dix.NewModule("server_middleware",
+	dix.WithModuleProviders(
+		dix.Provider4(newMiddlewareRegistrationDeps),
+		dix.Contribute1(newMiddlewareRegistration),
+	),
+)
+
+var DiagnosticsModule = dix.NewModule("server_diagnostics",
+	dix.WithModuleProviders(
+		dix.Provider4(newDiagnosticsRoutesRuntime),
+		dix.Contribute1(newDiagnosticsRoutesRegistration),
+	),
+	dix.WithModuleHooks(
+		dix.OnStop(stopDiagnosticsRoutesRuntime),
+	),
+)
+
+var HealthModule = dix.NewModule("server_health",
+	dix.WithModuleProviders(
+		dix.Provider2(newHealthCheckDefinitions),
+		dix.Contribute2(newHealthRoutesRegistration),
+	),
+	dix.WithModuleSetups(
+		dix.Setup(registerHealthCheckSetup),
+	),
+)
+
+var RobotsModule = dix.NewModule("server_robots",
+	dix.WithModuleProviders(
+		dix.Provider4(newRobotsRouteRegistrationDeps),
+		dix.Contribute1(newRobotsRouteRegistration),
+	),
+)
+
+var AssetsModule = dix.NewModule("server_assets",
+	dix.WithModuleProviders(
+		dix.Provider4(newAssetRouteRuntime),
+		dix.Provider5(newAssetRouteRegistrationDeps),
+		dix.Contribute1(newAssetRouteRegistration),
+	),
+)
+
+func Modules() []dix.Module {
+	return []dix.Module{
+		CoreModule,
+		MiddlewareModule,
+		DiagnosticsModule,
+		HealthModule,
+		RobotsModule,
+		AssetsModule,
+	}
+}
+
 type appRegistration struct {
 	Order int
 	Name  string

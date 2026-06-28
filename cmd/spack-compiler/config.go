@@ -6,5 +6,5 @@ import (
 )
 
 func newConfigCommand() *cobra.Command {
-	return configcmd.NewCommand()
+	return configcmd.NewCommand(resolveConfigRuntimeWithDix)
 }
