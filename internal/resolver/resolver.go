@@ -49,7 +49,7 @@ func newResolver(
 	}
 	return &Resolver{
 		cfg:                cfg,
-		supportedEncodings: contentcodingspec.NormalizeNames(registry.Names()),
+		supportedEncodings: newEncodingSupportFromValues(contentcodingspec.NormalizeNames(registry.Names())),
 		catalog:            cat,
 		logger:             logger,
 		obs:                obs,

@@ -31,6 +31,13 @@ func TestParseAcceptImageFormatsPrefersExplicitOverWildcard(t *testing.T) {
 	}
 }
 
+func TestPreferredImageFormatsWildcardPrefersSourceFormat(t *testing.T) {
+	got := resolver.PreferredImageFormats("*/*;q=1", "", "image/png")
+	if got == nil || !slices.Equal(got.Values(), []string{"png", "jpeg", "webp", "avif"}) {
+		t.Fatalf("unexpected preferred image formats: %#v", got)
+	}
+}
+
 func TestResolverFallsBackForSPAPath(t *testing.T) {
 	sourcePath, _, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
 	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "docs"})

@@ -2,11 +2,14 @@ package resolver
 
 import (
 	"cmp"
+	"slices"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/pkg"
-	"slices"
 )
+
+var defaultImageFormatSupport = newImageFormatSupport(media.SupportedImageFormats())
 
 type imageFormatMask uint8
 
@@ -16,6 +19,11 @@ const (
 	imageFormatMaskWebP
 	imageFormatMaskAVIF
 )
+
+type imageFormatSupport struct {
+	values *cxlist.List[string]
+	known  imageFormatMask
+}
 
 type imagePreferences struct {
 	jpegQ            float64
@@ -38,16 +46,54 @@ const (
 	imagePreferenceExplicit
 )
 
-func parseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
-	return ParseAcceptImageFormats(header, sourceFormat, supported)
+func parseAcceptImageFormats(header, sourceFormat string, supported imageFormatSupport) *cxlist.List[string] {
+	return parseAcceptImageFormatsWithSupport(header, sourceFormat, supported)
 }
 
 func ParseAcceptImageFormats(header, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
+	return parseAcceptImageFormatsWithSupport(header, sourceFormat, newImageFormatSupport(supported))
+}
+
+func parseAcceptImageFormatsWithSupport(header, sourceFormat string, supported imageFormatSupport) *cxlist.List[string] {
 	if pkg.IsBlank(header) {
 		return nil
 	}
 
-	return buildImageCandidates(collectImagePreferences(header), sourceFormat, supported)
+	return buildImageCandidates(collectImagePreferences(header), media.NormalizeImageFormat(sourceFormat), supported)
+}
+
+func newImageFormatSupport(supported *cxlist.List[string]) imageFormatSupport {
+	supported = media.NormalizeImageFormats(supported)
+	if supported == nil || supported.IsEmpty() {
+		supported = media.SupportedImageFormats()
+	}
+
+	var known imageFormatMask
+	supported.Range(func(_ int, format string) bool {
+		if mask, ok := imageFormatMaskForName(format); ok {
+			known |= mask
+		}
+		return true
+	})
+	return imageFormatSupport{values: supported, known: known}
+}
+
+func (support imageFormatSupport) withSourceFormat(sourceFormat string) imageFormatSupport {
+	if support.values == nil {
+		support = defaultImageFormatSupport
+	}
+	if sourceFormat == "" {
+		return support
+	}
+	mask, ok := imageFormatMaskForName(sourceFormat)
+	if ok && support.known.has(mask) {
+		return support
+	}
+
+	values := cxlist.NewListWithCapacity[string](support.values.Len() + 1)
+	values.Merge(support.values)
+	values.Add(sourceFormat)
+	return newImageFormatSupport(values)
 }
 
 func collectImagePreferences(header string) imagePreferences {
@@ -131,11 +177,11 @@ func (prefs *imagePreferences) setQuality(mask imageFormatMask, q float64) {
 	}
 }
 
-func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported *cxlist.List[string]) *cxlist.List[string] {
-	supported = imageFormatCandidates(supported, sourceFormat)
+func buildImageCandidates(prefs imagePreferences, sourceFormat string, supported imageFormatSupport) *cxlist.List[string] {
+	supported = supported.withSourceFormat(sourceFormat)
 	var stack [4]imageCandidate
 	candidates := stack[:0]
-	supported.Range(func(index int, format string) bool {
+	supported.values.Range(func(index int, format string) bool {
 		q, match := imageQualityForFormat(prefs, format)
 		if q <= 0 || match == imagePreferenceNone {
 			return true
@@ -173,20 +219,6 @@ func compareImageCandidates(left, right imageCandidate) int {
 		return cmp.Compare(int(right.match), int(left.match))
 	}
 	return compareAcceptQualityPriority(left.q, left.priority, right.q, right.priority)
-}
-
-func imageFormatCandidates(supported *cxlist.List[string], sourceFormat string) *cxlist.List[string] {
-	candidates := cxlist.NewList[string]()
-	if supported != nil {
-		candidates.Merge(supported)
-	}
-	if sourceFormat != "" {
-		candidates.Add(sourceFormat)
-	}
-	if candidates.IsEmpty() {
-		candidates.Add(media.SupportedImageFormats().Values()...)
-	}
-	return media.NormalizeImageFormats(candidates)
 }
 
 func imageQualityForFormat(prefs imagePreferences, format string) (float64, imagePreferenceMatch) {

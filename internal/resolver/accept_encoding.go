@@ -1,13 +1,17 @@
 package resolver
 
 import (
+	"slices"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	contentcodingspec "github.com/lyonbrown4d/spack/internal/contentcoding/spec"
 	"github.com/lyonbrown4d/spack/pkg"
-	"slices"
 )
 
-var defaultSupportedEncodings = contentcodingspec.DefaultNames()
+var (
+	defaultSupportedEncodings = contentcodingspec.DefaultNames()
+	defaultEncodingSupport    = newEncodingSupportFromValues(defaultSupportedEncodings)
+)
 
 type encodingMask uint8
 
@@ -17,6 +21,11 @@ const (
 	encodingMaskGzip
 	encodingMaskIdentity
 )
+
+type encodingSupport struct {
+	values *cxlist.List[string]
+	known  encodingMask
+}
 
 type encodingPreferences struct {
 	brQ       float64
@@ -36,8 +45,8 @@ type encodingCandidate struct {
 	priority int
 }
 
-func parseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
-	return ParseAcceptEncodingNormalized(header, supported)
+func parseAcceptEncoding(header string, supported encodingSupport) *cxlist.List[string] {
+	return parseAcceptEncodingWithSupport(header, supported)
 }
 
 func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.List[string] {
@@ -45,8 +54,7 @@ func ParseAcceptEncoding(header string, supported *cxlist.List[string]) *cxlist.
 		return nil
 	}
 
-	supported = encodingSupportedCandidates(contentcodingspec.NormalizeNames(supported))
-	return buildEncodingCandidates(collectEncodingPreferences(header, supported), supported)
+	return parseAcceptEncodingWithSupport(header, newStrictEncodingSupport(supported))
 }
 
 func ParseAcceptEncodingNormalized(header string, supported *cxlist.List[string]) *cxlist.List[string] {
@@ -54,11 +62,45 @@ func ParseAcceptEncodingNormalized(header string, supported *cxlist.List[string]
 		return nil
 	}
 
-	supported = encodingSupportedCandidates(supported)
+	return parseAcceptEncodingWithSupport(header, newLooseEncodingSupport(supported))
+}
+
+func parseAcceptEncodingWithSupport(header string, supported encodingSupport) *cxlist.List[string] {
+	if pkg.IsBlank(header) {
+		return nil
+	}
+	if supported.values == nil {
+		supported = defaultEncodingSupport
+	}
 	return buildEncodingCandidates(collectEncodingPreferences(header, supported), supported)
 }
 
-func collectEncodingPreferences(header string, supported *cxlist.List[string]) encodingPreferences {
+func newStrictEncodingSupport(supported *cxlist.List[string]) encodingSupport {
+	return newEncodingSupportFromValues(contentcodingspec.NormalizeNames(supported))
+}
+
+func newLooseEncodingSupport(supported *cxlist.List[string]) encodingSupport {
+	return newEncodingSupportFromValues(
+		pkg.NilIfEmpty(pkg.NormalizeStringList(supported, pkg.TrimLower, pkg.PreserveOrder)),
+	)
+}
+
+func newEncodingSupportFromValues(supported *cxlist.List[string]) encodingSupport {
+	if supported == nil || supported.IsEmpty() {
+		supported = defaultSupportedEncodings
+	}
+
+	var known encodingMask
+	supported.Range(func(_ int, encoding string) bool {
+		if mask, ok := knownEncodingMask(encoding); ok {
+			known |= mask
+		}
+		return true
+	})
+	return encodingSupport{values: supported, known: known}
+}
+
+func collectEncodingPreferences(header string, supported encodingSupport) encodingPreferences {
 	var prefs encodingPreferences
 	forEachAcceptEntry(header, func(entry acceptEntry) bool {
 		applyEncodingPreference(&prefs, supported, entry)
@@ -67,17 +109,19 @@ func collectEncodingPreferences(header string, supported *cxlist.List[string]) e
 	return prefs
 }
 
-func applyEncodingPreference(prefs *encodingPreferences, supported *cxlist.List[string], entry acceptEntry) {
+func applyEncodingPreference(prefs *encodingPreferences, supported encodingSupport, entry acceptEntry) {
 	if entry.token == "*" {
 		prefs.hasWildcard = true
 		prefs.wildcardQ = entry.q
 		return
 	}
 	if mask, ok := knownEncodingMask(entry.token); ok {
-		prefs.setKnown(mask, entry.q)
+		if supported.known.has(mask) {
+			prefs.setKnown(mask, entry.q)
+		}
 		return
 	}
-	if supportsEncodingToken(supported, entry.token) {
+	if supported.supportsExtra(entry.token) {
 		applyExtraEncodingPreference(prefs, entry)
 	}
 }
@@ -107,6 +151,22 @@ func (prefs *encodingPreferences) setKnown(mask encodingMask, q float64) {
 
 func (mask encodingMask) has(value encodingMask) bool {
 	return mask&value != 0
+}
+
+func (support encodingSupport) supportsExtra(token string) bool {
+	if support.values == nil {
+		return false
+	}
+
+	supported := false
+	support.values.Range(func(_ int, encoding string) bool {
+		if encoding == token {
+			supported = true
+			return false
+		}
+		return true
+	})
+	return supported
 }
 
 func (prefs encodingPreferences) knownQuality(mask encodingMask) float64 {
@@ -147,10 +207,10 @@ func applyExtraEncodingPreference(prefs *encodingPreferences, entry acceptEntry)
 	}
 }
 
-func buildEncodingCandidates(prefs encodingPreferences, supported *cxlist.List[string]) *cxlist.List[string] {
+func buildEncodingCandidates(prefs encodingPreferences, supported encodingSupport) *cxlist.List[string] {
 	var stack [4]encodingCandidate
 	choices := stack[:0]
-	supported.Range(func(index int, encoding string) bool {
+	supported.values.Range(func(index int, encoding string) bool {
 		q, ok := encodingQuality(prefs, encoding)
 		if !ok {
 			return true
@@ -198,28 +258,6 @@ func wildcardEncodingQuality(prefs encodingPreferences) (float64, bool) {
 		return 0, false
 	}
 	return prefs.wildcardQ, true
-}
-
-func encodingSupportedCandidates(supported *cxlist.List[string]) *cxlist.List[string] {
-	supported = pkg.NilIfEmpty(
-		pkg.NormalizeStringList(supported, pkg.TrimLower, pkg.PreserveOrder),
-	)
-	if supported == nil {
-		return defaultSupportedEncodings
-	}
-	return supported
-}
-
-func supportsEncodingToken(supported *cxlist.List[string], token string) bool {
-	supportedEncoding := false
-	supported.Range(func(_ int, encoding string) bool {
-		if encoding == token {
-			supportedEncoding = true
-			return false
-		}
-		return true
-	})
-	return supportedEncoding
 }
 
 func compareEncodingCandidates(left, right encodingCandidate) int {

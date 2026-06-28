@@ -35,7 +35,7 @@ type Result struct {
 
 type Resolver struct {
 	cfg                *config.Assets
-	supportedEncodings *cxlist.List[string]
+	supportedEncodings encodingSupport
 	catalog            catalog.Catalog
 	logger             *slog.Logger
 	obs                observabilityx.Observability

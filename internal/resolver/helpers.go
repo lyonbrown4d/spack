@@ -11,7 +11,7 @@ import (
 	"github.com/samber/oops"
 )
 
-var supportedImageFormats = media.SupportedImageFormats()
+var supportedImageFormatSupport = defaultImageFormatSupport
 
 type encodingVariantViewCatalog interface {
 	FindEncodingVariantView(assetPath, encoding string) (*catalog.Variant, bool)
@@ -174,5 +174,5 @@ func PreferredImageFormats(
 	if !media.IsImageMediaType(sourceMediaType) {
 		return nil
 	}
-	return parseAcceptImageFormats(acceptHeader, media.ImageFormat(sourceMediaType), supportedImageFormats)
+	return parseAcceptImageFormats(acceptHeader, media.ImageFormat(sourceMediaType), supportedImageFormatSupport)
 }
