@@ -75,7 +75,9 @@ case "$app_body" in
   *) echo "app.js response did not contain smoke marker" >&2; exit 1 ;;
 esac
 
-range_status="$(curl -fsS -o /dev/null -w "%{http_code}" -H "Range: bytes=0-3" "http://127.0.0.1:${PORT}/app.js")"
+RANGE_BODY="${WORK_DIR}/range-body.tmp"
+range_status="$(curl -fsS -o "$RANGE_BODY" -w "%{http_code}" -H "Range: bytes=0-3" "http://127.0.0.1:${PORT}/app.js")"
+rm -f "$RANGE_BODY"
 if [ "$range_status" != "206" ]; then
   echo "range request expected 206, got ${range_status}" >&2
   exit 1

@@ -28,11 +28,10 @@ type Snapshot struct {
 }
 
 type Scanner struct {
-	src           *source.LocalFS
-	matchers      *cxlist.List[sidecarMatcher]
-	matcherTrie   *cxprefix.Trie[sidecarMatcher]
-	pathFilter    assetPathFilter
-	sidecarPolicy sidecarTrustPolicy
+	src         *source.LocalFS
+	matchers    *cxlist.List[sidecarMatcher]
+	matcherTrie *cxprefix.Trie[sidecarMatcher]
+	pathFilter  assetPathFilter
 }
 
 type SidecarMatcher struct {
@@ -47,30 +46,28 @@ type SidecarMatch struct {
 }
 
 func NewScanner(src *source.LocalFS, registry contentcoding.Registry) Scanner {
-	return newScanner(src, registry, assetPathFilter{}, trustSourceSidecars)
+	return newScanner(src, registry, assetPathFilter{})
 }
 
 func NewScannerWithAssets(src *source.LocalFS, registry contentcoding.Registry, assets *config.Assets) Scanner {
-	return newScanner(src, registry, newAssetPathFilter(assets), trustSourceSidecars)
+	return newScanner(src, registry, newAssetPathFilter(assets))
 }
 
 func NewCompilerScannerWithAssets(src *source.LocalFS, registry contentcoding.Registry, assets *config.Assets) Scanner {
-	return newScanner(src, registry, newAssetPathFilter(assets), strictBundleSidecars)
+	return newScanner(src, registry, newAssetPathFilter(assets))
 }
 
 func newScanner(
 	src *source.LocalFS,
 	registry contentcoding.Registry,
 	pathFilter assetPathFilter,
-	sidecarPolicy sidecarTrustPolicy,
 ) Scanner {
 	matchers := buildSidecarMatchers(registry)
 	return Scanner{
-		src:           src,
-		matchers:      matchers,
-		matcherTrie:   buildSidecarMatcherTrie(matchers),
-		pathFilter:    pathFilter,
-		sidecarPolicy: sidecarPolicy,
+		src:         src,
+		matchers:    matchers,
+		matcherTrie: buildSidecarMatcherTrie(matchers),
+		pathFilter:  pathFilter,
 	}
 }
 
@@ -145,7 +142,7 @@ func (s Scanner) ScanWithCatalog(ctx context.Context, cat catalog.Catalog) (Snap
 	if err != nil {
 		return Snapshot{}, err
 	}
-	variants, err := buildSidecarVariants(ctx, sidecars, assets, existing.sidecars, s.sidecarPolicy)
+	variants, err := s.buildSidecarVariants(ctx, sidecars, assets, existing.sidecars)
 	if err != nil {
 		return Snapshot{}, err
 	}

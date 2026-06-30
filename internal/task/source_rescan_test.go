@@ -83,7 +83,7 @@ func TestSyncSourceCatalogRecognizesSourceCompressionSidecars(t *testing.T) {
 	root := t.TempDir()
 	writeFileForTest(t, filepath.Join(root, "app.js"), []byte("console.log('new');"))
 	sidecarPath := filepath.Join(root, "app.js.br")
-	writeFileForTest(t, sidecarPath, []byte("compressed"))
+	writeBrotliFileForTest(t, sidecarPath, []byte("console.log('sidecar-source');"))
 
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
@@ -123,7 +123,7 @@ func TestSyncSourceCatalogRemovesMissingSourceSidecarVariant(t *testing.T) {
 	root := t.TempDir()
 	writeFileForTest(t, filepath.Join(root, "app.js"), []byte("console.log('new');"))
 	sidecarPath := filepath.Join(root, "app.js.br")
-	writeFileForTest(t, sidecarPath, []byte("compressed"))
+	writeBrotliFileForTest(t, sidecarPath, []byte("console.log('sidecar-source');"))
 
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
@@ -157,7 +157,7 @@ func TestSyncSourceCatalogKeepsSourceSidecarFileOnAssetRefresh(t *testing.T) {
 	assetPath := filepath.Join(root, "app.js")
 	sidecarPath := filepath.Join(root, "app.js.br")
 	writeFileForTest(t, assetPath, []byte("console.log('old');"))
-	writeFileForTest(t, sidecarPath, []byte("compressed"))
+	writeBrotliFileForTest(t, sidecarPath, []byte("console.log('sidecar-source');"))
 
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
@@ -225,7 +225,7 @@ func TestSyncSourceCatalogIncrementallyRemovesSidecarVariant(t *testing.T) {
 	assetPath := filepath.Join(root, "app.js")
 	sidecarPath := filepath.Join(root, "app.js.br")
 	writeFileForTest(t, assetPath, []byte("console.log('old');"))
-	writeFileForTest(t, sidecarPath, []byte("compressed"))
+	writeBrotliFileForTest(t, sidecarPath, []byte("console.log('sidecar-source');"))
 
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()

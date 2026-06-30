@@ -173,13 +173,16 @@ func (r *sourceRescanRun) buildSidecarVariant(
 	if !found {
 		return nil, false, nil
 	}
-	variant, buildErr := sourcecatalog.BuildSourceSidecarVariant(file, sourcecatalog.SidecarMatch{
+	variant, trusted, buildErr := r.scanner.BuildSourceSidecarVariant(file, sourcecatalog.SidecarMatch{
 		AssetPath: asset.Path,
 		Encoding:  matcher.Encoding,
 		Suffix:    matcher.Suffix,
 	}, asset)
 	if buildErr != nil {
 		return nil, false, oops.In("task").Owner("source rescan").With("asset_path", asset.Path).With("sidecar_path", sidecarPath).Wrap(buildErr)
+	}
+	if !trusted {
+		return nil, false, nil
 	}
 	return variant, true, nil
 }
@@ -202,9 +205,13 @@ func (r *sourceRescanRun) upsertSidecarVariant(change sourceRescanSidecarChange)
 		return nil
 	}
 
-	variant, buildErr := sourcecatalog.BuildSourceSidecarVariant(change.file, change.match, asset)
+	variant, trusted, buildErr := r.scanner.BuildSourceSidecarVariant(change.file, change.match, asset)
 	if buildErr != nil {
 		return oops.In("task").Owner("source rescan").With("asset_path", change.match.AssetPath).Wrap(buildErr)
+	}
+	if !trusted {
+		r.removeSidecarVariants(change.match)
+		return nil
 	}
 	return oops.In("task").Owner("source rescan").With("asset_path", asset.Path).Wrap(r.cat.UpsertVariant(variant))
 }

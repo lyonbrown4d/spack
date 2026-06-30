@@ -13,7 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 )
 
-func TestScannerSkipsExternalGzipSidecarsByDefault(t *testing.T) {
+func TestScannerSkipsInvalidExternalGzipSidecars(t *testing.T) {
 	root := t.TempDir()
 	writeSourceFile(t, filepath.Join(root, "hero.webp"), []byte("RIFF....WEBPVP8 "))
 	writeSourceFile(t, filepath.Join(root, "hero.webp.gz"), []byte{0x78, 0xda, 0x01, 0x02})
@@ -31,11 +31,31 @@ func TestScannerSkipsExternalGzipSidecarsByDefault(t *testing.T) {
 		t.Fatal("expected external hero.webp.gz sidecar to be hidden from plain assets")
 	}
 	if _, ok := snapshot.Variants.Get("hero.webp.gz"); ok {
-		t.Fatal("expected default scanner to skip external hero.webp.gz sidecar")
+		t.Fatal("expected default scanner to skip invalid external hero.webp.gz sidecar")
 	}
 }
 
-func TestCompilerScannerSkipsExternalGzipSidecars(t *testing.T) {
+func TestScannerTrustsValidExternalGzipSidecars(t *testing.T) {
+	root := t.TempDir()
+	sourceBody := []byte("RIFF....WEBPVP8 ")
+	writeSourceFile(t, filepath.Join(root, "hero.webp"), sourceBody)
+	writeCompressedSourceFile(t, filepath.Join(root, "hero.webp.gz"), "gzip", sourceBody)
+
+	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
+	snapshot, err := scanner.Scan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	variant, ok := snapshot.Variants.Get("hero.webp.gz")
+	if !ok || variant == nil {
+		t.Fatal("expected valid external hero.webp.gz sidecar to be registered")
+	}
+	if variant.Encoding != "gzip" {
+		t.Fatalf("expected gzip encoding, got %q", variant.Encoding)
+	}
+}
+func TestCompilerScannerSkipsInvalidExternalGzipSidecars(t *testing.T) {
 	root := t.TempDir()
 	writeSourceFile(t, filepath.Join(root, "hero.webp"), []byte("RIFF....WEBPVP8 "))
 	writeSourceFile(t, filepath.Join(root, "hero.webp.gz"), []byte{0x78, 0xda, 0x01, 0x02})
@@ -53,7 +73,7 @@ func TestCompilerScannerSkipsExternalGzipSidecars(t *testing.T) {
 		t.Fatal("expected compiler scanner to drop external hero.webp.gz as a plain asset")
 	}
 	if _, ok := snapshot.Variants.Get("hero.webp.gz"); ok {
-		t.Fatal("expected compiler scanner to skip external hero.webp.gz sidecar")
+		t.Fatal("expected compiler scanner to skip invalid external hero.webp.gz sidecar")
 	}
 }
 

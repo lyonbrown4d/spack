@@ -8,6 +8,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"log/slog"
 )
@@ -46,6 +47,25 @@ func upsertVariantForTest(t *testing.T, cat catalog.Catalog, artifactPath string
 	}
 }
 
+func writeBrotliFileForTest(t *testing.T, path string, raw []byte) []byte {
+	t.Helper()
+
+	cfg := config.DefaultConfigForTest()
+	strategy, ok := contentcoding.NewRegistry(contentcoding.Options{
+		BrotliQuality: cfg.Compression.BrotliQuality,
+		GzipLevel:     cfg.Compression.GzipLevel,
+		ZstdLevel:     cfg.Compression.ZstdLevel,
+	}, cxlist.NewList("br")).Lookup("br")
+	if !ok {
+		t.Fatal("expected brotli compression strategy")
+	}
+	body, err := strategy.Compress(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFileForTest(t, path, body)
+	return body
+}
 func writeFileForTest(t *testing.T, path string, body []byte) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {

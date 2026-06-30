@@ -9,27 +9,35 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/mo"
 	"github.com/samber/oops"
 )
 
-type sidecarTrustPolicy uint8
+type sourceSidecarTrustFunc func(sidecarFile) (bool, error)
 
-const (
-	trustSourceSidecars sidecarTrustPolicy = iota
-	strictBundleSidecars
-)
-
-func buildSidecarVariants(
+func (s Scanner) buildSidecarVariants(
 	ctx context.Context,
 	sidecars *cxmapping.Map[string, sidecarFile],
 	assets *cxmapping.Map[string, *catalog.Asset],
 	existingSidecars *cxmapping.Map[string, *catalog.Variant],
-	sidecarPolicy sidecarTrustPolicy,
 ) (*cxmapping.Map[string, *catalog.Variant], error) {
-	variants, candidates := collectSidecarVariantBuildCandidates(sidecars, assets, existingSidecars, sidecarPolicy)
+	return buildSidecarVariants(ctx, s.trustedSourceSidecarPayload, sidecars, assets, existingSidecars)
+}
+
+func buildSidecarVariants(
+	ctx context.Context,
+	trustPayload sourceSidecarTrustFunc,
+	sidecars *cxmapping.Map[string, sidecarFile],
+	assets *cxmapping.Map[string, *catalog.Asset],
+	existingSidecars *cxmapping.Map[string, *catalog.Variant],
+) (*cxmapping.Map[string, *catalog.Variant], error) {
+	variants, candidates, err := collectSidecarVariantBuildCandidates(sidecars, assets, existingSidecars, trustPayload)
+	if err != nil {
+		return nil, err
+	}
 	if candidates.IsEmpty() {
 		return variants, nil
 	}
@@ -86,15 +94,24 @@ func collectSidecarVariantBuildCandidates(
 	sidecars *cxmapping.Map[string, sidecarFile],
 	assets *cxmapping.Map[string, *catalog.Asset],
 	existingSidecars *cxmapping.Map[string, *catalog.Variant],
-	sidecarPolicy sidecarTrustPolicy,
-) (*cxmapping.Map[string, *catalog.Variant], *cxlist.List[sidecarVariantBuildCandidate]) {
+	trustPayload sourceSidecarTrustFunc,
+) (*cxmapping.Map[string, *catalog.Variant], *cxlist.List[sidecarVariantBuildCandidate], error) {
 	variants := cxmapping.NewMapWithCapacity[string, *catalog.Variant](sidecars.Len())
 	candidates := cxlist.NewListWithCapacity[sidecarVariantBuildCandidate](sidecars.Len())
 
+	var collectErr error
 	sortedKeys[sidecarFile](sidecars).Range(func(_ int, sidecarPath string) bool {
 		sidecar, _ := sidecars.Get(sidecarPath)
 		asset, ok := assets.GetOption(sidecar.assetPath).Get()
-		if !ok || asset == nil || !trustedSourceSidecarPayload(sidecarPolicy, sidecar) {
+		if !ok || asset == nil {
+			return true
+		}
+		trusted, err := trustedSourceSidecarPayload(trustPayload, sidecar)
+		if err != nil {
+			collectErr = err
+			return false
+		}
+		if !trusted {
 			return true
 		}
 		if variant, ok := reusableSidecarVariant(existingSidecars, sidecar, asset).Get(); ok {
@@ -104,11 +121,56 @@ func collectSidecarVariantBuildCandidates(
 		candidates.Add(sidecarVariantBuildCandidate{sidecar: sidecar, asset: asset})
 		return true
 	})
-	return variants, candidates
+	if collectErr != nil {
+		return nil, nil, collectErr
+	}
+	return variants, candidates, nil
 }
 
-func trustedSourceSidecarPayload(_ sidecarTrustPolicy, sidecar sidecarFile) bool {
-	return sidecar.encoding != "gzip"
+func trustedSourceSidecarPayload(trustPayload sourceSidecarTrustFunc, sidecar sidecarFile) (bool, error) {
+	if trustPayload == nil {
+		return false, nil
+	}
+	return trustPayload(sidecar)
+}
+
+func (s Scanner) trustedSourceSidecarPayload(sidecar sidecarFile) (bool, error) {
+	if s.src == nil || sidecar.Size <= 0 {
+		return false, nil
+	}
+	payload, found, err := s.src.ReadPrefix(sidecar.Path, contentcoding.ValidationSampleBytes)
+	if err != nil {
+		return false, oops.In("sourcecatalog").Owner("sidecar validation").With("sidecar_path", sidecar.Path).Wrap(err)
+	}
+	if !found {
+		return false, nil
+	}
+	return contentcoding.IsValidPayload(sidecar.encoding, payload), nil
+}
+
+func (s Scanner) BuildSourceSidecarVariant(
+	file source.File,
+	match SidecarMatch,
+	asset *catalog.Asset,
+) (*catalog.Variant, bool, error) {
+	sidecar := sidecarFile{
+		File:      file,
+		assetPath: match.AssetPath,
+		encoding:  match.Encoding,
+		suffix:    match.Suffix,
+	}
+	trusted, err := s.trustedSourceSidecarPayload(sidecar)
+	if err != nil {
+		return nil, false, err
+	}
+	if !trusted {
+		return nil, false, nil
+	}
+	variant, err := BuildSourceSidecarVariant(file, match, asset)
+	if err != nil {
+		return nil, false, err
+	}
+	return variant, true, nil
 }
 
 func reusableSidecarVariant(
