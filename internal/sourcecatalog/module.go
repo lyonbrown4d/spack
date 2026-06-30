@@ -10,3 +10,9 @@ var Module = dix.NewModule("sourcecatalog",
 		dix.Provider3(NewScannerWithAssets),
 	),
 )
+
+var CompilerModule = dix.NewModule("sourcecatalog_compiler",
+	dix.WithModuleProviders(
+		dix.Provider3(NewCompilerScannerWithAssets),
+	),
+)

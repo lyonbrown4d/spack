@@ -39,7 +39,7 @@ func resolveCompilerRuntimeWithDix(loadOptions config.LoadOptions, assetsRoot st
 		event.Module,
 		contentcoding.Module,
 		source.Module,
-		sourcecatalog.Module,
+		sourcecatalog.CompilerModule,
 		spackbundle.Module,
 		artifact.Module,
 		pipeline.Module,

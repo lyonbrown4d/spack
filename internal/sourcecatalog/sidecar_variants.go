@@ -15,13 +15,21 @@ import (
 	"github.com/samber/oops"
 )
 
+type sidecarTrustPolicy uint8
+
+const (
+	trustSourceSidecars sidecarTrustPolicy = iota
+	strictBundleSidecars
+)
+
 func buildSidecarVariants(
 	ctx context.Context,
 	sidecars *cxmapping.Map[string, sidecarFile],
 	assets *cxmapping.Map[string, *catalog.Asset],
 	existingSidecars *cxmapping.Map[string, *catalog.Variant],
+	sidecarPolicy sidecarTrustPolicy,
 ) (*cxmapping.Map[string, *catalog.Variant], error) {
-	variants, candidates := collectSidecarVariantBuildCandidates(sidecars, assets, existingSidecars)
+	variants, candidates := collectSidecarVariantBuildCandidates(sidecars, assets, existingSidecars, sidecarPolicy)
 	if candidates.IsEmpty() {
 		return variants, nil
 	}
@@ -78,6 +86,7 @@ func collectSidecarVariantBuildCandidates(
 	sidecars *cxmapping.Map[string, sidecarFile],
 	assets *cxmapping.Map[string, *catalog.Asset],
 	existingSidecars *cxmapping.Map[string, *catalog.Variant],
+	sidecarPolicy sidecarTrustPolicy,
 ) (*cxmapping.Map[string, *catalog.Variant], *cxlist.List[sidecarVariantBuildCandidate]) {
 	variants := cxmapping.NewMapWithCapacity[string, *catalog.Variant](sidecars.Len())
 	candidates := cxlist.NewListWithCapacity[sidecarVariantBuildCandidate](sidecars.Len())
@@ -85,7 +94,7 @@ func collectSidecarVariantBuildCandidates(
 	sortedKeys[sidecarFile](sidecars).Range(func(_ int, sidecarPath string) bool {
 		sidecar, _ := sidecars.Get(sidecarPath)
 		asset, ok := assets.GetOption(sidecar.assetPath).Get()
-		if !ok || asset == nil {
+		if !ok || asset == nil || !trustedSourceSidecarPayload(sidecarPolicy, sidecar) {
 			return true
 		}
 		if variant, ok := reusableSidecarVariant(existingSidecars, sidecar, asset).Get(); ok {
@@ -96,6 +105,10 @@ func collectSidecarVariantBuildCandidates(
 		return true
 	})
 	return variants, candidates
+}
+
+func trustedSourceSidecarPayload(_ sidecarTrustPolicy, sidecar sidecarFile) bool {
+	return sidecar.encoding != "gzip"
 }
 
 func reusableSidecarVariant(
