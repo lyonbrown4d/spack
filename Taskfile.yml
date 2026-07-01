@@ -252,6 +252,49 @@ tasks:
     cmds:
       - '{{.GOYEK}} refine-aot-perf'
 
+
+  perf:aot:refine:matrix:
+    desc: 运行真实 Refine dist 对比 direct runtime/AOT 与 nginx/caddy 的并发阶梯压测
+    vars:
+      REFINE_AOT_CONCURRENCIES: '{{default "1,8,64,256,1024" .REFINE_AOT_CONCURRENCIES}}'
+      REFINE_BENCH_TARGETS: '{{default "direct,aot,caddy,nginx" .REFINE_BENCH_TARGETS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+      SPACK_IMAGE_ENABLE: '{{default "false" .SPACK_IMAGE_ENABLE}}'
+      SPACK_IMAGE_WIDTHS: '{{default "320,640" .SPACK_IMAGE_WIDTHS}}'
+      SPACK_IMAGE_FORMATS: '{{default "webp" .SPACK_IMAGE_FORMATS}}'
+    env:
+      REFINE_AOT_CONCURRENCIES: "{{.REFINE_AOT_CONCURRENCIES}}"
+      REFINE_BENCH_TARGETS: "{{.REFINE_BENCH_TARGETS}}"
+      K6_DURATION: "{{.K6_DURATION}}"
+      ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+      SPACK_IMAGE_ENABLE: "{{.SPACK_IMAGE_ENABLE}}"
+      SPACK_IMAGE_WIDTHS: "{{.SPACK_IMAGE_WIDTHS}}"
+      SPACK_IMAGE_FORMATS: "{{.SPACK_IMAGE_FORMATS}}"
+    cmds:
+      - bash scripts/refine-aot-bench-matrix.sh matrix
+
+  perf:aot:refine:repeat:
+    desc: 运行真实 Refine dist 的固定并发多轮采样
+    vars:
+      SPACK_AOT_REPEAT_ROUNDS: '{{default "3" .SPACK_AOT_REPEAT_ROUNDS}}'
+      K6_VUS: '{{default "64" .K6_VUS}}'
+      K6_DURATION: '{{default "30s" .K6_DURATION}}'
+      ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+      SPACK_IMAGE_ENABLE: '{{default "false" .SPACK_IMAGE_ENABLE}}'
+      SPACK_IMAGE_WIDTHS: '{{default "320,640" .SPACK_IMAGE_WIDTHS}}'
+      SPACK_IMAGE_FORMATS: '{{default "webp" .SPACK_IMAGE_FORMATS}}'
+    env:
+      SPACK_AOT_REPEAT_ROUNDS: "{{.SPACK_AOT_REPEAT_ROUNDS}}"
+      K6_VUS: "{{.K6_VUS}}"
+      K6_DURATION: "{{.K6_DURATION}}"
+      ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+      SPACK_IMAGE_ENABLE: "{{.SPACK_IMAGE_ENABLE}}"
+      SPACK_IMAGE_WIDTHS: "{{.SPACK_IMAGE_WIDTHS}}"
+      SPACK_IMAGE_FORMATS: "{{.SPACK_IMAGE_FORMATS}}"
+    cmds:
+      - bash scripts/refine-aot-bench-matrix.sh repeat
+
   perf:aot:refine:stress:
     desc: 使用真实 Refine dist 对比 direct runtime 与 compiler 容器 AOT runtime 的高并发压力测试
     vars:
@@ -493,3 +536,5 @@ tasks:
     internal: true
     cmds:
       - '{{.GOYEK}} refine-aot-baseline'
+
+

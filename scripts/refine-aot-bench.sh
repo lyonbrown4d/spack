@@ -31,6 +31,9 @@ ACCEPT_ENCODING="${ACCEPT_ENCODING:-br,gzip}"
 SPACK_IMAGE_ENABLE="${SPACK_IMAGE_ENABLE:-false}"
 SPACK_IMAGE_WIDTHS="${SPACK_IMAGE_WIDTHS:-320,640}"
 SPACK_IMAGE_FORMATS="${SPACK_IMAGE_FORMATS:-webp}"
+REFINE_BENCH_TARGETS="${REFINE_BENCH_TARGETS:-direct,aot}"
+REFINE_AOT_SKIP_PREPARE="${REFINE_AOT_SKIP_PREPARE:-false}"
+REFINE_AOT_RUN_TAG="${REFINE_AOT_RUN_TAG:-}"
 
 cd "$ROOT_DIR"
 if [[ -d /usr/bin ]]; then
@@ -58,7 +61,11 @@ Environment:
                       Build the local compiler image before running. Default: true.
   K6_VUS               k6 virtual users. Default: 64, Taskfile smoke defaults to 1.
   K6_DURATION          k6 duration. Default: 30s, Taskfile smoke defaults to 5s.
+
   ACCEPT_ENCODING      Accept-Encoding header for k6. Default: br,gzip.
+  REFINE_BENCH_TARGETS
+                      Benchmark targets, comma-separated: direct,aot[,caddy,nginx].
+                      Default: direct,aot.
   SPACK_IMAGE_ENABLE   Enable compiler-side image variant generation. Default: false.
   SPACK_IMAGE_WIDTHS   Compiler-side responsive image widths. Default: 320,640.
   SPACK_IMAGE_FORMATS  Compiler-side image output formats. Default: webp.
@@ -121,14 +128,115 @@ prepare() {
 
 run_workload() {
   local mode="$1"
-  prepare
+  local run_tag="${REFINE_AOT_RUN_TAG:-$mode}"
+  local target
+  local url
+  local prefix
+
+  if [[ "$REFINE_AOT_SKIP_PREPARE" != "true" ]]; then
+    prepare
+  fi
   up
   trap down EXIT
-  write_startup_sample "$mode"
-  run_frontend_k6 "refine-direct" "http://spack-direct:80" "refine-direct-${mode}.json"
-  run_frontend_k6 "refine-aot" "http://spack-aot:80" "refine-aot-${mode}.json"
-  run_static_k6 "refine-direct-static" "http://spack-direct:80" "refine-direct-static-${mode}.json"
-  run_static_k6 "refine-aot-static" "http://spack-aot:80" "refine-aot-static-${mode}.json"
+  write_startup_sample "$run_tag"
+
+  while read -r target; do
+    url="$(resolve_target_url "$target")"
+    prefix="refine-${target}"
+    run_frontend_k6 "$prefix" "$url" "${prefix}-${run_tag}.json"
+    run_static_k6 "$prefix" "$url" "${prefix}-static-${run_tag}.json"
+  done < <(collect_bench_targets)
+}
+
+collect_bench_targets() {
+  local raw="${REFINE_BENCH_TARGETS:-direct,aot}"
+  local target
+  local -a targets=()
+  local found=0
+
+  IFS=',' read -r -a targets <<< "$raw"
+  for target in "${targets[@]}"; do
+    target="${target//[[:space:]]/}"
+    case "$target" in
+      direct|aot|caddy|nginx)
+        printf '%s\n' "$target"
+        found=1
+        ;;
+      "")
+        ;;
+      *)
+        echo "unsupported target '$target' in REFINE_BENCH_TARGETS" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [[ $found -eq 0 ]]; then
+    printf '%s\n' direct
+    printf '%s\n' aot
+  fi
+}
+
+resolve_target_service() {
+  case "$1" in
+    direct)
+      echo "spack-direct"
+      ;;
+    aot)
+      echo "spack-aot"
+      ;;
+    caddy)
+      echo "caddy"
+      ;;
+    nginx)
+      echo "nginx"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+resolve_target_url() {
+  case "$1" in
+    direct)
+      echo "http://spack-direct:80"
+      ;;
+    aot)
+      echo "http://spack-aot:80"
+      ;;
+    caddy)
+      echo "http://caddy:80"
+      ;;
+    nginx)
+      echo "http://nginx:8080"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+resolve_target_readiness_urls() {
+  case "$1" in
+    direct)
+      echo "http://127.0.0.1:18082/livez"
+      ;;
+    aot)
+      echo "http://127.0.0.1:18083/livez"
+      ;;
+  esac
+}
+
+collect_bench_services() {
+  local target service
+  while read -r target; do
+    service="$(resolve_target_service "$target")"
+    if [[ -z "$service" ]]; then
+      return 1
+    fi
+    printf '%s\n' "$service"
+  done < <(collect_bench_targets)
 }
 
 prepare_refine_source() {
@@ -261,13 +369,23 @@ compile_aot_bundle() {
 
 write_startup_sample() {
   local mode="$1"
-  local direct_ms aot_ms output
-  direct_ms="$(measure_ready_millis "http://127.0.0.1:18082/livez")"
-  aot_ms="$(measure_ready_millis "http://127.0.0.1:18083/livez")"
+  local target url ready_ms output
+  local payload
+
   output="$RESULTS_DIR/refine-aot-startup-${mode}.json"
-  cat >"$output" <<EOF
-{"mode":"$mode","direct_ready_ms":$direct_ms,"aot_ready_ms":$aot_ms,"generated_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
-EOF
+  payload='{"mode":"'$mode'"'
+
+  while read -r target; do
+    url="$(resolve_target_readiness_urls "$target")"
+    if [[ -z "$url" ]]; then
+      continue
+    fi
+    ready_ms="$(measure_ready_millis "$url")"
+    payload="$payload,\"${target}_ready_ms\":$ready_ms"
+  done < <(collect_bench_targets)
+
+  payload="$payload,\"generated_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+  echo "$payload" > "$output"
   echo "Wrote $output"
 }
 
@@ -297,9 +415,6 @@ run_baseline() {
   export K6_VUS="${K6_VUS:-256}"
   export K6_DURATION="${K6_DURATION:-2m}"
   export ACCEPT_ENCODING="${ACCEPT_ENCODING:-br,gzip}"
-SPACK_IMAGE_ENABLE="${SPACK_IMAGE_ENABLE:-false}"
-SPACK_IMAGE_WIDTHS="${SPACK_IMAGE_WIDTHS:-320,640}"
-SPACK_IMAGE_FORMATS="${SPACK_IMAGE_FORMATS:-webp}"
 
   local round mode
   for ((round = 1; round <= rounds; round++)); do
@@ -473,8 +588,20 @@ build_compiler_image() {
 
 up() {
   local compose_file
+  local -a services=()
+  local service
   compose_file="$(native_path "$COMPOSE_FILE")"
-  MSYS2_ARG_CONV_EXCL="*" docker compose -f "$compose_file" up -d spack-direct spack-aot
+
+  while read -r service; do
+    services+=("$service")
+  done < <(collect_bench_services)
+
+  if [[ ${#services[@]} -eq 0 ]]; then
+    echo "no valid benchmark services configured" >&2
+    exit 1
+  fi
+
+  MSYS2_ARG_CONV_EXCL="*" docker compose -f "$compose_file" up -d "${services[@]}"
 }
 
 down() {
@@ -487,14 +614,14 @@ run_frontend_k6() {
   local bench_name="$1"
   local target_url="$2"
   local summary="$3"
-  run_k6 "$bench_name" "$target_url" "$summary" "/scripts/frontend-page.js"
+  run_k6 "$bench_name" "$target_url" "$summary" "/scripts/frontend-page.js" frontend
 }
 
 run_static_k6() {
   local bench_name="$1"
   local target_url="$2"
   local summary="$3"
-  run_k6 "$bench_name" "$target_url" "$summary" "/scripts/static-assets.js"
+  run_k6 "$bench_name" "$target_url" "$summary" "/scripts/static-assets.js" static
 }
 
 run_k6() {
@@ -502,10 +629,16 @@ run_k6() {
   local target_url="$2"
   local summary="$3"
   local script="$4"
+  local mode="$5"
   local page_path asset_paths bench_paths
+
   page_path="$(read_env_value REFINE_K6_PAGE_PATH "$PATHS_ENV")"
   asset_paths="$(read_env_value REFINE_K6_ASSET_PATHS "$PATHS_ENV")"
   bench_paths="$(read_env_value REFINE_K6_PATHS "$PATHS_ENV")"
+  if [[ "$mode" == "static" ]]; then
+    bench_paths="$asset_paths"
+  fi
+
   local compose_file
   compose_file="$(native_path "$COMPOSE_FILE")"
 
@@ -745,3 +878,10 @@ require_command() {
 }
 
 main "$@"
+
+
+
+
+
+
+
