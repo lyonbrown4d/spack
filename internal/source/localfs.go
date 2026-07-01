@@ -153,7 +153,10 @@ func logSourceConfigured(logger *slog.Logger, configuredRoot string, resolved re
 	logger.Info("Source bundle extracted",
 		slog.String("bundle", configuredRoot),
 		slog.String("root", resolved.root),
+		slog.String("extract_root", resolved.cleanupRoot),
 		slog.Int("files", resolved.bundle.entries.Len()),
+		slog.Int64("bytes", bundleIndexBytes(resolved.bundle.index)),
+		slog.Duration("duration", resolved.bundleExtractionDuration),
 	)
 }
 

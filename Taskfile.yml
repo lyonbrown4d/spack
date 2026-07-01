@@ -72,10 +72,16 @@ tasks:
       K6_VUS: '{{default "1" .K6_VUS}}'
       K6_DURATION: '{{default "5s" .K6_DURATION}}'
       ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+      SPACK_IMAGE_ENABLE: '{{default "false" .SPACK_IMAGE_ENABLE}}'
+      SPACK_IMAGE_WIDTHS: '{{default "320,640" .SPACK_IMAGE_WIDTHS}}'
+      SPACK_IMAGE_FORMATS: '{{default "webp" .SPACK_IMAGE_FORMATS}}'
     env:
       K6_VUS: "{{.K6_VUS}}"
       K6_DURATION: "{{.K6_DURATION}}"
       ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+      SPACK_IMAGE_ENABLE: "{{.SPACK_IMAGE_ENABLE}}"
+      SPACK_IMAGE_WIDTHS: "{{.SPACK_IMAGE_WIDTHS}}"
+      SPACK_IMAGE_FORMATS: "{{.SPACK_IMAGE_FORMATS}}"
     cmds:
       - '{{.GOYEK}} refine-aot-smoke'
 
@@ -233,10 +239,16 @@ tasks:
       K6_VUS: '{{default "64" .K6_VUS}}'
       K6_DURATION: '{{default "30s" .K6_DURATION}}'
       ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+      SPACK_IMAGE_ENABLE: '{{default "false" .SPACK_IMAGE_ENABLE}}'
+      SPACK_IMAGE_WIDTHS: '{{default "320,640" .SPACK_IMAGE_WIDTHS}}'
+      SPACK_IMAGE_FORMATS: '{{default "webp" .SPACK_IMAGE_FORMATS}}'
     env:
       K6_VUS: "{{.K6_VUS}}"
       K6_DURATION: "{{.K6_DURATION}}"
       ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+      SPACK_IMAGE_ENABLE: "{{.SPACK_IMAGE_ENABLE}}"
+      SPACK_IMAGE_WIDTHS: "{{.SPACK_IMAGE_WIDTHS}}"
+      SPACK_IMAGE_FORMATS: "{{.SPACK_IMAGE_FORMATS}}"
     cmds:
       - '{{.GOYEK}} refine-aot-perf'
 
@@ -246,10 +258,16 @@ tasks:
       K6_VUS: '{{default "256" .K6_VUS}}'
       K6_DURATION: '{{default "2m" .K6_DURATION}}'
       ACCEPT_ENCODING: '{{default "br,gzip" .ACCEPT_ENCODING}}'
+      SPACK_IMAGE_ENABLE: '{{default "false" .SPACK_IMAGE_ENABLE}}'
+      SPACK_IMAGE_WIDTHS: '{{default "320,640" .SPACK_IMAGE_WIDTHS}}'
+      SPACK_IMAGE_FORMATS: '{{default "webp" .SPACK_IMAGE_FORMATS}}'
     env:
       K6_VUS: "{{.K6_VUS}}"
       K6_DURATION: "{{.K6_DURATION}}"
       ACCEPT_ENCODING: "{{.ACCEPT_ENCODING}}"
+      SPACK_IMAGE_ENABLE: "{{.SPACK_IMAGE_ENABLE}}"
+      SPACK_IMAGE_WIDTHS: "{{.SPACK_IMAGE_WIDTHS}}"
+      SPACK_IMAGE_FORMATS: "{{.SPACK_IMAGE_FORMATS}}"
     cmds:
       - '{{.GOYEK}} refine-aot-stress'
 
@@ -389,6 +407,30 @@ tasks:
     desc: "使用 GoReleaser 执行本地快照构建（不发布）"
     cmds:
       - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} release --snapshot --clean --skip=publish
+
+  release:local:
+    desc: "本地完整发布当前 tag：GitHub Release、安装包、runtime/compiler 镜像"
+    env:
+      GORELEASER_VERSION: '{{.GORELEASER_VERSION}}'
+      SPACK_RELEASE_TAG: '{{default "" .SPACK_RELEASE_TAG}}'
+      SPACK_RUNTIME_PLATFORMS: '{{default "linux/amd64,linux/arm64" .SPACK_RUNTIME_PLATFORMS}}'
+      SPACK_COMPILER_PLATFORMS: '{{default "linux/amd64" .SPACK_COMPILER_PLATFORMS}}'
+      SPACK_ALPINE_PLATFORMS: '{{default "linux/amd64" .SPACK_ALPINE_PLATFORMS}}'
+    cmds:
+      - '{{.GOYEK}} release-local'
+
+  release:verify:
+    desc: "拉取并黑盒验证已发布 runtime/compiler 镜像"
+    env:
+      SPACK_RELEASE_TAG: '{{default "" .SPACK_RELEASE_TAG}}'
+      SPACK_VERIFY_RUNTIME_IMAGE: '{{default "" .SPACK_VERIFY_RUNTIME_IMAGE}}'
+      SPACK_VERIFY_COMPILER_IMAGE: '{{default "" .SPACK_VERIFY_COMPILER_IMAGE}}'
+      SPACK_VERIFY_ALPINE_IMAGE: '{{default "" .SPACK_VERIFY_ALPINE_IMAGE}}'
+      SPACK_IMAGE_ENABLE: '{{default "false" .SPACK_IMAGE_ENABLE}}'
+      SPACK_IMAGE_WIDTHS: '{{default "320,640" .SPACK_IMAGE_WIDTHS}}'
+      SPACK_IMAGE_FORMATS: '{{default "webp" .SPACK_IMAGE_FORMATS}}'
+    cmds:
+      - '{{.GOYEK}} release-verify'
 
   release:
     desc: "创建并推送当前分支与标签（用法: task release VERSION=0.1.0）"

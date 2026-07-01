@@ -28,6 +28,9 @@ REFINE_FIXTURE_PACKAGES="${REFINE_FIXTURE_PACKAGES:-date-fns lodash-es @types/lo
 K6_VUS="${K6_VUS:-}"
 K6_DURATION="${K6_DURATION:-}"
 ACCEPT_ENCODING="${ACCEPT_ENCODING:-br,gzip}"
+SPACK_IMAGE_ENABLE="${SPACK_IMAGE_ENABLE:-false}"
+SPACK_IMAGE_WIDTHS="${SPACK_IMAGE_WIDTHS:-320,640}"
+SPACK_IMAGE_FORMATS="${SPACK_IMAGE_FORMATS:-webp}"
 
 cd "$ROOT_DIR"
 if [[ -d /usr/bin ]]; then
@@ -56,6 +59,9 @@ Environment:
   K6_VUS               k6 virtual users. Default: 64, Taskfile smoke defaults to 1.
   K6_DURATION          k6 duration. Default: 30s, Taskfile smoke defaults to 5s.
   ACCEPT_ENCODING      Accept-Encoding header for k6. Default: br,gzip.
+  SPACK_IMAGE_ENABLE   Enable compiler-side image variant generation. Default: false.
+  SPACK_IMAGE_WIDTHS   Compiler-side responsive image widths. Default: 320,640.
+  SPACK_IMAGE_FORMATS  Compiler-side image output formats. Default: webp.
 USAGE
 }
 
@@ -100,6 +106,7 @@ prepare() {
   require_command git
   require_command go
   require_command docker
+  require_command curl
   require_node_package_manager
 
   mkdir -p "$WORK_DIR" "$RESULTS_DIR" "$ROOT_DIR/tmp/k6/linux/$BENCH_GOARCH"
@@ -117,6 +124,7 @@ run_workload() {
   prepare
   up
   trap down EXIT
+  write_startup_sample "$mode"
   run_frontend_k6 "refine-direct" "http://spack-direct:80" "refine-direct-${mode}.json"
   run_frontend_k6 "refine-aot" "http://spack-aot:80" "refine-aot-${mode}.json"
   run_static_k6 "refine-direct-static" "http://spack-direct:80" "refine-direct-static-${mode}.json"
@@ -237,7 +245,9 @@ compile_aot_bundle() {
     --compression.enable=true \
     --compression.mode=warmup \
     --compression.cache_dir=/workspace/cache \
-    --image.enable="${SPACK_IMAGE_ENABLE:-false}" \
+    --image.enable="$SPACK_IMAGE_ENABLE" \
+    --image.widths="$SPACK_IMAGE_WIDTHS" \
+    --image.formats="$SPACK_IMAGE_FORMATS" \
     --frontend.resource_hints.enable=false \
     compile /workspace/dist -o /workspace/out/app.spack
 
@@ -247,6 +257,34 @@ compile_aot_bundle() {
     echo "Compiler container did not produce $BUNDLE_PATH" >&2
     exit 1
   fi
+}
+
+write_startup_sample() {
+  local mode="$1"
+  local direct_ms aot_ms output
+  direct_ms="$(measure_ready_millis "http://127.0.0.1:18082/livez")"
+  aot_ms="$(measure_ready_millis "http://127.0.0.1:18083/livez")"
+  output="$RESULTS_DIR/refine-aot-startup-${mode}.json"
+  cat >"$output" <<EOF
+{"mode":"$mode","direct_ready_ms":$direct_ms,"aot_ready_ms":$aot_ms,"generated_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+EOF
+  echo "Wrote $output"
+}
+
+measure_ready_millis() {
+  local url="$1"
+  local started_at finished_at
+  started_at="$(node -e 'console.log(Date.now())')"
+  for _ in $(seq 1 100); do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      finished_at="$(node -e 'console.log(Date.now())')"
+      echo $((finished_at - started_at))
+      return
+    fi
+    sleep 0.1
+  done
+  echo "runtime did not become ready: $url" >&2
+  exit 1
 }
 
 run_baseline() {
@@ -259,6 +297,9 @@ run_baseline() {
   export K6_VUS="${K6_VUS:-256}"
   export K6_DURATION="${K6_DURATION:-2m}"
   export ACCEPT_ENCODING="${ACCEPT_ENCODING:-br,gzip}"
+SPACK_IMAGE_ENABLE="${SPACK_IMAGE_ENABLE:-false}"
+SPACK_IMAGE_WIDTHS="${SPACK_IMAGE_WIDTHS:-320,640}"
+SPACK_IMAGE_FORMATS="${SPACK_IMAGE_FORMATS:-webp}"
 
   local round mode
   for ((round = 1; round <= rounds; round++)); do

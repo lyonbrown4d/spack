@@ -116,6 +116,22 @@ var refineAOTDown = goyek.Define(goyek.Task{
 	},
 })
 
+var releaseLocal = goyek.Define(goyek.Task{
+	Name:  "release-local",
+	Usage: "publish the current tag with local GoReleaser and Docker image push workflow",
+	Action: func(a *goyek.A) {
+		run(a, command{name: "bash", args: []string{"scripts/release-local.sh"}})
+	},
+})
+
+var releaseVerify = goyek.Define(goyek.Task{
+	Name:  "release-verify",
+	Usage: "verify published runtime and compiler images with black-box checks",
+	Action: func(a *goyek.A) {
+		run(a, command{name: "bash", args: []string{"scripts/release-verify.sh"}})
+	},
+})
+
 var validate = goyek.Define(goyek.Task{
 	Name:  "validate",
 	Usage: "run the default local validation suite",

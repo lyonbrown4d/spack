@@ -145,7 +145,21 @@ func (s Scanner) trustedSourceSidecarPayload(sidecar sidecarFile) (bool, error) 
 	if !found {
 		return false, nil
 	}
-	return contentcoding.IsValidPayload(sidecar.encoding, payload), nil
+	return trustedEncodedSidecarPayload(sidecar, payload), nil
+}
+
+func trustedEncodedSidecarPayload(sidecar sidecarFile, payload []byte) bool {
+	if !contentcoding.IsValidPayload(sidecar.encoding, payload) {
+		return false
+	}
+	if !pkg.RequiresMagicValidation(sidecar.assetPath) {
+		return true
+	}
+	decoded, ok := contentcoding.DecodePayloadPrefix(sidecar.encoding, payload, 512)
+	if !ok {
+		return false
+	}
+	return pkg.HasMatchingMagic(sidecar.assetPath, decoded)
 }
 
 func (s Scanner) BuildSourceSidecarVariant(

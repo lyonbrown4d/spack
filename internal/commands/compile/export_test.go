@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/compiler"
@@ -15,12 +16,21 @@ import (
 	"github.com/samber/oops"
 )
 
+type CompileReportForTest = compileReport
+
 type bundleWriterFunc func(context.Context, spackbundle.WriteOptions) (spackbundle.WriteSummary, error)
 
 func (fn bundleWriterFunc) Write(ctx context.Context, options spackbundle.WriteOptions) (spackbundle.WriteSummary, error) {
 	return fn(ctx, options)
 }
 
+func BuildCompileReportForTest(runtime compiler.Runtime, summary spackbundle.WriteSummary, duration time.Duration) (compileReport, error) {
+	return buildCompileReport(runtime, summary, duration)
+}
+
+func WriteCompileReportForTest(path string, report compileReport) error {
+	return writeCompileReport(path, report)
+}
 func BundleForTest(assetsRoot, output string) (spackbundle.WriteSummary, error) {
 	if spackbundle.IsBundlePath(assetsRoot) {
 		return spackbundle.WriteSummary{}, oops.In("compile").Wrap(errors.New("compile input must be an asset directory; .spack bundles are runtime sources, not compile inputs"))
