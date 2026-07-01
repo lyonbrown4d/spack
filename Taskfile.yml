@@ -295,6 +295,17 @@ tasks:
     cmds:
       - bash scripts/refine-aot-bench-matrix.sh repeat
 
+  perf:aot:refine:report:
+    desc: 汇总 Refine AOT matrix/repeat benchmark 结果并生成 Markdown/JSON 报告
+    vars:
+      REFINE_AOT_RESULTS_DIR: '{{default "tmp/k6/results" .REFINE_AOT_RESULTS_DIR}}'
+      REFINE_AOT_REPORT_PREFIX: '{{default "refine-aot-comparison-report" .REFINE_AOT_REPORT_PREFIX}}'
+    env:
+      REFINE_AOT_RESULTS_DIR: "{{.REFINE_AOT_RESULTS_DIR}}"
+      REFINE_AOT_REPORT_PREFIX: "{{.REFINE_AOT_REPORT_PREFIX}}"
+    cmds:
+      - node scripts/refine-aot-bench-report.mjs
+
   perf:aot:refine:stress:
     desc: 使用真实 Refine dist 对比 direct runtime 与 compiler 容器 AOT runtime 的高并发压力测试
     vars:
@@ -536,5 +547,4 @@ tasks:
     internal: true
     cmds:
       - '{{.GOYEK}} refine-aot-baseline'
-
 
