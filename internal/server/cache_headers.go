@@ -24,6 +24,22 @@ type resolvedHeaderPlan struct {
 	expires         mo.Option[string]
 }
 
+type sendFileHeaderPlan interface {
+	ApplySendFileOverrides(c fiber.Ctx, rangeRequested bool)
+}
+
+type preparedHeader struct {
+	key   string
+	value string
+}
+
+type preparedHeaderPlan struct {
+	headers          []preparedHeader
+	sendFileHeaders  []preparedHeader
+	contentLength    string
+	hasContentLength bool
+}
+
 func newResolvedHeaderPlan(
 	policy cachepolicy.ResponsePolicy,
 	result *resolver.Result,
@@ -53,6 +69,30 @@ func newResolvedHeaderPlan(
 	}
 }
 
+func newPreparedHeaderPlan(plan resolvedHeaderPlan) preparedHeaderPlan {
+	contentLength, hasContentLength := plan.contentLength.Get()
+	return preparedHeaderPlan{
+		headers: appendPreparedOptionalHeaders([]preparedHeader{
+			{key: fiber.HeaderContentType, value: plan.contentType},
+			{key: fiber.HeaderVary, value: plan.vary},
+			{key: fiber.HeaderCacheControl, value: plan.cacheControl},
+		}, preparedOptionalHeaderValues{
+			{key: fiber.HeaderETag, value: plan.etag},
+			{key: fiber.HeaderContentEncoding, value: plan.contentEncoding},
+			{key: fiber.HeaderLastModified, value: plan.lastModified},
+			{key: fiber.HeaderExpires, value: plan.expires},
+		}),
+		sendFileHeaders: appendPreparedOptionalHeaders([]preparedHeader{
+			{key: fiber.HeaderContentType, value: plan.contentType},
+		}, preparedOptionalHeaderValues{
+			{key: fiber.HeaderContentEncoding, value: plan.contentEncoding},
+			{key: fiber.HeaderLastModified, value: plan.lastModified},
+		}),
+		contentLength:    contentLength,
+		hasContentLength: hasContentLength,
+	}
+}
+
 func (p resolvedHeaderPlan) Apply(c fiber.Ctx) {
 	p.ApplyForRange(c, false)
 }
@@ -70,6 +110,13 @@ func (p resolvedHeaderPlan) ApplyForRange(c fiber.Ctx, rangeRequested bool) {
 	applyOptionalHeader(c, fiber.HeaderExpires, p.expires)
 }
 
+func (p preparedHeaderPlan) ApplyForRange(c fiber.Ctx, rangeRequested bool) {
+	applyPreparedHeaders(c, p.headers)
+	if !rangeRequested && p.hasContentLength {
+		c.Set(fiber.HeaderContentLength, p.contentLength)
+	}
+}
+
 func (p resolvedHeaderPlan) ApplySendFileOverrides(c fiber.Ctx, rangeRequested bool) {
 	c.Set(fiber.HeaderContentType, p.contentType)
 	if !rangeRequested {
@@ -79,12 +126,41 @@ func (p resolvedHeaderPlan) ApplySendFileOverrides(c fiber.Ctx, rangeRequested b
 	applyOptionalHeader(c, fiber.HeaderLastModified, p.lastModified)
 }
 
+func (p preparedHeaderPlan) ApplySendFileOverrides(c fiber.Ctx, rangeRequested bool) {
+	applyPreparedHeaders(c, p.sendFileHeaders)
+	if !rangeRequested && p.hasContentLength {
+		c.Set(fiber.HeaderContentLength, p.contentLength)
+	}
+}
+
 func applyOptionalHeader(c fiber.Ctx, key string, value mo.Option[string]) {
 	if headerValue, ok := value.Get(); ok {
 		c.Set(key, headerValue)
 		return
 	}
 	c.Response().Header.Del(key)
+}
+
+type preparedOptionalHeader struct {
+	key   string
+	value mo.Option[string]
+}
+
+type preparedOptionalHeaderValues []preparedOptionalHeader
+
+func appendPreparedOptionalHeaders(headers []preparedHeader, values preparedOptionalHeaderValues) []preparedHeader {
+	for _, optional := range values {
+		if value, ok := optional.value.Get(); ok {
+			headers = append(headers, preparedHeader{key: optional.key, value: value})
+		}
+	}
+	return headers
+}
+
+func applyPreparedHeaders(c fiber.Ctx, headers []preparedHeader) {
+	for _, header := range headers {
+		c.Set(header.key, header.value)
+	}
 }
 
 func shouldSendNotModified(c fiber.Ctx, request resolver.Request) bool {

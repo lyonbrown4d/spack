@@ -61,6 +61,63 @@ func TestPreparedServiceResolvesEncodingVariantWithoutResolver(t *testing.T) {
 	}
 }
 
+func TestPreparedServiceResolvesSimpleEncodingByServerPriority(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	root := t.TempDir()
+	assetPath := filepath.Join(root, "app.js")
+	brPath := filepath.Join(root, "app.js.br")
+	gzipPath := filepath.Join(root, "app.js.gz")
+	writePreparedTestFile(t, assetPath, []byte("console.log('app');"))
+	writePreparedTestFile(t, brPath, []byte("br"))
+	writePreparedTestFile(t, gzipPath, []byte("gzip"))
+
+	cat := catalog.NewInMemoryCatalog()
+	upsertPreparedAsset(t, cat, &catalog.Asset{
+		Path:       "app.js",
+		FullPath:   assetPath,
+		Size:       int64(len("console.log('app');")),
+		MediaType:  "application/javascript",
+		SourceHash: "hash-app",
+		ETag:       "\"hash-app\"",
+	})
+	upsertPreparedVariant(t, cat, &catalog.Variant{
+		ID:           "app.js|encoding=br",
+		AssetPath:    "app.js",
+		ArtifactPath: brPath,
+		Size:         2,
+		MediaType:    "application/javascript",
+		SourceHash:   "hash-app",
+		ETag:         "\"hash-app-br\"",
+		Encoding:     "br",
+	})
+	upsertPreparedVariant(t, cat, &catalog.Variant{
+		ID:           "app.js|encoding=gzip",
+		AssetPath:    "app.js",
+		ArtifactPath: gzipPath,
+		Size:         4,
+		MediaType:    "application/javascript",
+		SourceHash:   "hash-app",
+		ETag:         "\"hash-app-gzip\"",
+		Encoding:     "gzip",
+	})
+
+	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	if err := svc.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	selection, ok := server.ResolvePreparedForTest(svc, resolver.Request{
+		Path:           "app.js",
+		AcceptEncoding: "gzip, br",
+	}, "")
+	if !ok {
+		t.Fatal("expected prepared route")
+	}
+	if selection.Encoding != "br" {
+		t.Fatalf("expected br by server priority, got %q", selection.Encoding)
+	}
+}
+
 func TestPreparedServiceFallsBackToEntryRoute(t *testing.T) {
 	cfg := config.DefaultConfigForTest()
 	root := t.TempDir()
@@ -91,6 +148,42 @@ func TestPreparedServiceFallsBackToEntryRoute(t *testing.T) {
 	}
 	if selection.FilePath != entryPath {
 		t.Fatalf("expected index fallback, got %q", selection.FilePath)
+	}
+}
+
+func TestPreparedServiceResolvesDirectoryEntryAlias(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	root := t.TempDir()
+	entryPath := filepath.Join(root, "docs", "index.html")
+	if err := os.MkdirAll(filepath.Dir(entryPath), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	writePreparedTestFile(t, entryPath, []byte("<html>docs</html>"))
+
+	cat := catalog.NewInMemoryCatalog()
+	upsertPreparedAsset(t, cat, &catalog.Asset{
+		Path:       "docs/index.html",
+		FullPath:   entryPath,
+		Size:       int64(len("<html>docs</html>")),
+		MediaType:  "text/html; charset=utf-8",
+		SourceHash: "hash-docs",
+		ETag:       "\"hash-docs\"",
+	})
+
+	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	if err := svc.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	selection, ok := server.ResolvePreparedForTest(svc, resolver.Request{Path: "docs"}, "")
+	if !ok {
+		t.Fatal("expected prepared directory alias route")
+	}
+	if selection.FallbackUsed {
+		t.Fatal("expected primary alias route, not SPA fallback")
+	}
+	if selection.FilePath != entryPath {
+		t.Fatalf("expected docs entry alias %q, got %q", entryPath, selection.FilePath)
 	}
 }
 

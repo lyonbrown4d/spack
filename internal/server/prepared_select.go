@@ -1,7 +1,7 @@
 package server
 
 import (
-	"path"
+	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -71,12 +71,7 @@ func (s *preparedSnapshot) findPrimaryRoute(cfg config.Assets, requestPath reque
 	if !requestPath.AllowsEntryFallback {
 		return mo.None[*preparedRoute]()
 	}
-
-	candidate := path.Join(requestPath.Value, cfg.Entry)
-	if candidate == requestPath.Value {
-		return mo.None[*preparedRoute]()
-	}
-	return s.routes.GetOption(candidate)
+	return mo.None[*preparedRoute]()
 }
 
 func (r *preparedRoute) selectResponse(request preparedRequest, fallbackUsed bool) preparedSelection {
@@ -104,6 +99,10 @@ func (r *preparedRoute) selectImageResponse(request preparedRequest) *preparedRe
 	asset := r.identity.asset()
 	if asset == nil {
 		return nil
+	}
+
+	if request.RequestedFormat != "" {
+		return r.pickImageFormat(request.RequestedFormat, request.Width)
 	}
 
 	formats := resolver.PreferredImageFormats(request.Accept, request.RequestedFormat, asset.MediaType)
@@ -147,6 +146,10 @@ func (r *preparedRoute) selectEncodingResponse(request preparedRequest) *prepare
 		return nil
 	}
 
+	if response := r.selectSimpleEncodingResponse(request.AcceptEncoding); response != nil {
+		return response
+	}
+
 	encodings := resolver.ParseAcceptEncodingNormalized(request.AcceptEncoding, preparedDefaultEncodings)
 	if encodings.Len() == 0 {
 		return nil
@@ -160,6 +163,38 @@ func (r *preparedRoute) selectEncodingResponse(request preparedRequest) *prepare
 		return picked == nil
 	})
 	return picked
+}
+
+func (r *preparedRoute) selectSimpleEncodingResponse(header string) *preparedResponse {
+	if strings.TrimSpace(header) == "" || strings.ContainsAny(header, ";*") {
+		return nil
+	}
+
+	var picked *preparedResponse
+	preparedDefaultEncodings.Range(func(_ int, encoding string) bool {
+		if !acceptEncodingContainsToken(header, encoding) {
+			return true
+		}
+		if response, ok := r.encodings.GetOption(encoding).Get(); ok {
+			picked = response
+		}
+		return picked == nil
+	})
+	return picked
+}
+
+func acceptEncodingContainsToken(header, token string) bool {
+	remaining := header
+	for {
+		part, rest, found := strings.Cut(remaining, ",")
+		if strings.EqualFold(strings.TrimSpace(part), token) {
+			return true
+		}
+		if !found {
+			return false
+		}
+		remaining = rest
+	}
 }
 
 func pickZeroWidthImageResponse(responses *cxlist.List[*preparedResponse]) *preparedResponse {

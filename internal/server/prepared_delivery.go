@@ -38,17 +38,17 @@ func (r *assetDeliveryRuntime) sendPreparedAsset(
 }
 
 func preparedServedVariantResult(selection preparedSelection) *resolver.Result {
-	if selection.response == nil || selection.response.variant() == nil {
+	if selection.response == nil {
 		return nil
 	}
-	return &selection.response.result
+	return selection.response.servedResult
 }
 
 func (r *assetDeliveryRuntime) sendPreparedAssetFile(
 	c fiber.Ctx,
 	request resolver.Request,
 	selection preparedSelection,
-	headerPlan resolvedHeaderPlan,
+	headerPlan preparedHeaderPlan,
 ) (string, error) {
 	response := selection.response
 	if spackbundle.IsReference(response.filePath()) {
@@ -91,17 +91,28 @@ func (r *assetDeliveryRuntime) applyPreparedResourceHints(
 	request resolver.Request,
 	response *preparedResponse,
 ) {
-	if response == nil || c.Method() != fiber.MethodGet || request.RangeRequested {
+	if !canApplyPreparedResourceHints(c, request, response) {
 		return
 	}
 	links := response.resourceHints
 	if links == nil || links.IsEmpty() {
 		return
 	}
-	if r.resourceHints != nil && r.resourceHints.EarlyHintsEnabled() {
-		if err := r.sendEarlyResourceHints(c, links); err != nil && r.logger != nil {
-			r.logger.Debug("Send early resource hints failed", "err", err.Error())
-		}
+	r.sendPreparedEarlyResourceHints(c, links)
+	if response.resourceHintHeader != "" {
+		c.Set(fiber.HeaderLink, response.resourceHintHeader)
 	}
-	applyResourceHints(c, links)
+}
+
+func canApplyPreparedResourceHints(c fiber.Ctx, request resolver.Request, response *preparedResponse) bool {
+	return response != nil && c.Method() == fiber.MethodGet && !request.RangeRequested
+}
+
+func (r *assetDeliveryRuntime) sendPreparedEarlyResourceHints(c fiber.Ctx, links resourceHintLinks) {
+	if r.resourceHints == nil || !r.resourceHints.EarlyHintsEnabled() {
+		return
+	}
+	if err := r.sendEarlyResourceHints(c, links); err != nil && r.logger != nil {
+		r.logger.Debug("Send early resource hints failed", "err", err.Error())
+	}
 }

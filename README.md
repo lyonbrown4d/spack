@@ -65,6 +65,19 @@ task perf:k6:frontend
 task perf:k6:split
 ```
 
+Run local wrk against a fixed 8080 runtime:
+
+```powershell
+task serve:bench
+task perf:wrk
+```
+
+Run prepared snapshot and route-selection microbenchmarks:
+
+```powershell
+task perf:bench:prepared
+```
+
 Run the versioned performance contract:
 
 ```powershell

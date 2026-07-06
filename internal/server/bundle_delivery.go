@@ -48,7 +48,7 @@ func (r *assetDeliveryRuntime) sendPreparedBundleAssetFile(
 	c fiber.Ctx,
 	request resolver.Request,
 	response *preparedResponse,
-	headerPlan resolvedHeaderPlan,
+	headerPlan preparedHeaderPlan,
 ) (string, error) {
 	body, err := readServerAssetFile(response.filePath())
 	if err != nil {
@@ -64,7 +64,7 @@ func sendBundleBody(
 	c fiber.Ctx,
 	request resolver.Request,
 	body []byte,
-	headerPlan resolvedHeaderPlan,
+	headerPlan sendFileHeaderPlan,
 ) (string, error) {
 	if request.RangeRequested {
 		return sendBundleRangeBody(c, body, c.Get(fiber.HeaderRange), headerPlan)
@@ -80,7 +80,7 @@ func sendBundleRangeBody(
 	c fiber.Ctx,
 	body []byte,
 	rangeHeader string,
-	headerPlan resolvedHeaderPlan,
+	headerPlan sendFileHeaderPlan,
 ) (string, error) {
 	byteRange, ok := parseSingleHTTPRange(rangeHeader, int64(len(body)))
 	if !ok {
@@ -98,7 +98,7 @@ func sendBundleRangeBody(
 	return deliverySendFileRange, nil
 }
 
-func sendUnsatisfiedRange(c fiber.Ctx, size int64, headerPlan resolvedHeaderPlan) {
+func sendUnsatisfiedRange(c fiber.Ctx, size int64, headerPlan sendFileHeaderPlan) {
 	c.Status(fiber.StatusRequestedRangeNotSatisfiable)
 	c.Set(fiber.HeaderContentRange, fmt.Sprintf("bytes */%d", size))
 	c.Set(fiber.HeaderContentLength, "0")

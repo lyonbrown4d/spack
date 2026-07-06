@@ -39,11 +39,13 @@ type preparedImagePickCandidate struct {
 
 type preparedResponse struct {
 	result             resolver.Result
-	headerPlan         resolvedHeaderPlan
-	explicitHeaderPlan resolvedHeaderPlan
+	headerPlan         preparedHeaderPlan
+	explicitHeaderPlan preparedHeaderPlan
 	resourceHints      *cxlist.List[string]
+	resourceHintHeader string
 	body               []byte
 	bodyPrepared       bool
+	servedResult       *resolver.Result
 }
 
 func newPreparedSnapshot(capacity int) *preparedSnapshot {

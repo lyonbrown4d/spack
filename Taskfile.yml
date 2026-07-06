@@ -126,7 +126,44 @@ tasks:
   perf:bench:
     desc: 运行关键路径性能基线 benchmark
     cmds:
-      - go test -run=TestDoesNotExist -bench='.' -benchmem -count=3 ./internal/resolver ./internal/assetcache ./internal/pipeline ./internal/server
+      - go test -run=TestDoesNotExist -bench='.' -benchmem -count=3 ./internal/catalog ./internal/resolver ./internal/assetcache ./internal/pipeline ./internal/server
+
+  perf:bench:catalog:
+    desc: 运行 catalog 索引/快照性能 benchmark
+    cmds:
+      - go test -run=TestDoesNotExist -bench='BenchmarkCatalog' -benchmem -count=3 ./internal/catalog
+
+  perf:bench:prepared:
+    desc: 运行 prepared snapshot/route 性能 benchmark
+    cmds:
+      - go test -run=TestDoesNotExist -bench='Benchmark(Prepared|HTTPPrepared)' -benchmem -count=3 ./internal/server
+
+  serve:bench:
+    desc: 在 127.0.0.1:8080 启动本地压测 runtime
+    vars:
+      ASSETS_ROOT: '{{default "test/build/dist" .ASSETS_ROOT}}'
+    env:
+      SPACK_ASSETS_ROOT: '{{.ASSETS_ROOT}}'
+      SPACK_ASSETS_PATH: /
+      SPACK_ASSETS_FALLBACK_TARGET: index.html
+      SPACK_HTTP_PORT: "8080"
+      SPACK_DEBUG_ENABLE: "false"
+      SPACK_LOGGER_LEVEL: warn
+      SPACK_HTTP_MEMORY_CACHE_ENABLE: "true"
+      SPACK_HTTP_MEMORY_CACHE_WARMUP: "true"
+      SPACK_HTTP_MEMORY_CACHE_MAX_FILE_SIZE: "65536"
+    cmds:
+      - go run ./cmd/spack-runtime
+
+  perf:wrk:
+    desc: 使用 wrk 压测本地 bench runtime；先运行 task serve:bench
+    vars:
+      WRK_THREADS: '{{default "8" .WRK_THREADS}}'
+      WRK_CONNECTIONS: '{{default "256" .WRK_CONNECTIONS}}'
+      WRK_DURATION: '{{default "30s" .WRK_DURATION}}'
+      WRK_URL: '{{default "http://127.0.0.1:8080/" .WRK_URL}}'
+    cmds:
+      - wrk -t{{.WRK_THREADS}} -c{{.WRK_CONNECTIONS}} -d{{.WRK_DURATION}} {{.WRK_URL}}
 
   perf:contract:pr:
     desc: 运行 PR 级性能合同微基准并生成报告
@@ -144,7 +181,7 @@ tasks:
       BASELINE: '{{default "performance/baselines/current/go-bench.txt" .BASELINE}}'
     cmds:
       - mkdir -p {{.PERF_RESULTS_DIR}}
-      - go test -run=TestDoesNotExist -bench='Benchmark(Clean|ResolverResolve|CacheGetOrLoad|HTTPAssetRoute|ServiceEnqueue)' -benchmem -count={{.PERF_BENCH_COUNT}} ./internal/requestpath ./internal/resolver ./internal/assetcache ./internal/server ./internal/pipeline | tee {{.PERF_RESULTS_DIR}}/go-bench.txt
+      - go test -run=TestDoesNotExist -bench='Benchmark(Clean|Catalog|ResolverResolve|CacheGetOrLoad|HTTPAssetRoute|Prepared|HTTPPrepared|ServiceEnqueue)' -benchmem -count={{.PERF_BENCH_COUNT}} ./internal/requestpath ./internal/catalog ./internal/resolver ./internal/assetcache ./internal/server ./internal/pipeline | tee {{.PERF_RESULTS_DIR}}/go-bench.txt
       - go run ./cmd/perfcontract -budget performance/budgets.json -baseline {{.BASELINE}} -candidate {{.PERF_RESULTS_DIR}}/go-bench.txt -out {{.PERF_RESULTS_DIR}}/performance-report.md -metadata {{.PERF_RESULTS_DIR}}/metadata.json
 
   perf:contract:release:
@@ -547,4 +584,3 @@ tasks:
     internal: true
     cmds:
       - '{{.GOYEK}} refine-aot-baseline'
-

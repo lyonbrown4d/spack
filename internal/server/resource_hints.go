@@ -5,7 +5,6 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
-	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/resolver"
@@ -15,11 +14,17 @@ import (
 const maxResourceHintScanBytes = 512 * 1024
 
 type resourceHintService struct {
-	cfg        config.ResourceHints
-	logger     *slog.Logger
-	cache      *cxmapping.ConcurrentMultiMap[string, string]
-	cachedKeys *cxset.ConcurrentSet[string]
+	cfg    config.ResourceHints
+	logger *slog.Logger
+	cache  *cxmapping.ConcurrentMap[string, resourceHintCacheEntry]
 }
+
+type resourceHintCacheEntry struct {
+	links  *cxlist.List[string]
+	header string
+}
+
+type resourceHintLinks = *cxlist.List[string]
 
 type resourceHint struct {
 	url         string
@@ -34,24 +39,31 @@ func newResourceHintService(cfg *config.Frontend, logger *slog.Logger) *resource
 		hints = cfg.ResourceHints
 	}
 	return &resourceHintService{
-		cfg:        hints,
-		logger:     logger,
-		cache:      cxmapping.NewConcurrentMultiMap[string, string](),
-		cachedKeys: cxset.NewConcurrentSet[string](),
+		cfg:    hints,
+		logger: logger,
+		cache:  cxmapping.NewConcurrentMap[string, resourceHintCacheEntry](),
 	}
 }
 
 func (s *resourceHintService) Links(result *resolver.Result) *cxlist.List[string] {
-	if s == nil || !s.cfg.Enabled() || result == nil || result.Asset == nil {
+	entry, ok := s.Entry(result)
+	if !ok {
 		return nil
 	}
+	return entry.links
+}
+
+func (s *resourceHintService) Entry(result *resolver.Result) (resourceHintCacheEntry, bool) {
+	if s == nil || !s.cfg.Enabled() || result == nil || result.Asset == nil {
+		return resourceHintCacheEntry{}, false
+	}
 	if !isResourceHintHTML(result.Asset.MediaType) {
-		return nil
+		return resourceHintCacheEntry{}, false
 	}
 
 	key := resourceHintCacheKey(result.Asset)
-	if cached, ok := s.cached(key); ok {
-		return cached
+	if cached, ok := s.cache.Get(key); ok {
+		return cached, true
 	}
 
 	links, err := parseHTMLResourceHints(result.Asset.FullPath, s.cfg)
@@ -61,33 +73,23 @@ func (s *resourceHintService) Links(result *resolver.Result) *cxlist.List[string
 			slog.String("err", err.Error()),
 		)
 	}
-	s.store(key, links)
-	return links
+	entry := resourceHintCacheEntry{
+		links:  links,
+		header: resourceHintHeader(links),
+	}
+	s.cache.Set(key, entry)
+	return entry, true
 }
 
 func (s *resourceHintService) EarlyHintsEnabled() bool {
 	return s != nil && s.cfg.Enabled() && s.cfg.EarlyHints
 }
 
-func (s *resourceHintService) cached(key string) (*cxlist.List[string], bool) {
-	if !s.cachedKeys.Contains(key) {
-		return nil, false
-	}
-	return cxlist.NewList[string](s.cache.GetCopy(key)...), true
-}
-
-func (s *resourceHintService) store(key string, links *cxlist.List[string]) {
-	links.ViewValues(func(values []string) {
-		s.cache.Set(key, values...)
-	})
-	s.cachedKeys.Add(key)
-}
-
-func applyResourceHints(c fiber.Ctx, links *cxlist.List[string]) {
+func resourceHintHeader(links *cxlist.List[string]) string {
 	if links == nil || links.IsEmpty() {
-		return
+		return ""
 	}
-	c.Set(fiber.HeaderLink, links.Join(", "))
+	return links.Join(", ")
 }
 
 func (r *assetDeliveryRuntime) sendEarlyResourceHints(c fiber.Ctx, links *cxlist.List[string]) error {

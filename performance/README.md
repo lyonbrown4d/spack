@@ -60,7 +60,7 @@ The AOT integration workspace and generated runtime artifacts are written under 
 
 Pull requests:
 
-- Run microbenchmarks for request path cleaning, resolver, memory cache, HTTP route, and legacy pipeline enqueue compatibility.
+- Run microbenchmarks for request path cleaning, catalog indexed lookup/snapshot export, prepared snapshot/route selection, resolver, memory cache, HTTP route, and legacy pipeline enqueue compatibility.
 - Generate a performance report artifact.
 - Do not run full k6 unless the change touches performance-sensitive runtime paths.
 
@@ -82,6 +82,8 @@ Budgets are stored in `performance/budgets.json`.
 
 Core release budgets:
 
+- Catalog indexed lookup and snapshot export `ns/op` must not regress beyond their configured budget.
+- Prepared snapshot compile, route selection, resource-hint cache hit, and small-file prepared HTTP send must not regress beyond their configured budget.
 - Resolver benchmark `allocs/op` must not regress by more than 10%.
 - Hot HTTP route `ns/op` must not regress by more than 8%.
 - Legacy lazy pipeline enqueue compatibility `allocs/op` must not regress by more than 10%.
@@ -90,6 +92,8 @@ Core release budgets:
 - 100k-asset startup must stay below the configured threshold in the budget file.
 
 If a benchmark has no baseline yet, the report records candidate measurements and skips relative regression checks. The first stable release should publish `performance/baselines/vX.Y.Z/` and update `performance/baselines/current/`.
+
+For local runtime checks, use `task serve:bench` to start SPACK on `127.0.0.1:8080`, then run `task perf:wrk` or override `WRK_URL`, `WRK_CONNECTIONS`, and `WRK_DURATION`.
 
 ## Raw data requirements
 

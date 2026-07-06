@@ -21,6 +21,78 @@
       }
     },
     {
+      "id": "catalog_find_asset",
+      "scenario": "catalog indexed lookup",
+      "benchmark": "BenchmarkCatalogFindAsset",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "catalog_find_encoding_variant",
+      "scenario": "catalog indexed lookup",
+      "benchmark": "BenchmarkCatalogFindEncodingVariant",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "catalog_list_variants",
+      "scenario": "catalog indexed listing",
+      "benchmark": "BenchmarkCatalogListVariants",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "catalog_snapshot",
+      "scenario": "catalog snapshot export",
+      "benchmark": "BenchmarkCatalogSnapshot",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 10 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "prepared_snapshot_build",
+      "scenario": "prepared snapshot compile",
+      "benchmark": "BenchmarkPreparedSnapshotBuild",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 10 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "prepared_resolve_encoding",
+      "scenario": "prepared route selection",
+      "benchmark": "BenchmarkPreparedResolveEncoding",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "prepared_resource_hints_cache_hit",
+      "scenario": "prepared resource hints",
+      "benchmark": "BenchmarkPreparedResourceHintsCacheHit",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
+      "id": "http_prepared_small_file",
+      "scenario": "small hot-cache files",
+      "benchmark": "BenchmarkHTTPPreparedSmallFile",
+      "metrics": {
+        "ns_per_op": { "max_regression_percent": 8 },
+        "allocs_per_op": { "max_regression_percent": 10 }
+      }
+    },
+    {
       "id": "resolver_asset_hot",
       "scenario": "small hot-cache files",
       "benchmark": "BenchmarkResolverResolveAsset",

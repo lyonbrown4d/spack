@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
@@ -73,20 +72,34 @@ func (r *assetDeliveryRuntime) trySendHotResolvedAsset(
 }
 
 func (r *assetDeliveryRuntime) applyResourceHints(c fiber.Ctx, request resolver.Request, result *resolver.Result) {
-	if r == nil || r.resourceHints == nil || c.Method() != fiber.MethodGet || request.RangeRequested {
+	if !r.canApplyResourceHints(c, request) {
 		return
 	}
 
-	links := r.resourceHints.Links(result)
-	if links == nil || links.IsEmpty() {
+	entry, ok := r.resourceHints.Entry(result)
+	if !ok || entry.links == nil || entry.links.IsEmpty() {
 		return
 	}
-	if r.resourceHints.EarlyHintsEnabled() {
-		if err := r.sendEarlyResourceHints(c, links); err != nil && r.logger != nil {
-			r.logger.Debug("Send early resource hints failed", slog.String("err", err.Error()))
-		}
+	r.sendResourceHintEarlyHints(c, entry.links)
+	if entry.header != "" {
+		c.Set(fiber.HeaderLink, entry.header)
 	}
-	applyResourceHints(c, links)
+}
+
+func (r *assetDeliveryRuntime) canApplyResourceHints(c fiber.Ctx, request resolver.Request) bool {
+	return r != nil &&
+		r.resourceHints != nil &&
+		c.Method() == fiber.MethodGet &&
+		!request.RangeRequested
+}
+
+func (r *assetDeliveryRuntime) sendResourceHintEarlyHints(c fiber.Ctx, links resourceHintLinks) {
+	if !r.resourceHints.EarlyHintsEnabled() {
+		return
+	}
+	if err := r.sendEarlyResourceHints(c, links); err != nil && r.logger != nil {
+		r.logger.Debug("Send early resource hints failed", slog.String("err", err.Error()))
+	}
 }
 
 func handleConditionalAssetRequest(c fiber.Ctx, request resolver.Request) bool {
@@ -241,14 +254,12 @@ func hotResponseCacheKey(result *resolver.Result, requestedFormat string) string
 	}
 
 	size, _ := resolvedAssetSize(result)
-	return cxlist.NewList(
-		result.FilePath,
-		result.MediaType,
-		result.ContentEncoding,
-		result.ETag,
-		strconv.FormatInt(size, 10),
-		requestedFormat,
-	).Join("|")
+	return result.FilePath + "|" +
+		result.MediaType + "|" +
+		result.ContentEncoding + "|" +
+		result.ETag + "|" +
+		strconv.FormatInt(size, 10) + "|" +
+		requestedFormat
 }
 
 type missingResolvedVariantError struct {

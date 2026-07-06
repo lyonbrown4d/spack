@@ -75,10 +75,21 @@ func scanCatalogAssets(ctx context.Context, scanner sourcecatalog.Scanner, cat c
 		return 0, scanErr.Wrap(err)
 	}
 
-	var upsertErr error
-	cxlist.NewList[*catalog.Asset](snapshot.Assets.Values()...).Sort(func(left, right *catalog.Asset) int {
+	assets := cxlist.NewList[*catalog.Asset](snapshot.Assets.Values()...).Sort(func(left, right *catalog.Asset) int {
 		return cmp.Compare(left.Path, right.Path)
-	}).Range(func(_ int, asset *catalog.Asset) bool {
+	})
+	variants := cxlist.NewList[*catalog.Variant](snapshot.Variants.Values()...).Sort(func(left, right *catalog.Variant) int {
+		return cmp.Compare(left.ID, right.ID)
+	})
+	if replacer, ok := cat.(catalog.BulkReplacer); ok {
+		if err := replacer.ReplaceCatalog(catalog.ReplaceCatalogInput{Assets: assets, Variants: variants}); err != nil {
+			return 0, scanErr.Wrap(err)
+		}
+		return snapshot.TotalBytes, nil
+	}
+
+	var upsertErr error
+	assets.Range(func(_ int, asset *catalog.Asset) bool {
 		if err := cat.UpsertAsset(asset); err != nil {
 			upsertErr = scanErr.With("asset_path", asset.Path).Wrap(err)
 			return false
@@ -89,9 +100,7 @@ func scanCatalogAssets(ctx context.Context, scanner sourcecatalog.Scanner, cat c
 		return 0, upsertErr
 	}
 
-	cxlist.NewList[*catalog.Variant](snapshot.Variants.Values()...).Sort(func(left, right *catalog.Variant) int {
-		return cmp.Compare(left.ID, right.ID)
-	}).Range(func(_ int, variant *catalog.Variant) bool {
+	variants.Range(func(_ int, variant *catalog.Variant) bool {
 		if err := cat.UpsertVariant(variant); err != nil {
 			upsertErr = scanErr.With("variant_id", variant.ID).With("asset_path", variant.AssetPath).Wrap(err)
 			return false

@@ -43,6 +43,11 @@ func (c preparedCompiler) Compile(_ context.Context, cat catalog.Catalog) (*prep
 	snapshot := newPreparedSnapshot(catalogSnapshot.Assets.Len())
 	c.compileRoutes(catalogSnapshot.Assets).Each(func(_ int, route *preparedRoute) {
 		snapshot.routes.Set(route.path, route)
+		if alias := preparedEntryAlias(route.path, c.cfg.Assets.Entry); alias != "" {
+			if _, exists := snapshot.routes.Get(alias); !exists {
+				snapshot.routes.Set(alias, route)
+			}
+		}
 		snapshot.assets++
 		snapshot.variants += routeVariantCount(route)
 	})
@@ -116,12 +121,18 @@ func (c preparedCompiler) compileVariantResponse(asset *catalog.Asset, variant *
 }
 
 func (c preparedCompiler) compileResponse(result resolver.Result, explicitFormat string) *preparedResponse {
+	headerPlan := newResolvedHeaderPlan(c.policy, &result, "")
+	explicitHeaderPlan := newResolvedHeaderPlan(c.policy, &result, explicitFormat)
 	response := &preparedResponse{
 		result:             result,
-		headerPlan:         newResolvedHeaderPlan(c.policy, &result, ""),
-		explicitHeaderPlan: newResolvedHeaderPlan(c.policy, &result, explicitFormat),
+		headerPlan:         newPreparedHeaderPlan(headerPlan),
+		explicitHeaderPlan: newPreparedHeaderPlan(explicitHeaderPlan),
+	}
+	if response.result.Variant != nil {
+		response.servedResult = &response.result
 	}
 	response.resourceHints = c.compileResourceHints(&result)
+	response.resourceHintHeader = resourceHintHeader(response.resourceHints)
 	response.body, response.bodyPrepared = c.compileBody(&result)
 	return response
 }
@@ -191,6 +202,14 @@ func comparePreparedImageResponses(left, right *preparedResponse) int {
 		cmp.Compare(leftVariant.Width, rightVariant.Width),
 		strings.Compare(leftVariant.ID, rightVariant.ID),
 	)
+}
+
+func preparedEntryAlias(routePath, entry string) string {
+	suffix := "/" + strings.TrimSpace(entry)
+	if strings.TrimSpace(routePath) == "" || suffix == "/" || !strings.HasSuffix(routePath, suffix) {
+		return ""
+	}
+	return strings.TrimSuffix(routePath, suffix)
 }
 
 func preparedCompileError(err error) error {

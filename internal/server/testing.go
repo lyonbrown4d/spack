@@ -13,6 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
@@ -21,6 +22,15 @@ type PreparedSelectionForTest struct {
 	Encoding     string
 	BodyLen      int
 	FallbackUsed bool
+}
+
+type ResourceHintEntryForTest struct {
+	Header string
+	Len    int
+}
+
+type ResourceHintServiceForTest struct {
+	service *resourceHintService
 }
 
 // ShouldVaryAcceptForTest exposes vary-header behavior for external tests.
@@ -61,6 +71,31 @@ func PublishVariantServedForTest(
 	logger *slog.Logger,
 ) {
 	publishVariantServed(ctx, result, bus, logger)
+}
+
+func NewResourceHintServiceForTest(
+	cfg *config.Frontend,
+	logger *slog.Logger,
+) *ResourceHintServiceForTest {
+	return &ResourceHintServiceForTest{service: newResourceHintService(cfg, logger)}
+}
+
+func (s *ResourceHintServiceForTest) Entry(result *resolver.Result) (ResourceHintEntryForTest, bool) {
+	if s == nil || s.service == nil {
+		return ResourceHintEntryForTest{}, false
+	}
+	entry, ok := s.service.Entry(result)
+	if !ok {
+		return ResourceHintEntryForTest{}, false
+	}
+	linkCount := 0
+	if entry.links != nil {
+		linkCount = entry.links.Len()
+	}
+	return ResourceHintEntryForTest{
+		Header: entry.header,
+		Len:    linkCount,
+	}, true
 }
 
 // NewAppForTest exposes server construction for external tests.
@@ -164,7 +199,20 @@ func ResolvePreparedForTest(
 	request resolver.Request,
 	requestedFormat string,
 ) (PreparedSelectionForTest, bool) {
-	selection, ok := svc.Resolve(newPreparedRequest(request, requestedFormat)).Get()
+	return ResolvePreparedCleanedForTest(svc, request, requestedFormat, requestpath.Clean(request.Path))
+}
+
+func ResolvePreparedCleanedForTest(
+	svc *PreparedService,
+	request resolver.Request,
+	requestedFormat string,
+	cleanedPath requestpath.Cleaned,
+) (PreparedSelectionForTest, bool) {
+	selection, ok := svc.Resolve(preparedRequest{
+		Request:         request,
+		RequestedFormat: requestedFormat,
+		CleanedPath:     cleanedPath,
+	}).Get()
 	if !ok || selection.response == nil {
 		return PreparedSelectionForTest{}, false
 	}

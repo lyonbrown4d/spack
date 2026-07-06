@@ -52,6 +52,15 @@ type Snapshot struct {
 	Assets *cxlist.List[*Entry] `json:"assets"`
 }
 
+type ReplaceCatalogInput struct {
+	Assets   *cxlist.List[*Asset]
+	Variants *cxlist.List[*Variant]
+}
+
+type BulkReplacer interface {
+	ReplaceCatalog(input ReplaceCatalogInput) error
+}
+
 type Catalog interface {
 	UpsertAsset(asset *Asset) error
 	UpsertVariant(variant *Variant) error
