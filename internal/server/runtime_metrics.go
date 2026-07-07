@@ -9,13 +9,15 @@ import (
 )
 
 type RuntimeMetrics struct {
-	RequestsInFlight                 prometheus.Gauge
-	PreparedSnapshotDuration         prometheus.Gauge
-	PreparedSnapshotRoutesCurrent    prometheus.Gauge
-	PreparedSnapshotResponsesCurrent prometheus.Gauge
-	Readiness                        *prometheus.GaugeVec
-	StartupPhase                     *prometheus.GaugeVec
-	StartupDuration                  prometheus.Gauge
+	RequestsInFlight                   prometheus.Gauge
+	PreparedSnapshotDuration           prometheus.Gauge
+	PreparedSnapshotRoutesCurrent      prometheus.Gauge
+	PreparedSnapshotResponsesCurrent   prometheus.Gauge
+	PreparedSnapshotBodyEntriesCurrent prometheus.Gauge
+	PreparedSnapshotBodyBytesCurrent   prometheus.Gauge
+	Readiness                          *prometheus.GaugeVec
+	StartupPhase                       *prometheus.GaugeVec
+	StartupDuration                    prometheus.Gauge
 }
 
 func NewRuntimeMetrics() *RuntimeMetrics {
@@ -35,6 +37,14 @@ func NewRuntimeMetrics() *RuntimeMetrics {
 		PreparedSnapshotResponsesCurrent: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "spack_prepared_snapshot_responses_current",
 			Help: "Current number of prepared identity and variant responses",
+		}),
+		PreparedSnapshotBodyEntriesCurrent: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "spack_prepared_snapshot_body_entries_current",
+			Help: "Current number of prepared responses with an in-memory body",
+		}),
+		PreparedSnapshotBodyBytesCurrent: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "spack_prepared_snapshot_body_bytes_current",
+			Help: "Current bytes held by prepared in-memory response bodies",
 		}),
 		Readiness: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "spack_server_readiness_current",
@@ -63,6 +73,8 @@ func (m *RuntimeMetrics) Collectors() []prometheus.Collector {
 		m.PreparedSnapshotDuration,
 		m.PreparedSnapshotRoutesCurrent,
 		m.PreparedSnapshotResponsesCurrent,
+		m.PreparedSnapshotBodyEntriesCurrent,
+		m.PreparedSnapshotBodyBytesCurrent,
 		m.Readiness,
 		m.StartupPhase,
 		m.StartupDuration,
@@ -83,7 +95,7 @@ func (m *RuntimeMetrics) DecRequestsInFlight() {
 	m.RequestsInFlight.Dec()
 }
 
-func (m *RuntimeMetrics) RecordPreparedSnapshot(duration time.Duration, routes, responses int) {
+func (m *RuntimeMetrics) RecordPreparedSnapshot(duration time.Duration, routes, responses, bodyEntries int, bodyBytes int64) {
 	if m == nil {
 		return
 	}
@@ -96,9 +108,17 @@ func (m *RuntimeMetrics) RecordPreparedSnapshot(duration time.Duration, routes, 
 	if responses < 0 {
 		responses = 0
 	}
+	if bodyEntries < 0 {
+		bodyEntries = 0
+	}
+	if bodyBytes < 0 {
+		bodyBytes = 0
+	}
 	m.PreparedSnapshotDuration.Set(duration.Seconds())
 	m.PreparedSnapshotRoutesCurrent.Set(float64(routes))
 	m.PreparedSnapshotResponsesCurrent.Set(float64(responses))
+	m.PreparedSnapshotBodyEntriesCurrent.Set(float64(bodyEntries))
+	m.PreparedSnapshotBodyBytesCurrent.Set(float64(bodyBytes))
 }
 
 func (m *RuntimeMetrics) SetReadiness(ready bool) {

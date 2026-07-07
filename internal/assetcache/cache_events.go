@@ -61,19 +61,24 @@ func (c *Cache) subscribeVariantRemoved() (func(), error) {
 
 func (c *Cache) subscribeVariantGenerated() (func(), error) {
 	unsubscribe, err := eventx.Subscribe(c.bus, func(_ context.Context, event appEvent.VariantGenerated) error {
-		if preloadErr := c.preloadPath(event.ArtifactPath, cachepolicy.MemoryRequest{
+		preloadErr := c.preloadPath(event.ArtifactPath, cachepolicy.MemoryRequest{
 			Path:      event.ArtifactPath,
 			AssetPath: event.AssetPath,
 			Size:      event.Size,
 			Kind:      cachepolicy.MemoryEntryKindVariant,
 			UseCase:   cachepolicy.MemoryUseCaseEvent,
-		}, nil); preloadErr != nil && c.logger != nil {
-			c.logger.Debug("Preload generated variant failed",
-				slog.String("path", event.ArtifactPath),
-				slog.String("stage", event.Stage),
-				slog.String("err", preloadErr.Error()),
-			)
+		}, nil)
+		if preloadErr != nil {
+			if c.logger != nil {
+				c.logger.Debug("Preload generated variant failed",
+					slog.String("path", event.ArtifactPath),
+					slog.String("stage", event.Stage),
+					slog.String("err", preloadErr.Error()),
+				)
+			}
+			return nil
 		}
+		c.wait()
 		return nil
 	})
 	if err != nil {

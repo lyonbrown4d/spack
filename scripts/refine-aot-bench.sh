@@ -660,6 +660,9 @@ find_relative_paths() {
     cd "$root"
     find . -type f \
     ! -name '*.map' \
+    ! -name '*.br' \
+    ! -name '*.gz' \
+    ! -name '*.zst' \
     | sed 's#^\./##' \
     | sed 's#\\#/#g' \
     | sed 's#^#/#' \

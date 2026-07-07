@@ -48,8 +48,11 @@ func (c preparedCompiler) Compile(_ context.Context, cat catalog.Catalog) (*prep
 				snapshot.routes.Set(alias, route)
 			}
 		}
+		bodyEntries, bodyBytes := routePreparedBodyStats(route)
 		snapshot.assets++
 		snapshot.variants += routeVariantCount(route)
+		snapshot.bodyEntries += bodyEntries
+		snapshot.bodyBytes += bodyBytes
 	})
 	return snapshot, nil
 }
@@ -177,6 +180,33 @@ func variantImageFormat(response *preparedResponse) string {
 		return format
 	}
 	return media.ImageFormat(response.result.MediaType)
+}
+
+func routePreparedBodyStats(route *preparedRoute) (int, int64) {
+	if route == nil {
+		return 0, 0
+	}
+	entries := 0
+	bytes := int64(0)
+	add := func(response *preparedResponse) {
+		if response != nil && response.bodyPrepared {
+			entries++
+			bytes += int64(len(response.body))
+		}
+	}
+	add(route.identity)
+	route.encodings.Range(func(_ string, response *preparedResponse) bool {
+		add(response)
+		return true
+	})
+	route.images.Range(func(_ string, responses *cxlist.List[*preparedResponse]) bool {
+		responses.Range(func(_ int, response *preparedResponse) bool {
+			add(response)
+			return true
+		})
+		return true
+	})
+	return entries, bytes
 }
 
 func routeVariantCount(route *preparedRoute) int {

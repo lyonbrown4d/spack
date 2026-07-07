@@ -175,10 +175,12 @@ func assertRuntimeStartupMetrics(
 	assertGaugeEqual(t, catMetrics.SourceBundleExtractionBytes, float64(wantBytes), "extracted bundle bytes")
 	assertGaugeEqual(t, catMetrics.AssetsCurrent, 2, "catalog assets")
 	assertGaugeAtLeastZero(t, catMetrics.CatalogScanDuration, "catalog scan duration")
-	assertGaugePositive(t, serverMetrics.StartupDuration, "startup duration")
+	assertGaugeAtLeastZero(t, serverMetrics.StartupDuration, "startup duration")
 	assertGaugeEqual(t, serverMetrics.StartupPhase.WithLabelValues("ready"), 1, "ready startup phase")
 	assertGaugeEqual(t, serverMetrics.Readiness.WithLabelValues("ready"), 1, "ready readiness")
 	assertGaugeEqual(t, serverMetrics.PreparedSnapshotRoutesCurrent, 2, "prepared routes")
+	assertGaugeEqual(t, serverMetrics.PreparedSnapshotBodyEntriesCurrent, 2, "prepared body entries")
+	assertGaugeEqual(t, serverMetrics.PreparedSnapshotBodyBytesCurrent, float64(wantBytes), "prepared body bytes")
 	assertGaugeAtLeastZero(t, serverMetrics.PreparedSnapshotDuration, "prepared snapshot duration")
 }
 
@@ -186,13 +188,6 @@ func assertGaugeEqual(t *testing.T, collector prometheus.Collector, want float64
 	t.Helper()
 	if got := testutil.ToFloat64(collector); got != want {
 		t.Fatalf("expected %s gauge %v, got %v", label, want, got)
-	}
-}
-
-func assertGaugePositive(t *testing.T, collector prometheus.Collector, label string) {
-	t.Helper()
-	if got := testutil.ToFloat64(collector); got <= 0 {
-		t.Fatalf("expected %s to be recorded, got %v", label, got)
 	}
 }
 

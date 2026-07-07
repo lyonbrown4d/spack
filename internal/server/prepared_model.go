@@ -12,10 +12,12 @@ import (
 )
 
 type preparedSnapshot struct {
-	routes   *cxmapping.Map[string, *preparedRoute]
-	builtAt  time.Time
-	assets   int
-	variants int
+	routes      *cxmapping.Map[string, *preparedRoute]
+	builtAt     time.Time
+	assets      int
+	variants    int
+	bodyEntries int
+	bodyBytes   int64
 }
 
 type preparedRoute struct {

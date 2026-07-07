@@ -46,12 +46,12 @@ func bootstrapCatalogOnStart(
 	runtime.catMetrics.RecordCatalogScan(time.Since(scanStartedAt), runtime.cat, totalBytes)
 
 	runtime.serverMetrics.SetStartupPhase("cache_warmup")
-	cacheStats, cacheErr := runtime.bodyCache.Warm(ctx, runtime.cat)
+	cacheStats, cacheErr := warmRuntimeMemoryCache(ctx, runtime)
 	if cacheErr != nil {
 		return bootstrapErr.With("service", "asset memory cache").Wrap(cacheErr)
 	}
 	runtime.serverMetrics.SetStartupPhase("prepared_snapshot")
-	if err := runtime.prepared.Rebuild(ctx); err != nil {
+	if err := rebuildPreparedSnapshot(ctx, runtime); err != nil {
 		return bootstrapErr.With("service", "prepared snapshot").Wrap(err)
 	}
 	runtime.serverMetrics.SetStartupDuration(time.Since(startedAt))
@@ -65,6 +65,27 @@ func bootstrapCatalogOnStart(
 		"Catalog ready",
 		catalogReadyAttrs(runtime.cat, runtime.bodyCache, cacheStats, totalBytes, time.Since(startedAt)).Values()...,
 	)
+	return nil
+}
+
+func warmRuntimeMemoryCache(ctx context.Context, runtime catalogBootstrapRuntime) (assetcache.WarmStats, error) {
+	if runtime.prepared != nil {
+		return assetcache.WarmStats{}, nil
+	}
+	stats, err := runtime.bodyCache.Warm(ctx, runtime.cat)
+	if err != nil {
+		return assetcache.WarmStats{}, oops.Wrapf(err, "warm runtime memory cache")
+	}
+	return stats, nil
+}
+
+func rebuildPreparedSnapshot(ctx context.Context, runtime catalogBootstrapRuntime) error {
+	if runtime.prepared == nil {
+		return nil
+	}
+	if err := runtime.prepared.Rebuild(ctx); err != nil {
+		return oops.Wrapf(err, "rebuild prepared snapshot")
+	}
 	return nil
 }
 

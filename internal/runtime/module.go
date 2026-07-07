@@ -20,7 +20,7 @@ import (
 var Module = dix.NewModule("runtime",
 	dix.WithModuleProviders(
 		dix.Provider4(newMainHTTPRuntime),
-		dix.Provider5(newCollectorRegistration),
+		dix.Provider6(newCollectorRegistration),
 	),
 	dix.Setups(
 		advanced.DoSetupWithMetadata(func(raw do.Injector) error {
@@ -88,6 +88,7 @@ func newCollectorRegistration(
 	serverMetrics *server.RuntimeMetrics,
 	taskMetrics *task.RuntimeMetrics,
 	asyncMetrics *asyncx.RuntimeMetrics,
+	bodyCache *assetcache.Cache,
 ) *collectorRegistration {
 	return buildCollectorRegistration(
 		cfg,
@@ -95,5 +96,6 @@ func newCollectorRegistration(
 		serverMetrics,
 		taskMetrics,
 		asyncMetrics,
+		bodyCache,
 	)
 }

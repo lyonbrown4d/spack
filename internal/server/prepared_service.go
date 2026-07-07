@@ -67,11 +67,13 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 	}
 	s.snapshot.Store(snapshot)
 	duration := time.Since(startedAt)
-	s.metrics.RecordPreparedSnapshot(duration, snapshot.assets, snapshot.assets+snapshot.variants)
+	s.metrics.RecordPreparedSnapshot(duration, snapshot.assets, snapshot.assets+snapshot.variants, snapshot.bodyEntries, snapshot.bodyBytes)
 	if s.logger != nil {
 		s.logger.Info("Prepared snapshot ready",
 			slog.Int("assets", snapshot.assets),
 			slog.Int("variants", snapshot.variants),
+			slog.Int("body_entries", snapshot.bodyEntries),
+			slog.Int64("body_bytes", snapshot.bodyBytes),
 			slog.Duration("duration", duration),
 		)
 	}

@@ -12,6 +12,12 @@ type Entry struct {
 	Attachment any
 }
 
+type entryLoadOptions struct {
+	attachment        any
+	attachmentMatches func(any) bool
+	wait              bool
+}
+
 func (c *Cache) GetOrLoadWithRequest(path string, request cachepolicy.MemoryRequest) ([]byte, bool, error) {
 	entry, found, err := c.GetEntryWithRequest(path, request)
 	if err != nil {
@@ -33,21 +39,54 @@ func (c *Cache) GetCachedEntry(path string) (Entry, bool) {
 }
 
 func (c *Cache) GetEntryWithRequest(path string, request cachepolicy.MemoryRequest) (Entry, bool, error) {
+	return c.getEntryWithRequest(path, request, entryLoadOptions{wait: true})
+}
+
+func (c *Cache) GetEntryForServe(
+	path string,
+	request cachepolicy.MemoryRequest,
+	attachment any,
+	attachmentMatches func(any) bool,
+) (Entry, bool, error) {
+	return c.getEntryWithRequest(path, request, entryLoadOptions{
+		attachment:        attachment,
+		attachmentMatches: attachmentMatches,
+	})
+}
+
+func (c *Cache) getEntryWithRequest(path string, request cachepolicy.MemoryRequest, options entryLoadOptions) (Entry, bool, error) {
 	if !c.Enabled() {
 		return Entry{}, false, oops.In("assetcache").Owner("entry").Wrap(errors.New("memory cache is disabled"))
 	}
 
 	if entry, found := c.cache.Get(path); found && entry != nil {
 		c.addCounter(metricAssetCacheHits, 1)
-		return *entry, true, nil
+		return c.ensureAttachment(path, request, *entry, options), true, nil
 	}
 	c.addCounter(metricAssetCacheMisses, 1)
 
-	result, err := c.loadEntry(path, request)
+	result, err := c.loadEntry(path, request, options)
 	if err != nil {
 		return Entry{}, false, err
 	}
-	return result.entry, result.found, nil
+	entry := c.ensureAttachment(path, request, result.entry, options)
+	return entry, result.found, nil
+}
+
+func (c *Cache) ensureAttachment(path string, request cachepolicy.MemoryRequest, entry Entry, options entryLoadOptions) Entry {
+	if options.attachment == nil || attachmentMatches(entry.Attachment, options) {
+		return entry
+	}
+	entry.Attachment = options.attachment
+	c.storeEntry(path, entry, request, false)
+	return entry
+}
+
+func attachmentMatches(existing any, options entryLoadOptions) bool {
+	if options.attachmentMatches != nil {
+		return options.attachmentMatches(existing)
+	}
+	return existing != nil
 }
 
 func (c *Cache) Attach(path string, request cachepolicy.MemoryRequest, attachment any) bool {
@@ -59,12 +98,12 @@ func (c *Cache) Attach(path string, request cachepolicy.MemoryRequest, attachmen
 	if !found || entry == nil {
 		return false
 	}
-	return c.storeEntry(path, Entry{Body: entry.Body, Attachment: attachment}, request)
+	return c.storeEntry(path, Entry{Body: entry.Body, Attachment: attachment}, request, true)
 }
 
-func (c *Cache) loadEntry(path string, request cachepolicy.MemoryRequest) (cacheLoadResult, error) {
+func (c *Cache) loadEntry(path string, request cachepolicy.MemoryRequest, options entryLoadOptions) (cacheLoadResult, error) {
 	value, err, _ := c.loader.Do(path, func() (any, error) {
-		return c.loadEntryOnce(path, request)
+		return c.loadEntryOnce(path, request, options)
 	})
 	if err != nil {
 		return cacheLoadResult{}, oops.Wrapf(err, "load cache entry")
@@ -77,12 +116,12 @@ func (c *Cache) loadEntry(path string, request cachepolicy.MemoryRequest) (cache
 	return result, nil
 }
 
-func (c *Cache) loadEntryOnce(path string, request cachepolicy.MemoryRequest) (cacheLoadResult, error) {
+func (c *Cache) loadEntryOnce(path string, request cachepolicy.MemoryRequest, options entryLoadOptions) (cacheLoadResult, error) {
 	if entry, found := c.cache.Get(path); found && entry != nil {
 		return cacheLoadResult{entry: *entry, found: true}, nil
 	}
 
-	entry, cached, err := c.readAndCachePath(path, request)
+	entry, cached, err := c.readAndCachePath(path, request, options.attachment, options.wait)
 	if err != nil {
 		c.addCounter(metricAssetCacheLoadErrors, 1)
 		return cacheLoadResult{}, err

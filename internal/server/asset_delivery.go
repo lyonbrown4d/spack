@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -118,36 +117,27 @@ func (r *assetDeliveryRuntime) sendCachedResolvedAsset(
 	c fiber.Ctx,
 	result *resolver.Result,
 	request cachepolicy.MemoryRequest,
-	hotKey string,
+	hotKey hotResponseKey,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
-	entry, found, err := r.bodyCache.GetEntryWithRequest(result.FilePath, request)
+	entry, found, err := r.bodyCache.GetEntryForServe(
+		result.FilePath,
+		request,
+		&hotResponseEntry{Key: hotKey, HeaderPlan: headerPlan},
+		hotResponseMatches(hotKey),
+	)
 	if err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr
 		}
 		return "", fiber.ErrInternalServerError
 	}
-	return r.sendCachedResolvedAssetEntry(c, result, request, entry, found, hotKey, headerPlan)
+	return sendCachedResolvedAssetEntry(c, entry, found)
 }
 
-func (r *assetDeliveryRuntime) sendCachedResolvedAssetEntry(
-	c fiber.Ctx,
-	result *resolver.Result,
-	request cachepolicy.MemoryRequest,
-	entry assetcache.Entry,
-	found bool,
-	hotKey string,
-	headerPlan resolvedHeaderPlan,
-) (string, error) {
+func sendCachedResolvedAssetEntry(c fiber.Ctx, entry assetcache.Entry, found bool) (string, error) {
 	if err := c.Send(entry.Body); err != nil {
 		return "", fmt.Errorf("send cached asset body: %w", err)
-	}
-	if shouldAttachHotResponse(c, result) {
-		r.bodyCache.Attach(result.FilePath, request, &hotResponseEntry{
-			Key:        hotKey,
-			HeaderPlan: headerPlan,
-		})
 	}
 	return lo.Ternary(found, deliveryMemoryCacheHit, deliveryMemoryCacheFill), nil
 }
@@ -233,8 +223,24 @@ func buildMemoryCacheRequest(result *resolver.Result, request resolver.Request) 
 }
 
 type hotResponseEntry struct {
-	Key        string
+	Key        hotResponseKey
 	HeaderPlan resolvedHeaderPlan
+}
+
+type hotResponseKey struct {
+	filePath        string
+	mediaType       string
+	contentEncoding string
+	etag            string
+	size            int64
+	requestedFormat string
+}
+
+func hotResponseMatches(key hotResponseKey) func(any) bool {
+	return func(attachment any) bool {
+		hot, ok := attachment.(*hotResponseEntry)
+		return ok && hot != nil && hot.Key == key
+	}
 }
 
 func shouldUseHotResponse(c fiber.Ctx, request resolver.Request, result *resolver.Result) bool {
@@ -244,22 +250,20 @@ func shouldUseHotResponse(c fiber.Ctx, request resolver.Request, result *resolve
 		!request.RangeRequested
 }
 
-func shouldAttachHotResponse(c fiber.Ctx, result *resolver.Result) bool {
-	return result != nil && strings.TrimSpace(result.FilePath) != "" && c.Method() == fiber.MethodGet
-}
-
-func hotResponseCacheKey(result *resolver.Result, requestedFormat string) string {
+func hotResponseCacheKey(result *resolver.Result, requestedFormat string) hotResponseKey {
 	if result == nil {
-		return ""
+		return hotResponseKey{}
 	}
 
 	size, _ := resolvedAssetSize(result)
-	return result.FilePath + "|" +
-		result.MediaType + "|" +
-		result.ContentEncoding + "|" +
-		result.ETag + "|" +
-		strconv.FormatInt(size, 10) + "|" +
-		requestedFormat
+	return hotResponseKey{
+		filePath:        result.FilePath,
+		mediaType:       result.MediaType,
+		contentEncoding: result.ContentEncoding,
+		etag:            result.ETag,
+		size:            size,
+		requestedFormat: requestedFormat,
+	}
 }
 
 type missingResolvedVariantError struct {

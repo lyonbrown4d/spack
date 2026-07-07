@@ -71,6 +71,7 @@ func (c *Cache) WarmSelected(ctx context.Context, cat catalog.Catalog) (WarmStat
 	if err := c.warmAssets(ctx, cat, &stats); err != nil {
 		return WarmStats{}, oops.Wrapf(err, "warm selected memory cache")
 	}
+	c.wait()
 	c.recordWarmStats(ctx, stats, time.Since(startedAt))
 	return stats, nil
 }
@@ -85,6 +86,7 @@ func (c *Cache) Warm(ctx context.Context, cat catalog.Catalog) (WarmStats, error
 	if err := c.warmAssets(ctx, cat, &stats); err != nil {
 		return WarmStats{}, oops.Wrapf(err, "warm memory cache")
 	}
+	c.wait()
 	c.recordWarmStats(ctx, stats, time.Since(startedAt))
 
 	return stats, nil
@@ -206,7 +208,7 @@ func (c *Cache) preloadPath(path string, request cachepolicy.MemoryRequest, stat
 		return nil
 	}
 
-	entry, cached, err := c.readAndCachePath(path, request)
+	entry, cached, err := c.readAndCachePath(path, request, nil, false)
 	if err != nil {
 		return err
 	}
@@ -222,17 +224,17 @@ func (c *Cache) shouldWarm(request cachepolicy.MemoryRequest) bool {
 	return c.Enabled() && c.policy != nil && c.policy.ShouldWarm(request)
 }
 
-func (c *Cache) readAndCachePath(path string, request cachepolicy.MemoryRequest) (Entry, bool, error) {
+func (c *Cache) readAndCachePath(path string, request cachepolicy.MemoryRequest, attachment any, wait bool) (Entry, bool, error) {
 	body, err := c.readFile(path)
 	if err != nil {
 		return Entry{}, false, err
 	}
 
-	entry := Entry{Body: body}
-	return entry, c.storeEntry(path, entry, request), nil
+	entry := Entry{Body: body, Attachment: attachment}
+	return entry, c.storeEntry(path, entry, request, wait), nil
 }
 
-func (c *Cache) storeEntry(path string, entry Entry, request cachepolicy.MemoryRequest) bool {
+func (c *Cache) storeEntry(path string, entry Entry, request cachepolicy.MemoryRequest, wait bool) bool {
 	ttl := c.policy.TTL(request)
 	cost := max(int64(len(entry.Body)), 1)
 	var stored bool
@@ -241,12 +243,21 @@ func (c *Cache) storeEntry(path string, entry Entry, request cachepolicy.MemoryR
 	} else {
 		stored = c.cache.Set(path, &entry, cost)
 	}
-	c.cache.Wait()
+	if !wait {
+		return stored
+	}
+	c.wait()
 	cached := false
 	if stored {
 		_, cached = c.cache.Get(path)
 	}
 	return cached
+}
+
+func (c *Cache) wait() {
+	if c.Enabled() {
+		c.cache.Wait()
+	}
 }
 
 type cacheLoadResult struct {
