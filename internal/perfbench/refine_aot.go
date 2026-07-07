@@ -54,6 +54,9 @@ Environment:
   K6_VUS               k6 virtual users. Default: 64, smoke defaults to 1.
   K6_DURATION          k6 duration. Default: 30s, smoke defaults to 5s.
   ACCEPT_ENCODING      Accept-Encoding header for k6. Default: br,gzip.
+  REFINE_BENCH_TARGETS
+                      Benchmark targets, comma-separated: direct,aot[,caddy,nginx].
+                      Default: direct,aot.
 `
 }
 
@@ -146,3 +149,4 @@ func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
 }
+
