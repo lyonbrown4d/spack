@@ -804,7 +804,7 @@ EOF
 
   if [[ -f "$index_path" ]] && ! grep -q "spack-bench-fixture.ts" "$index_path"; then
     if grep -q "</body>" "$index_path"; then
-      sed -i 's#</body>#  <script type="module" src="/src/spack-bench-fixture.ts"></script>\n</body>#' "$index_path"
+      perl -0pi -e 's#</body>#  <script type="module" src="/src/spack-bench-fixture.ts"></script>\n</body>#' "$index_path"
     else
       printf '\n<script type="module" src="/src/spack-bench-fixture.ts"></script>\n' >>"$index_path"
     fi
@@ -878,7 +878,6 @@ require_command() {
 }
 
 main "$@"
-
 
 
 

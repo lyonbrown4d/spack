@@ -13,8 +13,9 @@ COPY internal ./internal
 COPY pkg ./pkg
 
 ENV CGO_ENABLED=0
+ARG SPACK_UPX_FLAGS="--best --lzma --brute"
 RUN go build -trimpath -ldflags="-s -w -buildid=" -o /out/spack-runtime ./cmd/spack-runtime
-RUN upx --best --lzma --brute /out/spack-runtime
+RUN if [ "$SPACK_UPX_FLAGS" != "none" ]; then upx $SPACK_UPX_FLAGS /out/spack-runtime; fi
 
 # Digest locked from Docker Hub library/alpine:latest on 2026-06-20.
 FROM alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS alpine

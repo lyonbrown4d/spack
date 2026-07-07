@@ -8,6 +8,7 @@ WORK_DIR="${SPACK_CONTAINER_SMOKE_DIR:-tmp/container-smoke}"
 IMAGE="${SPACK_CONTAINER_SMOKE_IMAGE:-spack-container-smoke:local}"
 CONTAINER="${SPACK_CONTAINER_SMOKE_CONTAINER:-spack-container-smoke-${GITHUB_RUN_ID:-local}-$$}"
 PORT="${SPACK_CONTAINER_SMOKE_PORT:-18080}"
+UPX_FLAGS="${SPACK_CONTAINER_SMOKE_UPX_FLAGS:---best --lzma}"
 
 mkdir -p "$WORK_DIR/assets"
 ASSETS_MOUNT="$ROOT/$WORK_DIR/assets"
@@ -29,7 +30,7 @@ cat > "$WORK_DIR/assets/app.js" <<'JS'
 console.log("spack smoke");
 JS
 
-docker build --build-arg TARGETPLATFORM=linux/amd64 -t "$IMAGE" -f docker/alpine.Dockerfile .
+docker build --build-arg TARGETPLATFORM=linux/amd64 --build-arg SPACK_UPX_FLAGS="$UPX_FLAGS" -t "$IMAGE" -f docker/alpine.Dockerfile .
 
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
