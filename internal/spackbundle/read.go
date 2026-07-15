@@ -3,6 +3,8 @@ package spackbundle
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/samber/oops"
 )
 
 const maxExtractedFileBytes = 2 << 30
@@ -24,22 +26,30 @@ func IsBundlePath(bundlePath string) bool {
 func ReadIndex(bundlePath string) (Index, error) {
 	reader, err := OpenReader(bundlePath)
 	if err != nil {
-		return Index{}, err
+		return Index{}, oops.In("spackbundle").Owner("read index").With("bundle_path", bundlePath).Wrap(err)
 	}
 	defer func() {
 		discardError(reader.Close())
 	}()
-	return reader.Index()
+	index, err := reader.Index()
+	if err != nil {
+		return Index{}, oops.In("spackbundle").Owner("read index").With("bundle_path", bundlePath).Wrap(err)
+	}
+	return index, nil
 }
 
 // ReadFile reads one file from a SPACK bundle.
 func ReadFile(bundlePath, filePath string) ([]byte, error) {
 	reader, err := OpenReader(bundlePath)
 	if err != nil {
-		return nil, err
+		return nil, oops.In("spackbundle").Owner("read file").With("bundle_path", bundlePath).With("file_path", filePath).Wrap(err)
 	}
 	defer func() {
 		discardError(reader.Close())
 	}()
-	return reader.ReadFile(filePath)
+	body, err := reader.ReadFile(filePath)
+	if err != nil {
+		return nil, oops.In("spackbundle").Owner("read file").With("bundle_path", bundlePath).With("file_path", filePath).Wrap(err)
+	}
+	return body, nil
 }

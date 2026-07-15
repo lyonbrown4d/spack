@@ -46,7 +46,7 @@ func newBus(
 			}
 			logger.Warn("event dispatch failed",
 				slog.String("event_type", reflect.TypeOf(event).String()),
-				slog.String("error", err.Error()),
+				slog.Any("error", err),
 			)
 		}),
 	), nil

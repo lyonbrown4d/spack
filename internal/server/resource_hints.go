@@ -55,7 +55,7 @@ func (s *resourceHintService) Links(result *resolver.Result) *cxlist.List[string
 	if !ok {
 		return nil
 	}
-	return entry.links
+	return cloneResourceHintLinks(entry.links)
 }
 
 func (s *resourceHintService) Entry(result *resolver.Result) (resourceHintCacheEntry, bool) {
@@ -68,14 +68,14 @@ func (s *resourceHintService) Entry(result *resolver.Result) (resourceHintCacheE
 
 	key := resourceHintCacheKey(result.Asset)
 	if cached, ok := s.cache.Get(key); ok {
-		return cached, true
+		return cloneResourceHintEntry(cached), true
 	}
 
 	links, err := parseHTMLResourceHints(result.Asset.FullPath, s.cfg, s.fileGuard)
 	if err != nil && s.logger != nil {
 		s.logger.Debug("Parse HTML resource hints failed",
 			slog.String("path", result.Asset.FullPath),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 	}
 	entry := resourceHintCacheEntry{
@@ -86,6 +86,19 @@ func (s *resourceHintService) Entry(result *resolver.Result) (resourceHintCacheE
 	return entry, true
 }
 
+func cloneResourceHintEntry(entry resourceHintCacheEntry) resourceHintCacheEntry {
+	return resourceHintCacheEntry{
+		links:  cloneResourceHintLinks(entry.links),
+		header: entry.header,
+	}
+}
+
+func cloneResourceHintLinks(links *cxlist.List[string]) *cxlist.List[string] {
+	if links == nil {
+		return nil
+	}
+	return links.Clone()
+}
 func (s *resourceHintService) EarlyHintsEnabled() bool {
 	return s != nil && s.cfg.Enabled() && s.cfg.EarlyHints
 }

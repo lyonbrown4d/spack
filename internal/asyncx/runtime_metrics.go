@@ -29,5 +29,5 @@ func (m *RuntimeMetrics) Collectors() []prometheus.Collector {
 	if m == nil {
 		return nil
 	}
-	return m.collectors
+	return append([]prometheus.Collector(nil), m.collectors...)
 }

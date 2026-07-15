@@ -16,24 +16,30 @@ import (
 // Decompile extracts a SPACK bundle into outputDir for inspection.
 func Decompile(ctx context.Context, bundlePath, outputDir string) error {
 	_, err := extractTo(ctx, bundlePath, outputDir)
-	return err
+	if err != nil {
+		return oops.In("spackbundle").Owner("decompile").With("bundle_path", bundlePath).With("output_dir", outputDir).Wrap(err)
+	}
+	return nil
 }
 
 // ExtractTo extracts a SPACK bundle into outputDir.
 func ExtractTo(ctx context.Context, bundlePath, outputDir string) error {
 	_, err := extractTo(ctx, bundlePath, outputDir)
-	return err
+	if err != nil {
+		return oops.In("spackbundle").Owner("extract").With("bundle_path", bundlePath).With("output_dir", outputDir).Wrap(err)
+	}
+	return nil
 }
 
 // ExtractReadOnly unpacks a SPACK bundle into a temporary read-only directory.
 func ExtractReadOnly(ctx context.Context, bundlePath string) (Extracted, error) {
 	extracted, err := Extract(ctx, bundlePath)
 	if err != nil {
-		return Extracted{}, err
+		return Extracted{}, oops.In("spackbundle").Owner("extract readonly").With("bundle_path", bundlePath).Wrap(err)
 	}
 	if err := makeExtractedTreeReadOnly(extracted.Root); err != nil {
 		discardError(extracted.Cleanup())
-		return Extracted{}, err
+		return Extracted{}, oops.In("spackbundle").Owner("extract readonly").With("bundle_path", bundlePath).With("root", extracted.Root).Wrap(err)
 	}
 	return extracted, nil
 }
@@ -42,7 +48,7 @@ func ExtractReadOnly(ctx context.Context, bundlePath string) (Extracted, error) 
 func Extract(ctx context.Context, bundlePath string) (Extracted, error) {
 	absolute, err := normalizedBundlePath(bundlePath)
 	if err != nil {
-		return Extracted{}, err
+		return Extracted{}, oops.In("spackbundle").Owner("extract").With("bundle_path", bundlePath).Wrap(err)
 	}
 	root, err := os.MkdirTemp("", "spack-bundle-*")
 	if err != nil {
@@ -53,7 +59,7 @@ func Extract(ctx context.Context, bundlePath string) (Extracted, error) {
 
 	index, err := extractTo(ctx, absolute, root)
 	if err != nil {
-		return Extracted{}, err
+		return Extracted{}, oops.In("spackbundle").Owner("extract").With("bundle_path", absolute).With("root", root).Wrap(err)
 	}
 	committed = true
 	return Extracted{BundlePath: absolute, Root: root, Index: index, cleanupRoot: root}, nil

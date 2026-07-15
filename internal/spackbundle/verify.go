@@ -13,7 +13,10 @@ import (
 // Verify validates a SPACK bundle without extracting files.
 func Verify(ctx context.Context, bundlePath string) error {
 	_, err := verifyBundle(ctx, bundlePath)
-	return err
+	if err != nil {
+		return oops.In("spackbundle").Owner("verify").With("bundle_path", bundlePath).Wrap(err)
+	}
+	return nil
 }
 
 func verifyBundle(ctx context.Context, bundlePath string) (Index, error) {

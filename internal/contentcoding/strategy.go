@@ -55,10 +55,10 @@ func (r Registry) Lookup(name string) (Strategy, bool) {
 }
 
 func (r Registry) Names() *cxlist.List[string] {
-	if r.names.IsEmpty() {
+	if r.names == nil || r.names.IsEmpty() {
 		return spec.DefaultNames()
 	}
-	return r.names
+	return r.names.Clone()
 }
 
 func newBuiltinStrategies(opts Options) *cxlist.List[Strategy] {

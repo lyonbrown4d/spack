@@ -57,7 +57,7 @@ func logRequestError(ctx fiber.Ctx, logger *slog.Logger, err error, requestID st
 		slog.Int("status", code),
 		slog.String("method", ctx.Method()),
 		slog.String("path", ctx.Path()),
-		slog.String("err", err.Error()),
+		slog.Any("error", err),
 	)
 }
 

@@ -26,10 +26,10 @@ type FileStat struct {
 func OpenReader(bundlePath string) (*Reader, error) {
 	absolute, err := normalizedBundlePath(bundlePath)
 	if err != nil {
-		return nil, err
+		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", bundlePath).Wrap(err)
 	}
 	if err := checkBundleMagic(absolute); err != nil {
-		return nil, err
+		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", absolute).Wrap(err)
 	}
 	return &Reader{path: absolute}, nil
 }
@@ -58,16 +58,16 @@ func (r *Reader) Index() (Index, error) {
 	body, err := readBundleEntry(r.path, IndexPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return Index{}, oops.Errorf("bundle index %q was not found", IndexPath)
+			return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(os.ErrNotExist)
 		}
-		return Index{}, err
+		return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(err)
 	}
 	index, err := unmarshalIndex(body)
 	if err != nil {
-		return Index{}, err
+		return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(err)
 	}
 	if err := validateIndex(index); err != nil {
-		return Index{}, err
+		return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(err)
 	}
 	r.index = index
 	r.indexLoaded = true
@@ -82,10 +82,10 @@ func (r *Reader) ReadFile(filePath string) ([]byte, error) {
 	}
 	body, err := readBundleEntry(r.path, cleanPath)
 	if err != nil {
-		return nil, err
+		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).With("file_path", cleanPath).Wrap(err)
 	}
 	if err := verifyBody(expected, body); err != nil {
-		return nil, err
+		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).With("file_path", cleanPath).Wrap(err)
 	}
 	return body, nil
 }

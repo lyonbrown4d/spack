@@ -14,7 +14,7 @@ func cleanupTempBundle(path string, committed *bool) {
 	if committed != nil && *committed {
 		return
 	}
-	discardError(os.Remove(path))
+	discardBestEffortCleanupError(os.Remove(path))
 }
 
 func closeBundleWriters(tarWriter *tar.Writer, zstdWriter *zstd.Encoder, temp *os.File, err error) error {
@@ -39,6 +39,13 @@ func closeBundleFile(file *os.File, err error) error {
 }
 
 func discardError(err error) {
+	_ = err
+}
+
+// discardBestEffortCleanupError intentionally ignores cleanup failures on paths
+// that are only used as temporary build artifacts. Callers returning a primary
+// error should join cleanup errors instead of using this helper.
+func discardBestEffortCleanupError(err error) {
 	_ = err
 }
 
