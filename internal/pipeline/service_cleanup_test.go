@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -191,7 +190,7 @@ func TestVariantServedEventKeepsHotVariant(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := bus.Publish(context.Background(), appEvent.VariantServed{
+	if err := bus.Publish(t.Context(), appEvent.VariantServed{
 		AssetPath:    "bundle.js",
 		ArtifactPath: oldPath,
 		ServedAt:     time.Now(),

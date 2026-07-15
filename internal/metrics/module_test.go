@@ -1,7 +1,6 @@
 package metrics_test
 
 import (
-	"context"
 	"log/slog"
 	"strings"
 	"testing"
@@ -26,8 +25,8 @@ func TestPrometheusAdapterReusesAlreadyRegisteredCollectors(t *testing.T) {
 		observabilityx.String("result", "ok"),
 	}
 
-	first.Counter(spec).Add(context.Background(), 1, attrs...)
-	second.Counter(spec).Add(context.Background(), 1, attrs...)
+	first.Counter(spec).Add(t.Context(), 1, attrs...)
+	second.Counter(spec).Add(t.Context(), 1, attrs...)
 
 	expected := strings.NewReader(`
 # HELP spack_prometheus_adapter_reuse_test_total Prometheus adapter duplicate registration compatibility test.

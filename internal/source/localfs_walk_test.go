@@ -1,7 +1,6 @@
 package source_test
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -84,7 +83,7 @@ func TestLocalFSWalkBundleSourceUsesExtractedLocalPaths(t *testing.T) {
 	writeLocalFSTestFile(t, sourcePath, []byte("console.log('bundle');"))
 
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   root,
 		Files: []spackbundle.File{

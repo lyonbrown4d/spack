@@ -1,7 +1,6 @@
 package runtime_test
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -120,7 +119,7 @@ func TestBootstrapCatalogRecordsAOTStartupMetrics(t *testing.T) {
 	writeRuntimeTestFile(t, appPath, appBody)
 
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   assetRoot,
 		Files: []spackbundle.File{
@@ -156,7 +155,7 @@ func TestBootstrapCatalogRecordsAOTStartupMetrics(t *testing.T) {
 		&cfg.Assets,
 	)
 
-	if err := runtime.BootstrapCatalogForTest(context.Background(), &cfg, scanner, cat, catMetrics, serverMetrics, bodyCache, prepared, logger); err != nil {
+	if err := runtime.BootstrapCatalogForTest(t.Context(), &cfg, scanner, cat, catMetrics, serverMetrics, bodyCache, prepared, logger); err != nil {
 		t.Fatal(err)
 	}
 

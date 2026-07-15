@@ -1,7 +1,6 @@
 package source_test
 
 import (
-	"context"
 	"log/slog"
 	"path/filepath"
 	"testing"
@@ -45,7 +44,7 @@ func newLocalFSBundleFixture(t *testing.T) localFSBundleFixture {
 	writeLocalFSTestFile(t, appPath, appBody)
 
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	_, writeErr := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	_, writeErr := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   assetRoot,
 		Files: []spackbundle.File{

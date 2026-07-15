@@ -22,7 +22,7 @@ func TestMetricsMiddlewareRecordsAssetDeliveryMetrics(t *testing.T) {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestMetricsMiddlewareSkipsAssetDeliveryMetricsWithoutDelivery(t *testing.T)
 		return c.SendStatus(fiber.StatusOK)
 	})
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestMetricsMiddlewareTracksInFlightRequests(t *testing.T) {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)

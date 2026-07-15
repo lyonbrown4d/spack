@@ -1,7 +1,6 @@
 package configcmd_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +19,7 @@ func TestValidateConfiguredAssetsRootAcceptsDirectoryAndBundle(t *testing.T) {
 	assetPath := filepath.Join(root, "index.html")
 	writeInspectTestFile(t, assetPath, []byte("<h1>ok</h1>"))
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   root,
 		Files: []spackbundle.File{

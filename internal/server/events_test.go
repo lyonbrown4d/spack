@@ -24,7 +24,7 @@ func TestPublishVariantServedPublishesEvent(t *testing.T) {
 	}
 	defer unsubscribe()
 
-	server.PublishVariantServedForTest(context.Background(), &resolver.Result{
+	server.PublishVariantServedForTest(t.Context(), &resolver.Result{
 		Asset: &catalog.Asset{
 			Path: "app.js",
 		},

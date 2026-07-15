@@ -84,5 +84,5 @@ func testCacheRootForTest() string {
 
 // StartForTest exposes cache lifecycle start for external tests.
 func StartForTest(cache *Cache) error {
-	return cache.start(context.Background())
+	return cache.start(context.TODO())
 }

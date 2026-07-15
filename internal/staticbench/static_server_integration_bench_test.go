@@ -134,7 +134,7 @@ func startSpackServer(b *testing.B, root string, cases []staticBenchCase) static
 	benchServer := staticBenchServer{name: "spack", url: "http://" + addr}
 	waitStaticHTTPReady(b, benchServer.url+"/"+cases[0].path, listenErr)
 	b.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(b.Context(), 5*time.Second)
 		defer cancel()
 		if err := app.ShutdownWithContext(ctx); err != nil {
 			b.Logf("shutdown spack benchmark server: %v", err)
@@ -231,7 +231,7 @@ func runStaticHTTPBenchmark(b *testing.B, benchServer staticBenchServer, benchCa
 func doStaticBenchmarkRequest(b *testing.B, client *http.Client, url string, expectedSize int64) {
 	b.Helper()
 
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+	request, err := http.NewRequestWithContext(b.Context(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		b.Fatal(err)
 	}

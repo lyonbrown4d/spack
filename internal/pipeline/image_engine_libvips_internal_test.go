@@ -3,7 +3,6 @@
 package pipeline
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 
@@ -23,7 +22,7 @@ func TestLibvipsImageEngineGeneratesModernFormatsBatch(t *testing.T) {
 
 	sourcePath := writeInternalPNGFixture(t, t.TempDir(), 64, 64)
 	results, err := engine.GenerateBatch(imageGenerateBatchRequest{
-		Context:         context.Background(),
+		Context:         t.Context(),
 		SourcePath:      sourcePath,
 		SourceBytes:     internalFileSize(t, sourcePath),
 		SourceMediaType: "image/png",
@@ -50,7 +49,7 @@ func TestLibvipsImageEngineRejectsMemoryBudget(t *testing.T) {
 
 	sourcePath := writeInternalPNGFixture(t, t.TempDir(), 16, 16)
 	_, err := engine.GenerateBatch(imageGenerateBatchRequest{
-		Context:         context.Background(),
+		Context:         t.Context(),
 		SourcePath:      sourcePath,
 		SourceBytes:     internalFileSize(t, sourcePath),
 		SourceMediaType: "image/png",

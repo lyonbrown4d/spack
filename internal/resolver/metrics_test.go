@@ -102,7 +102,7 @@ func TestResolverMetricsRecordFallbackResolution(t *testing.T) {
 	sourcePath, cat, _ := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
 	assetResolver := resolver.NewResolverWithObservabilityForTest(spaAssetsConfig(), cat, slog.New(slog.DiscardHandler), obs)
 
-	ctx := context.WithValue(context.Background(), metricContextKey{}, "resolver-request")
+	ctx := context.WithValue(t.Context(), metricContextKey{}, "resolver-request")
 	result, err := assetResolver.Resolve(ctx, resolver.Request{Path: "docs"})
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +123,7 @@ func TestResolverMetricsRecordGenerationRequests(t *testing.T) {
 	upsertTestAsset(t, cat, "hero.png", sourcePath, "image/png")
 
 	assetResolver := resolver.NewResolverWithObservabilityForTest(baseAssetsConfig(), cat, slog.New(slog.DiscardHandler), obs)
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "hero.png", Width: 640, Format: "jpeg"})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "hero.png", Width: 640, Format: "jpeg"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestResolverMetricsRecordNotFound(t *testing.T) {
 	obs := &recordingObservability{}
 	assetResolver := resolver.NewResolverWithObservabilityForTest(&config.Assets{Entry: "index.html"}, catalog.NewInMemoryCatalog(), slog.New(slog.DiscardHandler), obs)
 
-	_, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "missing.txt"})
+	_, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "missing.txt"})
 	if err == nil {
 		t.Fatal("expected not found error")
 	}

@@ -2,7 +2,7 @@ package compilecmd_test
 
 import (
 	"bytes"
-	"context"
+
 	"io"
 	"os"
 	"path/filepath"
@@ -97,7 +97,7 @@ func writeBundleCommandTestBundle(t *testing.T) string {
 		t.Fatal(err)
 	}
 	bundle := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundle,
 		Root:   root,
 		Files: []spackbundle.File{

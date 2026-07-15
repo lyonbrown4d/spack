@@ -1,7 +1,6 @@
 package task_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -23,7 +22,7 @@ func TestSyncArtifactCatalogRemovesOrphanArtifacts(t *testing.T) {
 	orphanPath := filepath.Join(root, "encoding", "hash-orphan", "app.js.br")
 	writeFileForTest(t, orphanPath, []byte("orphan"))
 
-	report, err := task.SyncArtifactCatalogForTest(context.Background(), store, cat, nil)
+	report, err := task.SyncArtifactCatalogForTest(t.Context(), store, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +65,7 @@ func TestSyncArtifactCatalogRemovesMissingCatalogVariantsAndCache(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	report, err := task.SyncArtifactCatalogForTest(context.Background(), store, cat, cache)
+	report, err := task.SyncArtifactCatalogForTest(t.Context(), store, cat, cache)
 	if err != nil {
 		t.Fatal(err)
 	}

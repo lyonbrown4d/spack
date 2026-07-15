@@ -22,8 +22,8 @@ func TestObserverCachesInstruments(t *testing.T) {
 		Duration: 10 * time.Millisecond,
 	}
 
-	observer.OnBuild(context.Background(), buildEvent)
-	observer.OnBuild(context.Background(), buildEvent)
+	observer.OnBuild(t.Context(), buildEvent)
+	observer.OnBuild(t.Context(), buildEvent)
 
 	if got := obs.counterCallsFor("dix_build_total"); got != 1 {
 		t.Fatalf("expected dix_build_total counter to be created once, got %d", got)

@@ -22,12 +22,12 @@ func TestLazyWorkerPoolDrainsQueueAndClearsPending(t *testing.T) {
 		1,
 	)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	if err := svc.startWorkers(ctx, 1); err != nil {
 		t.Fatalf("start lazy worker pool: %v", err)
 	}
 	t.Cleanup(func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		stopCtx, cancel := context.WithTimeout(context.TODO(), time.Second)
 		defer cancel()
 		if err := svc.stopWorkers(stopCtx); err != nil {
 			t.Errorf("stop lazy worker pool: %v", err)

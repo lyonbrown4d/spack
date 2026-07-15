@@ -24,7 +24,7 @@ func TestRunListFallsBackToSerialWithoutParallelSettings(t *testing.T) {
 	values := cxlist.NewList(1, 2, 3)
 	visited := cxlist.NewList[int]()
 
-	err := asyncx.RunListForTest[int](context.Background(), nil, nil, "test_serial", values, func(_ context.Context, value int) error {
+	err := asyncx.RunListForTest[int](t.Context(), nil, nil, "test_serial", values, func(_ context.Context, value int) error {
 		visited.Add(value)
 		return nil
 	})
@@ -40,7 +40,7 @@ func TestRunListUsesParallelSettings(t *testing.T) {
 	values := cxlist.NewList(1, 2, 3, 4)
 	visited := cxset.NewConcurrentSet[int]()
 
-	err := asyncx.RunListForTest[int](context.Background(), nil, &asyncx.Settings{Size: 2}, "test_parallel", values, func(_ context.Context, value int) error {
+	err := asyncx.RunListForTest[int](t.Context(), nil, &asyncx.Settings{Size: 2}, "test_parallel", values, func(_ context.Context, value int) error {
 		visited.Add(value)
 		return nil
 	})
@@ -59,7 +59,7 @@ func TestRunListRecordsMetrics(t *testing.T) {
 	values := cxlist.NewList(1, 2, 3)
 	obs := &recordingObservability{}
 
-	err := asyncx.RunListForTest[int](context.Background(), obs, nil, "asset_cache_warm", values, func(_ context.Context, value int) error {
+	err := asyncx.RunListForTest[int](t.Context(), obs, nil, "asset_cache_warm", values, func(_ context.Context, value int) error {
 		_ = value
 		return nil
 	})
@@ -88,7 +88,7 @@ func TestRunListRecordsMetrics(t *testing.T) {
 func TestRunListRecordsParallelSubmissionMetrics(t *testing.T) {
 	values := cxlist.NewList(1, 2, 3)
 	obs := &recordingObservability{}
-	err := asyncx.RunListForTest[int](context.Background(), obs, &asyncx.Settings{Size: 2}, "pipeline_warm", values, func(_ context.Context, value int) error {
+	err := asyncx.RunListForTest[int](t.Context(), obs, &asyncx.Settings{Size: 2}, "pipeline_warm", values, func(_ context.Context, value int) error {
 		_ = value
 		return nil
 	})

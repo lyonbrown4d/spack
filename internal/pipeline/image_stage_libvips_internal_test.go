@@ -3,7 +3,6 @@
 package pipeline
 
 import (
-	"context"
 	"image"
 	"image/color"
 	"image/png"
@@ -21,7 +20,7 @@ func TestLibvipsImageEngineRejectsSourceByteLimit(t *testing.T) {
 
 	engine := newLibvipsImageEngine(&config.Image{}, slog.New(slog.DiscardHandler), imageEngineTelemetry{})
 	_, err := engine.GenerateBatch(imageGenerateBatchRequest{
-		Context:     context.Background(),
+		Context:     t.Context(),
 		SourcePath:  sourcePath,
 		SourceBytes: internalFileSize(t, sourcePath),
 		Variants: cxlist.NewList(imageVariantGenerateRequest{
@@ -41,7 +40,7 @@ func TestLibvipsImageEngineRejectsSourcePixelLimit(t *testing.T) {
 
 	engine := newLibvipsImageEngine(&config.Image{}, slog.New(slog.DiscardHandler), imageEngineTelemetry{})
 	_, err := engine.GenerateBatch(imageGenerateBatchRequest{
-		Context:     context.Background(),
+		Context:     t.Context(),
 		SourcePath:  sourcePath,
 		SourceBytes: internalFileSize(t, sourcePath),
 		Variants: cxlist.NewList(imageVariantGenerateRequest{

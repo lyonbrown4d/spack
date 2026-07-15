@@ -7,7 +7,7 @@ import (
 )
 
 func RunForTest(url string, client *http.Client) error {
-	return runHealthcheck(context.Background(), healthcheckOptions{
+	return runHealthcheck(context.TODO(), healthcheckOptions{
 		url:     url,
 		timeout: time.Second,
 		client:  client,

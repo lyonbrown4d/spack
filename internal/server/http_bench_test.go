@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -57,7 +56,7 @@ func runHTTPRouteBenchmark(b *testing.B, app *fiber.App, requestURL string) {
 func runHTTPRouteBenchmarkIteration(b *testing.B, app *fiber.App, requestURL string) {
 	b.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, requestURL, http.NoBody)
+	request := httptest.NewRequestWithContext(b.Context(), http.MethodGet, requestURL, http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		if response != nil {

@@ -2,7 +2,7 @@ package spackbundle_test
 
 import (
 	"archive/tar"
-	"context"
+
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -36,7 +36,7 @@ func TestVerifyRejectsBundlePayloadBoundaries(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			bundlePath := writeBoundaryBundle(t, tc.files, tc.entries)
 
-			err := spackbundle.Verify(context.Background(), bundlePath)
+			err := spackbundle.Verify(t.Context(), bundlePath)
 			if err == nil {
 				t.Fatal("expected verify to reject boundary bundle")
 			}
@@ -53,7 +53,7 @@ func TestExtractRejectsEscapingPayloadEntry(t *testing.T) {
 		{path: "../app.js", body: body, typeflag: tar.TypeReg},
 	})
 
-	_, err := spackbundle.Extract(context.Background(), bundlePath)
+	_, err := spackbundle.Extract(t.Context(), bundlePath)
 	if err == nil {
 		t.Fatal("expected extract to reject escaping payload entry")
 	}

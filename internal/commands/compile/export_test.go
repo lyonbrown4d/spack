@@ -47,7 +47,7 @@ func BundleForTest(assetsRoot, output string) (spackbundle.WriteSummary, error) 
 		Catalog:      catalog.NewCatalog(),
 		BundleWriter: bundleWriterFunc(spackbundle.Write),
 	}
-	summary, compileErr := compiler.NewService().Compile(context.Background(), compiler.Options{
+	summary, compileErr := compiler.NewService().Compile(context.TODO(), compiler.Options{
 		AssetsRoot: assetsRoot,
 		Output:     output,
 		Runtime:    runtime,

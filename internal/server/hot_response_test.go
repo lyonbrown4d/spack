@@ -2,7 +2,7 @@ package server_test
 
 import (
 	"bytes"
-	"context"
+
 	"io"
 	"log/slog"
 	"net/http"
@@ -69,7 +69,7 @@ func TestAssetRouteReusesHotResponseEntry(t *testing.T) {
 func requestAssetForHotResponse(t *testing.T, app *fiber.App, want []byte) {
 	t.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/app.js", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/app.js", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)

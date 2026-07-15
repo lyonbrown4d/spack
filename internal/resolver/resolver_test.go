@@ -1,7 +1,6 @@
 package resolver_test
 
 import (
-	"context"
 	"errors"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/catalog"
@@ -40,7 +39,7 @@ func TestPreferredImageFormatsWildcardPrefersSourceFormat(t *testing.T) {
 
 func TestResolverFallsBackForSPAPath(t *testing.T) {
 	sourcePath, _, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "docs"})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "docs"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +54,7 @@ func TestResolverFallsBackForSPAPath(t *testing.T) {
 func TestResolverDoesNotFallbackForMissingAssetPath(t *testing.T) {
 	_, _, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
 
-	_, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "assets/index-missing.js"})
+	_, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "assets/index-missing.js"})
 	if err == nil {
 		t.Fatal("expected missing asset path not to use SPA fallback")
 	}
@@ -66,7 +65,7 @@ func TestResolverDoesNotFallbackForMissingAssetPath(t *testing.T) {
 
 func TestResolverResolvesRootToEntry(t *testing.T) {
 	sourcePath, _, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "/"})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "/"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +94,7 @@ func TestResolverSelectsWidthVariant(t *testing.T) {
 		Width:        640,
 	})
 
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "hero.jpg", Width: 320})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "hero.jpg", Width: 320})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +105,7 @@ func TestResolverSelectsWidthVariant(t *testing.T) {
 
 func TestResolverRequestsWidthGenerationWhenMissing(t *testing.T) {
 	_, _, assetResolver := newResolverFixture(t, "hero.jpg", "image/jpeg", []byte("origin"), baseAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "hero.jpg", Width: 640})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "hero.jpg", Width: 640})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +120,7 @@ func TestResolverSelectsFormatVariant(t *testing.T) {
 	writeTestFile(t, variantPath, []byte("converted"))
 	upsertFormatVariant(t, cat, "hero.png", variantPath)
 
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "hero.png", Format: "jpeg"})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "hero.png", Format: "jpeg"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +131,7 @@ func TestResolverSelectsFormatVariant(t *testing.T) {
 
 func TestResolverRequestsFormatGenerationWhenMissing(t *testing.T) {
 	_, _, assetResolver := newResolverFixture(t, "hero.png", "image/png", []byte("origin"), baseAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{Path: "hero.png", Format: "jpeg"})
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{Path: "hero.png", Format: "jpeg"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +146,7 @@ func TestResolverSelectsFormatVariantFromAccept(t *testing.T) {
 	writeTestFile(t, variantPath, []byte("converted"))
 	upsertFormatVariant(t, cat, "hero.png", variantPath)
 
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{
 		Path:   "hero.png",
 		Accept: "image/jpeg,image/png;q=0.5",
 	})
@@ -161,7 +160,7 @@ func TestResolverSelectsFormatVariantFromAccept(t *testing.T) {
 
 func TestResolverRequestsFormatGenerationFromAcceptWhenMissing(t *testing.T) {
 	_, _, assetResolver := newResolverFixture(t, "hero.png", "image/png", []byte("origin"), baseAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{
 		Path:   "hero.png",
 		Accept: "image/jpeg,image/png;q=0.5",
 	})
@@ -176,7 +175,7 @@ func TestResolverRequestsFormatGenerationFromAcceptWhenMissing(t *testing.T) {
 
 func TestResolverRequestsModernFormatsFromAccept(t *testing.T) {
 	_, _, assetResolver := newResolverFixture(t, "hero.png", "image/png", []byte("origin"), baseAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{
 		Path:   "hero.png",
 		Accept: "image/webp,image/avif,image/png;q=0.5",
 	})
@@ -190,7 +189,7 @@ func TestResolverRequestsModernFormatsFromAccept(t *testing.T) {
 
 func TestResolverUsesPrefilledPreferredEncodings(t *testing.T) {
 	_, _, assetResolver := newResolverFixture(t, "index.html", "text/html; charset=utf-8", []byte("<html>origin</html>"), spaAssetsConfig())
-	result, err := assetResolver.Resolve(context.Background(), resolver.Request{
+	result, err := assetResolver.Resolve(t.Context(), resolver.Request{
 		Path:               "index.html",
 		PreferredEncodings: cxlist.NewList[string]("br", "gzip"),
 	})

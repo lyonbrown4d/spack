@@ -1,7 +1,6 @@
 package configcmd_test
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ func TestEffectiveSourceInfoReportsBundleMetadata(t *testing.T) {
 	writeInspectTestFile(t, assetPath, []byte("<h1>ok</h1>"))
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
 	createdAt := time.Unix(1_725_000_111, 0).UTC()
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   root,
 		Now: func() time.Time {

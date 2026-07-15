@@ -1,7 +1,6 @@
 package sourcecatalog_test
 
 import (
-	"context"
 	"encoding/base64"
 	"log/slog"
 	"path/filepath"
@@ -20,7 +19,7 @@ func TestScannerSkipsInvalidExternalGzipSidecars(t *testing.T) {
 	writeSourceFile(t, filepath.Join(root, "hero.png.gz"), []byte{0x78, 0xda, 0x01, 0x02})
 
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +41,7 @@ func TestScannerSkipsGzipSidecarsWithMismatchedDecodedMagic(t *testing.T) {
 	writeCompressedSourceFile(t, filepath.Join(root, "hero.png.gz"), "gzip", []byte("not a png"))
 
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +58,7 @@ func TestScannerTrustsValidExternalGzipSidecars(t *testing.T) {
 	writeCompressedSourceFile(t, filepath.Join(root, "hero.png.gz"), "gzip", sourceBody)
 
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +78,7 @@ func TestCompilerScannerSkipsInvalidExternalGzipSidecars(t *testing.T) {
 	writeSourceFile(t, filepath.Join(root, "hero.png.gz"), []byte{0x78, 0xda, 0x01, 0x02})
 
 	scanner := newCompilerScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

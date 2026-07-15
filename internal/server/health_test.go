@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/arcgolabs/dix"
@@ -24,9 +23,9 @@ func TestRegisterHealthCheckSetupRegistersDixReports(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertHealthyDixReport(t, runtime.CheckHealth(context.Background()), dix.HealthKindGeneral, "catalog")
-	assertHealthyDixReport(t, runtime.CheckLiveness(context.Background()), dix.HealthKindLiveness, "server")
-	assertHealthyDixReport(t, runtime.CheckReadiness(context.Background()), dix.HealthKindReadiness, "assets_root")
+	assertHealthyDixReport(t, runtime.CheckHealth(t.Context()), dix.HealthKindGeneral, "catalog")
+	assertHealthyDixReport(t, runtime.CheckLiveness(t.Context()), dix.HealthKindLiveness, "server")
+	assertHealthyDixReport(t, runtime.CheckReadiness(t.Context()), dix.HealthKindReadiness, "assets_root")
 }
 
 func assertHealthyDixReport(t *testing.T, report dix.HealthReport, kind dix.HealthKind, checkName string) {

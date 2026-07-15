@@ -2,7 +2,7 @@ package server_test
 
 import (
 	"bytes"
-	"context"
+
 	"io"
 	"log/slog"
 	"net/http"
@@ -49,7 +49,7 @@ func TestMissingAssetPathDoesNotFallbackToHTML(t *testing.T) {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/assets/index-missing.js", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/assets/index-missing.js", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestAssetMountPathRequiresSegmentBoundary(t *testing.T) {
 		{path: "/assets-admin/app.js", want: http.StatusNotFound},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
-			request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, tc.path, http.NoBody)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, http.NoBody)
 			response, err := app.Test(request)
 			if err != nil {
 				t.Fatal(err)
@@ -166,9 +166,7 @@ func TestUnicodeAssetPathResolvesFromEscapedURL(t *testing.T) {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
 
-	request := httptest.NewRequestWithContext(
-		context.Background(),
-		http.MethodGet,
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
 		"/"+escapeURLPath(assetName),
 		http.NoBody,
 	)

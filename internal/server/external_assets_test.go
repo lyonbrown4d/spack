@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -37,7 +36,7 @@ func TestEscapedUnicodeJavaScriptAssetFromExternalBuild(t *testing.T) {
 	}
 
 	cat := catalog.NewInMemoryCatalog()
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,9 +63,7 @@ func TestEscapedUnicodeJavaScriptAssetFromExternalBuild(t *testing.T) {
 		}
 	})
 
-	request := httptest.NewRequestWithContext(
-		context.Background(),
-		http.MethodGet,
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
 		"/"+escapeURLPath(assetPath),
 		http.NoBody,
 	)

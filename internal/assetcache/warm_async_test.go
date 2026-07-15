@@ -1,7 +1,6 @@
 package assetcache_test
 
 import (
-	"context"
 	"log/slog"
 	"path/filepath"
 	"testing"
@@ -40,7 +39,7 @@ func TestWarmWithSharedWorkerSettings(t *testing.T) {
 		TTL:         "5m",
 	}, slog.New(slog.DiscardHandler), obs, &asyncx.Settings{Size: 2})
 
-	stats, err := cache.Warm(context.Background(), cat)
+	stats, err := cache.Warm(t.Context(), cat)
 	if err != nil {
 		t.Fatal(err)
 	}

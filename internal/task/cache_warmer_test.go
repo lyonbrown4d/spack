@@ -1,7 +1,6 @@
 package task_test
 
 import (
-	"context"
 	"log/slog"
 	"path/filepath"
 	"testing"
@@ -20,7 +19,7 @@ func TestWarmCacheHotsetWarmsConfiguredAssetsAndVariants(t *testing.T) {
 
 	fixture := newWarmCacheFixture(t, root, cat)
 
-	report, err := task.WarmCacheHotsetForTest(context.Background(), newWarmCacheConfig(), cat, cache)
+	report, err := task.WarmCacheHotsetForTest(t.Context(), newWarmCacheConfig(), cat, cache)
 	if err != nil {
 		t.Fatal(err)
 	}

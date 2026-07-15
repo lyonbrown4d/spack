@@ -94,7 +94,7 @@ func (recordingSpan) SetAttributes(...observabilityx.Attribute) {}
 func TestRecordTaskRunMetrics(t *testing.T) {
 	obs := &recordingObservability{}
 
-	task.RecordTaskRunMetricsForTest(context.Background(), obs, "source_rescan", time.Now().Add(-time.Second), nil)
+	task.RecordTaskRunMetricsForTest(t.Context(), obs, "source_rescan", time.Now().Add(-time.Second), nil)
 
 	assertCounterMetric(t, obs.counters, "task_runs_total", 1, "task", "source_rescan")
 	assertCounterMetric(t, obs.counters, "task_runs_total", 1, "result", "ok")
@@ -104,7 +104,7 @@ func TestRecordTaskRunMetrics(t *testing.T) {
 func TestRecordSourceRescanMetrics(t *testing.T) {
 	obs := &recordingObservability{}
 
-	task.RecordSourceRescanMetricsForTest(context.Background(), obs, task.SourceRescanReport{
+	task.RecordSourceRescanMetricsForTest(t.Context(), obs, task.SourceRescanReport{
 		TotalBytes:         4096,
 		Scanned:            10,
 		Added:              2,
@@ -128,14 +128,14 @@ func TestRecordSourceRescanMetrics(t *testing.T) {
 func TestRecordArtifactJanitorAndCacheWarmerMetrics(t *testing.T) {
 	obs := &recordingObservability{}
 
-	task.RecordArtifactJanitorMetricsForTest(context.Background(), obs, task.ArtifactJanitorReport{
+	task.RecordArtifactJanitorMetricsForTest(t.Context(), obs, task.ArtifactJanitorReport{
 		ScannedArtifacts:   12,
 		RemovedOrphans:     2,
 		RemovedDirectories: 1,
 		MissingVariants:    3,
 		CacheInvalidations: 4,
 	})
-	task.RecordCacheWarmerMetricsForTest(context.Background(), obs, task.CacheWarmerReport{
+	task.RecordCacheWarmerMetricsForTest(t.Context(), obs, task.CacheWarmerReport{
 		Assets:        3,
 		Variants:      5,
 		LoadedEntries: 7,

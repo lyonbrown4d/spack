@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"net/http"
 	"runtime"
 	"strings"
@@ -34,7 +33,7 @@ func runHTTPRangeFuzz(t *testing.T, rangeHeader string) {
 	skipUnsupportedRangeSeed(t, rangeHeader)
 
 	baseURL, _, _, _ := newProtocolMatrixServer(t)
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/app.js", http.NoBody)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/app.js", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}

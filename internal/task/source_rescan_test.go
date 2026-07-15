@@ -1,7 +1,6 @@
 package task_test
 
 import (
-	"context"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
@@ -26,7 +25,7 @@ func TestSyncSourceCatalogRemovesDeletedAssetsAndVariants(t *testing.T) {
 	})
 	upsertVariantForTest(t, cat, artifactPath)
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +57,7 @@ func TestSyncSourceCatalogRemovesVariantsForChangedAsset(t *testing.T) {
 	})
 	upsertVariantForTest(t, cat, artifactPath)
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +87,7 @@ func TestSyncSourceCatalogRecognizesSourceCompressionSidecars(t *testing.T) {
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,14 +127,14 @@ func TestSyncSourceCatalogRemovesMissingSourceSidecarVariant(t *testing.T) {
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
 
-	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+	if _, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(sidecarPath); err != nil {
 		t.Fatal(err)
 	}
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,13 +161,13 @@ func TestSyncSourceCatalogKeepsSourceSidecarFileOnAssetRefresh(t *testing.T) {
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
 
-	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+	if _, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); err != nil {
 		t.Fatal(err)
 	}
 	originalVariant := singleVariantForTest(t, cat.ListVariants("app.js"))
 	writeFileForTest(t, assetPath, []byte("console.log('new-content');"))
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil)
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,12 +199,12 @@ func TestSyncSourceCatalogIncrementallyUpdatesAssetAndRebuildsSidecars(t *testin
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
 
-	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+	if _, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	writeFileForTest(t, assetPath, []byte("console.log('new-content');"))
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil, source.ChangeEvent{
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil, source.ChangeEvent{
 		Path: "app.js",
 		Op:   "WRITE",
 	})
@@ -230,7 +229,7 @@ func TestSyncSourceCatalogIncrementallyRemovesSidecarVariant(t *testing.T) {
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
 
-	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+	if _, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(sidecarPath); err != nil {
@@ -240,7 +239,7 @@ func TestSyncSourceCatalogIncrementallyRemovesSidecarVariant(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil, source.ChangeEvent{
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil, source.ChangeEvent{
 		Path: "app.js.br",
 		Op:   "REMOVE",
 	})
@@ -263,10 +262,10 @@ func TestSyncSourceCatalogIncrementallyFallsBackToFullOnRename(t *testing.T) {
 	src := newLocalSourceForTest(t, root)
 	cat := catalog.NewInMemoryCatalog()
 
-	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+	if _, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); err != nil {
 		t.Fatal(err)
 	}
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil, source.ChangeEvent{
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil, source.ChangeEvent{
 		Path: "app.js",
 		Op:   "RENAME",
 	})

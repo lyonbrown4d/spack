@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -74,7 +73,7 @@ func writeBundleRouteBundle(t *testing.T, root, assetPath string) string {
 	t.Helper()
 
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   root,
 		Files: []spackbundle.File{
@@ -106,7 +105,7 @@ func scanBundleRouteCatalog(t *testing.T, cfg *config.Config, logger *slog.Logge
 		}
 	})
 	cat := catalog.NewInMemoryCatalog()
-	if _, syncErr := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); syncErr != nil {
+	if _, syncErr := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); syncErr != nil {
 		t.Fatal(syncErr)
 	}
 	return cat
@@ -133,7 +132,7 @@ func assertBundleCatalogAsset(t *testing.T, cat catalog.Catalog) {
 func sendBundleRangeRequest(t *testing.T, app *fiber.App) *http.Response {
 	t.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/assets/app.js", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/assets/app.js", http.NoBody)
 	request.Header.Set(fiber.HeaderRange, "bytes=2-5")
 	response, err := app.Test(request)
 	if err != nil {

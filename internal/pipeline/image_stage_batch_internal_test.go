@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,7 +73,7 @@ func TestImageStageExecuteBatchWritesMultipleVariantsWithOneEngineBatch(t *testi
 		MinSavingRatio: 0.01,
 	}, engine, batchTestStore{root: filepath.Join(root, "cache")}, cat, nil)
 
-	variants, err := stage.ExecuteBatch(context.Background(), Task{
+	variants, err := stage.ExecuteBatch(t.Context(), Task{
 		AssetPath: asset.Path,
 		ImageVariants: cxlist.NewList(
 			ImageVariantTask{Format: "jpeg", Width: 640},
@@ -134,7 +133,7 @@ func TestImageStageExecuteBatchSkipsLowBenefitVariants(t *testing.T) {
 		results: cxlist.NewList(lowBenefitImageBatchResultForTest()),
 	}, batchTestStore{root: filepath.Join(root, "cache")}, cat, nil)
 
-	_, err := stage.ExecuteBatch(context.Background(), Task{
+	_, err := stage.ExecuteBatch(t.Context(), Task{
 		AssetPath:     asset.Path,
 		ImageVariants: cxlist.NewList(ImageVariantTask{Format: "jpeg", Width: 640}),
 	}, asset)

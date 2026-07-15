@@ -3,7 +3,7 @@ package server_test
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
+
 	"encoding/base64"
 	"io"
 	"log/slog"
@@ -98,7 +98,7 @@ func writeSidecarBoundarySourceFiles(
 func writeSidecarBoundaryBundle(t *testing.T, root string) string {
 	t.Helper()
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   root,
 		Files:  sidecarBoundaryBundleFiles(root),
@@ -176,7 +176,7 @@ func newSidecarBoundaryApp(t *testing.T, root string) *fiber.App {
 	})
 
 	cat := catalog.NewInMemoryCatalog()
-	if _, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, nil); err != nil {
+	if _, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -237,7 +237,7 @@ func assertSidecarBoundaryMissing(t *testing.T, app *fiber.App, path string) {
 func sendSidecarBoundaryRequest(t *testing.T, app *fiber.App, path, acceptEncoding string) *http.Response {
 	t.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
 	request.Header.Set(fiber.HeaderAcceptEncoding, acceptEncoding)
 	request.Header.Set(fiber.HeaderAccept, "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
 	response, err := app.Test(request)

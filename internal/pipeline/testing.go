@@ -126,7 +126,7 @@ func FinishRequestForTest(s *Service, request Request) {
 
 // CleanupRemovedForTest exposes cleanup execution for external tests.
 func CleanupRemovedForTest(s *Service, now time.Time) int {
-	return s.cleanupArtifacts(context.Background(), now).removed
+	return s.cleanupArtifacts(context.TODO(), now).removed
 }
 
 // SubscribeVariantServedForTest exposes event subscription for external tests.
@@ -136,10 +136,10 @@ func SubscribeVariantServedForTest(s *Service) error {
 
 // UpsertStageVariantForTest exposes catalog upsert and side effects for external tests.
 func UpsertStageVariantForTest(s *Service, stageName string, asset *catalog.Asset, variant *catalog.Variant) {
-	s.upsertStageVariant(context.Background(), testStage{name: stageName}, asset, variant)
+	s.upsertStageVariant(context.TODO(), testStage{name: stageName}, asset, variant)
 }
 
 // ExecuteStageTaskForTest exposes stage execution for external tests.
 func ExecuteStageTaskForTest(s *Service, stage Stage, asset *catalog.Asset, task Task) *catalog.Variant {
-	return s.executeStageTask(context.Background(), stage, asset, task)
+	return s.executeStageTask(context.TODO(), stage, asset, task)
 }

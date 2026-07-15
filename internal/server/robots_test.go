@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
@@ -36,7 +35,7 @@ func TestRobotsRouteGeneratesConfiguredContent(t *testing.T) {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/robots.txt", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/robots.txt", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -99,7 +98,7 @@ func TestRobotsRoutePrefersStaticAssetWhenAvailable(t *testing.T) {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/robots.txt", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/robots.txt", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)

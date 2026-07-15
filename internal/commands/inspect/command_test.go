@@ -1,7 +1,6 @@
 package inspectcmd_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +16,7 @@ func TestInspectAssetsReportsBundleSummary(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	cfg.Assets.Root = bundlePath
-	report, err := inspectcmd.AssetsForTest(context.Background(), &cfg)
+	report, err := inspectcmd.AssetsForTest(t.Context(), &cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +35,7 @@ func newInspectBundleForTest(t *testing.T) (string, time.Time) {
 
 	bundlePath := filepath.Join(t.TempDir(), "app.spack")
 	createdAt := time.Unix(1_725_000_000, 0).UTC()
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: bundlePath,
 		Root:   root,
 		Now: func() time.Time {

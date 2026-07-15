@@ -2,7 +2,7 @@ package assetcache_test
 
 import (
 	"bytes"
-	"context"
+
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -106,7 +106,7 @@ func TestWarm(t *testing.T) {
 		TTL:         "5m",
 	}, slog.New(slog.DiscardHandler), obs)
 
-	stats, err := cache.Warm(context.Background(), cat)
+	stats, err := cache.Warm(t.Context(), cat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestVariantRemovedEventInvalidatesCacheEntry(t *testing.T) {
 		t.Fatal("expected second load to hit memory cache")
 	}
 
-	if err := bus.Publish(context.Background(), appEvent.VariantRemoved{
+	if err := bus.Publish(t.Context(), appEvent.VariantRemoved{
 		ArtifactPath: path,
 		Reason:       appEvent.VariantRemovalReasonTTL,
 	}); err != nil {
@@ -183,7 +183,7 @@ func TestVariantGeneratedEventPreloadsCacheEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := bus.Publish(context.Background(), appEvent.VariantGenerated{
+	if err := bus.Publish(t.Context(), appEvent.VariantGenerated{
 		AssetPath:    "asset.js",
 		ArtifactPath: path,
 		Stage:        "compression",

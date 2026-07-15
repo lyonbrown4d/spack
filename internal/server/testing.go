@@ -133,7 +133,7 @@ func NewPreparedAppForTest(
 	bus eventx.BusRuntime,
 ) (*fiber.App, error) {
 	prepared := NewPreparedServiceForTest(cfg, logger, cat)
-	if err := prepared.Rebuild(context.Background()); err != nil {
+	if err := prepared.Rebuild(context.TODO()); err != nil {
 		return nil, err
 	}
 	return newObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, bus, prepared), nil

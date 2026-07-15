@@ -1,7 +1,6 @@
 package task_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -47,7 +46,7 @@ func TestSyncSourceCatalogInvalidatesCatalogMemoryCacheAndArtifactsOnRename(t *t
 		t.Fatal(err)
 	}
 
-	report, err := task.SyncSourceCatalogForTest(context.Background(), src, cat, bodyCache, source.ChangeEvent{
+	report, err := task.SyncSourceCatalogForTest(t.Context(), src, cat, bodyCache, source.ChangeEvent{
 		Path: "app.js",
 		Op:   "RENAME",
 	})

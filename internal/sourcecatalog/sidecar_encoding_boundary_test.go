@@ -1,7 +1,6 @@
 package sourcecatalog_test
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -61,7 +60,7 @@ func writeSidecarEncodingFixtures(
 func scanSidecarEncodingBoundary(t *testing.T, root string) sourcecatalog.Snapshot {
 	t.Helper()
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip", "br", "zstd"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

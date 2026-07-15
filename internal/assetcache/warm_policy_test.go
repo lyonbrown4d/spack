@@ -1,7 +1,6 @@
 package assetcache_test
 
 import (
-	"context"
 	"log/slog"
 	"path/filepath"
 	"testing"
@@ -32,7 +31,7 @@ func TestWarmSkipsLowValueBinaryAssets(t *testing.T) {
 		TTL:         "5m",
 	}, slog.New(slog.DiscardHandler))
 
-	stats, err := cache.Warm(context.Background(), cat)
+	stats, err := cache.Warm(t.Context(), cat)
 	if err != nil {
 		t.Fatal(err)
 	}

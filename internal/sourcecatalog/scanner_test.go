@@ -1,7 +1,6 @@
 package sourcecatalog_test
 
 import (
-	"context"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
@@ -24,7 +23,7 @@ func TestScannerRecognizesEnabledCompressionSidecars(t *testing.T) {
 	writeCompressedSourceFile(t, sidecarPath, "br", []byte("console.log('ok');"))
 
 	scanner := newScannerForTest(t, root, config.DefaultConfigForTest().Compression.NormalizedEncodings())
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +56,7 @@ func TestScannerLeavesDisabledEncodingSidecarsAsAssets(t *testing.T) {
 	writeSourceFile(t, filepath.Join(root, "app.js.br"), []byte("compressed"))
 
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +81,7 @@ func TestScannerAppliesIncludeExcludeGlobPatterns(t *testing.T) {
 		Include: []string{"index.html", "**/*.js"},
 		Exclude: []string{"**/*.test.js", "node_modules/**"},
 	})
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +126,7 @@ func TestScannerRejectsInvalidGlobPattern(t *testing.T) {
 	scanner := newFilteredScannerForTest(t, root, config.Assets{
 		Include: []string{"["},
 	})
-	_, err := scanner.Scan(context.Background())
+	_, err := scanner.Scan(t.Context())
 	if err == nil {
 		t.Fatal("expected invalid include glob to fail scan")
 	}
@@ -157,7 +156,7 @@ func TestScannerReusesUnchangedAssetFromCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshot, err := scanner.ScanWithCatalog(context.Background(), cat)
+	snapshot, err := scanner.ScanWithCatalog(t.Context(), cat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +211,7 @@ func TestScannerReusesUnchangedSourceSidecarFromCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshot, err := scanner.ScanWithCatalog(context.Background(), cat)
+	snapshot, err := scanner.ScanWithCatalog(t.Context(), cat)
 	if err != nil {
 		t.Fatal(err)
 	}

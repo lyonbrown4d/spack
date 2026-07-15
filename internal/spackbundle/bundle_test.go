@@ -2,7 +2,7 @@ package spackbundle_test
 
 import (
 	"bytes"
-	"context"
+
 	"io"
 	"os"
 	"path/filepath"
@@ -19,7 +19,7 @@ func TestWriteAndExtractBundle(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "assets", "app.js"), []byte("console.log(1)"))
 
 	output := filepath.Join(t.TempDir(), "app.spack")
-	summary, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	summary, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: output,
 		Root:   root,
 		Now:    func() time.Time { return time.Unix(1, 0).UTC() },
@@ -35,7 +35,7 @@ func TestWriteAndExtractBundle(t *testing.T) {
 		t.Fatalf("expected 2 files, got %d", summary.Files)
 	}
 
-	extracted, err := spackbundle.Extract(context.Background(), output)
+	extracted, err := spackbundle.Extract(t.Context(), output)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestExtractReadOnlyBundle(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "index.html"), []byte("<html></html>"))
 
 	output := filepath.Join(t.TempDir(), "app.spack")
-	if _, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	if _, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: output,
 		Root:   root,
 		Files: []spackbundle.File{
@@ -69,7 +69,7 @@ func TestExtractReadOnlyBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	extracted, err := spackbundle.ExtractReadOnly(context.Background(), output)
+	extracted, err := spackbundle.ExtractReadOnly(t.Context(), output)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestWriteRejectsReservedMetadataPath(t *testing.T) {
 	path := filepath.Join(root, ".spack", "index.bin")
 	writeTestFile(t, path, []byte("bad"))
 
-	_, err := spackbundle.Write(context.Background(), spackbundle.WriteOptions{
+	_, err := spackbundle.Write(t.Context(), spackbundle.WriteOptions{
 		Output: filepath.Join(t.TempDir(), "app.spack"),
 		Root:   root,
 		Files:  []spackbundle.File{{Path: ".spack/index.bin", FullPath: path}},

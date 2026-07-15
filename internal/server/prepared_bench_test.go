@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -37,7 +36,7 @@ func BenchmarkPreparedSnapshotBuild(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if err := svc.Rebuild(context.Background()); err != nil {
+		if err := svc.Rebuild(b.Context()); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -160,7 +159,7 @@ func newPreparedBenchmarkService(b *testing.B, cfg *config.Config) *server.Prepa
 		slog.New(slog.DiscardHandler),
 		newPreparedBenchmarkCatalog(b, cfg, preparedBenchmarkAssetCount, preparedBenchmarkVariantCount),
 	)
-	if err := svc.Rebuild(context.Background()); err != nil {
+	if err := svc.Rebuild(b.Context()); err != nil {
 		b.Fatal(err)
 	}
 	return svc
@@ -244,7 +243,7 @@ func upsertPreparedBenchmarkVariant(
 func runPreparedHTTPBenchmarkIteration(b *testing.B, app *fiber.App, requestURL string) {
 	b.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, requestURL, http.NoBody)
+	request := httptest.NewRequestWithContext(b.Context(), http.MethodGet, requestURL, http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		if response != nil {

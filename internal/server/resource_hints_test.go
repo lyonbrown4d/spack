@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -60,7 +59,7 @@ func TestHTMLRouteEmitsResourceHintLinks(t *testing.T) {
 		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +121,7 @@ func TestHTMLRouteDropsUnsafeResourceHintURLs(t *testing.T) {
 		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)

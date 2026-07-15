@@ -1,7 +1,6 @@
 package sourcecatalog_test
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -22,7 +21,7 @@ func TestScannerSidecarTrustBoundaries(t *testing.T) {
 	writeSourceFile(t, filepath.Join(root, "broken.js.gz"), []byte{0x1f, 0x8b})
 
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +37,7 @@ func TestScannerKeepsOrphanSidecarAsPlainAsset(t *testing.T) {
 	writeCompressedSourceFile(t, filepath.Join(root, "orphan.png.gz"), "gzip", validPNGForSidecarTest(t))
 
 	scanner := newScannerForTest(t, root, cxlist.NewList("gzip"))
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

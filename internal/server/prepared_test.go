@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -42,7 +41,7 @@ func TestPreparedServiceResolvesEncodingVariantWithoutResolver(t *testing.T) {
 	})
 
 	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
-	if err := svc.Rebuild(context.Background()); err != nil {
+	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -102,7 +101,7 @@ func TestPreparedServiceResolvesSimpleEncodingByServerPriority(t *testing.T) {
 	})
 
 	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
-	if err := svc.Rebuild(context.Background()); err != nil {
+	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -135,7 +134,7 @@ func TestPreparedServiceFallsBackToEntryRoute(t *testing.T) {
 	})
 
 	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
-	if err := svc.Rebuild(context.Background()); err != nil {
+	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -171,7 +170,7 @@ func TestPreparedServiceResolvesDirectoryEntryAlias(t *testing.T) {
 	})
 
 	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
-	if err := svc.Rebuild(context.Background()); err != nil {
+	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,7 +215,7 @@ func TestPreparedServiceWidthRequestFallsBackToZeroWidthImageVariant(t *testing.
 	})
 
 	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
-	if err := svc.Rebuild(context.Background()); err != nil {
+	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 

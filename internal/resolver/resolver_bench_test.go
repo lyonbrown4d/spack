@@ -1,7 +1,6 @@
 package resolver_test
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -24,7 +23,7 @@ func BenchmarkResolverResolveAsset(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		result, err := assetResolver.Resolve(context.Background(), request)
+		result, err := assetResolver.Resolve(b.Context(), request)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -63,7 +62,7 @@ func BenchmarkResolverResolveEncodingVariant(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		result, err := assetResolver.Resolve(context.Background(), request)
+		result, err := assetResolver.Resolve(b.Context(), request)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -104,7 +103,7 @@ func BenchmarkResolverResolveImageVariant(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		result, err := assetResolver.Resolve(context.Background(), request)
+		result, err := assetResolver.Resolve(b.Context(), request)
 		if err != nil {
 			b.Fatal(err)
 		}

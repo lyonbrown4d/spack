@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +77,7 @@ func assertCompressionVariantCreated(t *testing.T, spec compressionVariantSpec) 
 	}
 
 	stage := pipeline.NewCompressionStageForTest(compression, store, cat)
-	variant, err := stage.Execute(context.Background(), pipeline.Task{
+	variant, err := stage.Execute(t.Context(), pipeline.Task{
 		AssetPath: asset.Path,
 		Encoding:  spec.encoding,
 	}, asset)

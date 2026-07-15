@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -101,7 +100,7 @@ func runProtocolMatrixCase(t *testing.T, baseURL, lastModified string, tc protoc
 	t.Helper()
 	skipWindowsRangePath(t, tc.skipWindows)
 
-	request, err := http.NewRequestWithContext(context.Background(), tc.method, baseURL+"/app.js", http.NoBody)
+	request, err := http.NewRequestWithContext(t.Context(), tc.method, baseURL+"/app.js", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +168,7 @@ func newProtocolMatrixServer(t *testing.T) (string, string, string, string) {
 
 	app, etag, variantETag, lastModified := newProtocolMatrixApp(t)
 	listenerConfig := net.ListenConfig{}
-	listener, err := listenerConfig.Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	listener, err := listenerConfig.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

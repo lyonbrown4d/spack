@@ -3,7 +3,6 @@
 package sourcecatalog_test
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -40,7 +39,7 @@ func TestCatalogStressScan(t *testing.T) {
 	var after runtime.MemStats
 	runtime.ReadMemStats(&before)
 	startedAt := time.Now()
-	snapshot, err := scanner.Scan(context.Background())
+	snapshot, err := scanner.Scan(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

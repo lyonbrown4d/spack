@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
@@ -55,7 +54,7 @@ func TestAssetRouteReturnsNotModifiedForFreshValidator(t *testing.T) {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/app.js", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/app.js", http.NoBody)
 	request.Header.Set("If-None-Match", "\"hash-app\"")
 	request.Header.Set("If-Modified-Since", modifiedAt.Format(http.TimeFormat))
 	response, err := app.Test(request)
@@ -89,7 +88,7 @@ func TestAssetRouteReturnsNotModifiedForFreshValidator(t *testing.T) {
 func TestVariantRouteSetsCacheHeadersAndHeadHasNoBody(t *testing.T) {
 	app := newVariantTestApp(t)
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodHead, "/app.js", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodHead, "/app.js", http.NoBody)
 	request.Header.Set("Accept-Encoding", "br")
 	response, err := app.Test(request)
 	if err != nil {
@@ -163,7 +162,7 @@ func TestVariantRouteFallsBackWhenVariantArtifactIsMissing(t *testing.T) {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 	)
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/app.js", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/app.js", http.NoBody)
 	request.Header.Set("Accept-Encoding", "br")
 	response, err := app.Test(request)
 	if err != nil {

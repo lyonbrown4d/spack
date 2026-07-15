@@ -10,13 +10,13 @@ import (
 
 func TestImageMemoryBudgetAcquireContextHonorsCancellation(t *testing.T) {
 	budget := newImageMemoryBudget(10)
-	release, err := budget.AcquireContext(context.Background(), 10)
+	release, err := budget.AcquireContext(t.Context(), 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer release()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	_, err = budget.AcquireContext(ctx, 1)
@@ -28,7 +28,7 @@ func TestImageMemoryBudgetAcquireContextHonorsCancellation(t *testing.T) {
 func TestImageMemoryBudgetAcquireRejectsOversizedRequest(t *testing.T) {
 	budget := newImageMemoryBudget(10)
 
-	_, err := budget.AcquireContext(context.Background(), 11)
+	_, err := budget.AcquireContext(t.Context(), 11)
 	if !IsVariantSkipped(err) {
 		t.Fatalf("expected oversized memory request to be skipped, got %v", err)
 	}

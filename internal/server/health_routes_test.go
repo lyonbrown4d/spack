@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -117,7 +116,7 @@ func TestHealthRoutesRecordRuntimeMetrics(t *testing.T) {
 		}
 	})
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/readyz", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -151,7 +150,7 @@ func TestHealthRoutesRecordRuntimeMetrics(t *testing.T) {
 func assertCatalogRouteStatus(t *testing.T, app *fiber.App, status int) {
 	t.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/catalog", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/catalog", http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +181,7 @@ func assertHealthResponse(
 ) {
 	t.Helper()
 
-	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
