@@ -144,7 +144,7 @@ var validate = goyek.Define(goyek.Task{
 
 func main() {
 	if err := chdirRepoRoot(); err != nil {
-		panic(err)
+		fatalBuildStartup(err)
 	}
 	trimGoRunSeparator()
 	goyek.SetDefault(validate)
@@ -187,7 +187,7 @@ func (c command) String() string {
 }
 
 func fatalBuildStartup(err error) {
-	if _, writeErr := fmt.Fprintf(os.Stderr, "build task startup failed: %v`n", err); writeErr != nil {
+	if _, writeErr := fmt.Fprintf(os.Stderr, "build task startup failed: %v\n", err); writeErr != nil {
 		os.Exit(1)
 	}
 	os.Exit(1)

@@ -9,7 +9,6 @@ vars:
   GO_LDFLAGS: -s -w -buildid=
   GOYEK: go -C build run . --
   GORELEASER_VERSION: v2.15.4
-  GOVULNCHECK_VERSION: v1.4.0
   PERF_RESULTS_DIR: tmp/perf/results
   PERF_BENCH_COUNT: 5
   K6_HTML_PATHS: /,/index.html

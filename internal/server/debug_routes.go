@@ -70,7 +70,7 @@ func registerDiagnosticsRoutes(app *fiber.App, runtime *diagnosticsRoutesRuntime
 func registerPrometheusRoute(app *fiber.App, runtime *diagnosticsRoutesRuntime) {
 	if runtime.metricsAdapter == nil {
 		if runtime.logger != nil {
-			runtime.logger.Warn("Prometheus route unavailable", slog.String("err", "metrics adapter is not configured"))
+			runtime.logger.Warn("Prometheus route unavailable", slog.String("reason", "metrics adapter is not configured"))
 		}
 		return
 	}

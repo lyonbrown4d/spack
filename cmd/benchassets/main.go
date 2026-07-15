@@ -194,7 +194,7 @@ func binaryBlock() []byte {
 
 func fail(format string, args ...any) {
 	if _, err := fmt.Fprintf(os.Stderr, format+"\n", args...); err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 	os.Exit(1)
 }

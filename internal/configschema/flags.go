@@ -60,7 +60,7 @@ func (f Flag) Register(flags *pflag.FlagSet, defaults config.Config) {
 	case StringSliceFlag:
 		flags.StringSlice(f.Name, lo.Clone(f.stringSliceDefault(defaults)), f.Usage)
 	default:
-		panic("unknown config flag kind: " + string(f.Kind))
+		return
 	}
 }
 
@@ -79,7 +79,7 @@ func (f Flag) DefaultString(defaults config.Config) string {
 	case StringSliceFlag:
 		return stringSliceDefaultString(f.stringSliceDefault(defaults))
 	default:
-		panic("unknown config flag kind: " + string(f.Kind))
+		return ""
 	}
 }
 

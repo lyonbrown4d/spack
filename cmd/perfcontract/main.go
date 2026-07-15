@@ -61,7 +61,7 @@ func writeReport(path, report string) {
 func fatalf(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	if _, err := os.Stderr.WriteString(message + "\n"); err != nil {
-		panic(err)
+		os.Exit(1)
 	}
 	os.Exit(1)
 }

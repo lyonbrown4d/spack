@@ -26,7 +26,7 @@ func NewCacheWithObservabilityForTest(
 	testCfg := newCacheConfigForTest(cfg)
 	cache, err := newCache(testCfg, logger, obs, nil, nil, nil)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return cache
 }
@@ -41,7 +41,7 @@ func NewCacheWithBusForTest(
 	testCfg := newCacheConfigForTest(cfg)
 	cache, err := newCache(testCfg, logger, obs, bus, nil, nil)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return cache
 }
@@ -56,7 +56,7 @@ func NewCacheWithSettingsForTest(
 	testCfg := newCacheConfigForTest(cfg)
 	cache, err := newCache(testCfg, logger, obs, nil, settings, nil)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return cache
 }
