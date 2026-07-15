@@ -12,7 +12,7 @@ func BenchmarkCleanStaticAssetPath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		cleaned := requestpath.Clean(raw)
 		if cleaned.Value != raw || cleaned.AllowsEntryFallback {
 			b.Fatalf("unexpected cleaned path: %#v", cleaned)
@@ -26,7 +26,7 @@ func BenchmarkCleanEncodedAssetPath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		cleaned := requestpath.Clean(raw)
 		if cleaned.Value == "" || cleaned.AllowsEntryFallback {
 			b.Fatalf("unexpected cleaned path: %#v", cleaned)
@@ -40,7 +40,7 @@ func BenchmarkCleanRouteLikePath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		cleaned := requestpath.Clean(raw)
 		if cleaned.Value != raw || !cleaned.AllowsEntryFallback {
 			b.Fatalf("unexpected cleaned path: %#v", cleaned)

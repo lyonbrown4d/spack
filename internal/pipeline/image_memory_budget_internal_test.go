@@ -10,7 +10,7 @@ import (
 
 func TestImageMemoryBudgetAcquireContextHonorsCancellation(t *testing.T) {
 	budget := newImageMemoryBudget(10)
-	release, err := budget.Acquire(10)
+	release, err := budget.AcquireContext(context.Background(), 10)
 	if err != nil {
 		t.Fatal(err)
 	}

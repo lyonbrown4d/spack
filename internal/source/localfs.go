@@ -256,7 +256,7 @@ func lstatPathWithinRoot(rootDir *os.Root, root, relativePath string) (fs.FileIn
 		var err error
 		info, err = rootDir.Lstat(filepath.FromSlash(currentPath))
 		if err != nil {
-			return nil, fmt.Errorf("stat source path %q: %w", filepath.Join(root, filepath.FromSlash(currentPath)), err)
+			return nil, oops.Wrapf(err, "stat source path %q", filepath.Join(root, filepath.FromSlash(currentPath)))
 		}
 		if isSymlink(info) {
 			return nil, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, filepath.Join(root, filepath.FromSlash(currentPath))))

@@ -2,19 +2,14 @@ package spackbundle
 
 import (
 	"archive/tar"
-	"cmp"
 	"context"
-	"errors"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
-	"time"
-
-	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/klauspost/compress/zstd"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 // File describes one source file to embed in a bundle.
@@ -32,6 +27,10 @@ type File struct {
 	Format        string
 	Width         int
 	AllowExternal bool
+
+	root             string
+	rootInfo         fs.FileInfo
+	rootRelativePath string
 }
 
 // WriteOptions configures bundle writing.
@@ -73,11 +72,11 @@ func normalizeWriteInputs(options WriteOptions) (string, string, []File, error) 
 	if err != nil {
 		return "", "", nil, err
 	}
-	root, err := normalizedRootPath(options.Root)
+	root, rootInfo, err := normalizedRootPath(options.Root)
 	if err != nil {
 		return "", "", nil, err
 	}
-	files, err := normalizeFiles(root, options.Files)
+	files, err := normalizeFiles(root, rootInfo, options.Files)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -139,93 +138,6 @@ func writeBundleToTemp(
 
 func bundleOutputFileMode() os.FileMode {
 	return os.FileMode(0o600) | os.FileMode(0o044)
-}
-
-func normalizedOutputPath(output string) (string, error) {
-	output = strings.TrimSpace(output)
-	if output == "" {
-		return "", oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle output path is required"))
-	}
-	absolute, err := filepath.Abs(filepath.Clean(output))
-	if err != nil {
-		return "", oops.Wrapf(err, "resolve bundle output path")
-	}
-	return absolute, nil
-}
-
-func normalizedRootPath(root string) (string, error) {
-	root = strings.TrimSpace(root)
-	if root == "" {
-		return "", oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle root path is required"))
-	}
-	absolute, err := filepath.Abs(filepath.Clean(root))
-	if err != nil {
-		return "", oops.Wrapf(err, "resolve bundle root path")
-	}
-	info, err := os.Lstat(absolute)
-	if err != nil {
-		return "", oops.Wrapf(err, "stat bundle root")
-	}
-	if !info.IsDir() {
-		return "", oops.Errorf("bundle root must be a directory: %s", absolute)
-	}
-	return absolute, nil
-}
-
-func normalizeFiles(root string, files []File) ([]File, error) {
-	normalized := make([]File, 0, len(files))
-	seen := cxset.NewSetWithCapacity[string](len(files))
-	for index := range files {
-		file, err := normalizeFile(root, files[index], seen)
-		if err != nil {
-			return nil, err
-		}
-		normalized = append(normalized, file)
-	}
-	slices.SortFunc(normalized, func(left, right File) int {
-		return cmp.Compare(left.Path, right.Path)
-	})
-	return normalized, nil
-}
-
-func normalizeFile(root string, file File, seen *cxset.Set[string]) (File, error) {
-	path, err := cleanBundlePath(file.Path)
-	if err != nil {
-		return File{}, err
-	}
-	if seen.Contains(path) {
-		return File{}, oops.Errorf("bundle path %q is duplicated", path)
-	}
-	fullPath, info, err := statBundleFile(root, file)
-	if err != nil {
-		return File{}, err
-	}
-	file.Path = path
-	file.FullPath = fullPath
-	file.Size = info.Size()
-	seen.Add(path)
-	return file, nil
-}
-
-func statBundleFile(root string, file File) (string, os.FileInfo, error) {
-	fullPath, err := filepath.Abs(filepath.Clean(file.FullPath))
-	if err != nil {
-		return "", nil, oops.Wrapf(err, "resolve bundle file %q", file.Path)
-	}
-	if !file.AllowExternal && !isPathInside(root, fullPath) {
-		return "", nil, oops.Errorf("bundle file %q escapes root", file.Path)
-	}
-	info, err := os.Lstat(fullPath)
-	if err != nil {
-		return "", nil, oops.Wrapf(err, "stat bundle file %q", file.Path)
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return "", nil, oops.Errorf("bundle file %q is a symlink", file.Path)
-	}
-	if info.IsDir() {
-		return "", nil, oops.Errorf("bundle file %q is a directory", file.Path)
-	}
-	return fullPath, info, nil
 }
 
 func buildIndex(payloads []bundleFilePayload, now func() time.Time) Index {

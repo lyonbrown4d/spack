@@ -8,7 +8,7 @@ import (
 )
 
 func startTaskRuntime(ctx context.Context, scheduler gocron.Scheduler, registrations *cxlist.List[taskRegistration]) error {
-	return startScheduledTasks(context.WithoutCancel(ctx), scheduler, registrations)
+	return startScheduledTasks(ctx, scheduler, registrations)
 }
 
 func stopTaskRuntime(ctx context.Context, scheduler gocron.Scheduler) error {

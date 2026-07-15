@@ -180,7 +180,7 @@ func (s *Service) executeStageTaskBatch(ctx context.Context, stage Stage, asset 
 	startedAt := time.Now()
 	key := buildStageTaskKey(stage, asset, task)
 	variantValue, err, _ := s.sf.Do(key, func() (any, error) {
-		return executeStageTaskValue(stage, asset, task)
+		return executeStageTaskValue(ctx, stage, asset, task)
 	})
 	if err != nil {
 		s.recordStageTaskError(ctx, stage, asset, startedAt, err)
@@ -196,15 +196,15 @@ func (s *Service) executeStageTaskBatch(ctx context.Context, stage Stage, asset 
 	return variants
 }
 
-func executeStageTaskValue(stage Stage, asset *catalog.Asset, task Task) (any, error) {
+func executeStageTaskValue(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) (any, error) {
 	if batchStage, ok := stage.(BatchStage); ok {
-		variants, err := batchStage.ExecuteBatch(task, asset)
+		variants, err := batchStage.ExecuteBatch(ctx, task, asset)
 		if err != nil {
 			return nil, oops.Wrapf(err, "execute batch stage task")
 		}
 		return variants, nil
 	}
-	variant, err := stage.Execute(task, asset)
+	variant, err := stage.Execute(ctx, task, asset)
 	if err != nil {
 		return nil, oops.Wrapf(err, "execute stage task")
 	}

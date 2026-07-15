@@ -106,7 +106,7 @@ func (stageResultStage) Plan(_ *catalog.Asset, _ pipeline.Request) *cxlist.List[
 	return nil
 }
 
-func (s stageResultStage) Execute(_ pipeline.Task, _ *catalog.Asset) (*catalog.Variant, error) {
+func (s stageResultStage) Execute(_ context.Context, _ pipeline.Task, _ *catalog.Asset) (*catalog.Variant, error) {
 	return s.variant, s.err
 }
 

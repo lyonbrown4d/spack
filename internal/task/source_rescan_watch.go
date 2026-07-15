@@ -2,12 +2,12 @@ package task
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/source"
+	"github.com/samber/oops"
 )
 
 const sourceRescanDebounce = 300 * time.Millisecond
@@ -17,7 +17,7 @@ func startSourceRescanWatcher(ctx context.Context, watcher *sourceRescanWatcher)
 		return nil
 	}
 
-	watchCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	watchCtx, cancel := context.WithCancel(ctx)
 	changes, err := watcher.runtime.scanner.Watch(watchCtx)
 	if err != nil {
 		cancel()
@@ -77,7 +77,7 @@ func stopSourceRescanWatcher(ctx context.Context, watcher *sourceRescanWatcher) 
 		watcher.done = nil
 		return nil
 	case <-ctx.Done():
-		return fmt.Errorf("stop source watcher: %w", ctx.Err())
+		return oops.Wrapf(ctx.Err(), "stop source watcher")
 	}
 }
 

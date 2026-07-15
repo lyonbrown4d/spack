@@ -4,7 +4,6 @@ package pipeline
 
 import (
 	"cmp"
-	"os"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxset "github.com/arcgolabs/collectionx/set"
@@ -17,13 +16,10 @@ type imageSourceSnapshot struct {
 	bytes  int64
 }
 
-func imageSourceBytes(path string, limits imageGenerateLimits) (int64, error) {
-	// #nosec G304 -- path comes from scanned assets rooted under configured sources.
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0, oops.Wrapf(err, "stat source image")
+func imageSourceBytes(size int64, limits imageGenerateLimits) (int64, error) {
+	if size <= 0 {
+		return 0, oops.Wrapf(ErrVariantSkipped, "source image bytes %d are invalid", size)
 	}
-	size := info.Size()
 	if limits.MaxSourceBytes > 0 && size > limits.MaxSourceBytes {
 		return 0, oops.Wrapf(
 			ErrVariantSkipped,

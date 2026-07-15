@@ -72,7 +72,9 @@ func (engine libvipsImageEngine) SupportedTargetFormats() *cxlist.List[string] {
 
 func (engine libvipsImageEngine) Generate(request imageGenerateRequest) (imageGenerateResult, error) {
 	results, err := engine.GenerateBatch(imageGenerateBatchRequest{
+		Context:         request.Context,
 		SourcePath:      request.SourcePath,
+		SourceBytes:     request.SourceBytes,
 		SourceMediaType: request.SourceMediaType,
 		Variants: cxlist.NewList(imageVariantGenerateRequest{
 			TargetFormat: request.TargetFormat,

@@ -189,7 +189,7 @@ func (s *Service) enforceCleanupCacheLimit(ctx context.Context, files []cleanupF
 }
 
 func (s *Service) removeCleanupFile(ctx context.Context, file cleanupFile, reason appEvent.VariantRemovalReason) bool {
-	if err := os.Remove(file.path); err != nil {
+	if err := removeCleanupFilePath(s.cfg.CacheDir, file.path); err != nil {
 		if !os.IsNotExist(err) {
 			s.logger.Debug("Pipeline cache cleanup remove failed",
 				slog.String("path", file.path),

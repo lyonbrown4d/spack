@@ -2,12 +2,13 @@ package pipeline_test
 
 import (
 	"fmt"
+	"log/slog"
+	"testing"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/pipeline"
-	"log/slog"
-	"testing"
 )
 
 func BenchmarkServiceEnqueueUnique(b *testing.B) {
@@ -28,13 +29,14 @@ func BenchmarkServiceEnqueueUnique(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-
-	for i := range b.N {
+	i := 0
+	for b.Loop() {
 		req := requests[i%len(requests)]
 		svc.Enqueue(req)
 
 		queued := pipeline.DequeueRequestForTest(svc)
 		pipeline.FinishRequestForTest(svc, queued)
+		i++
 	}
 }
 
@@ -55,7 +57,7 @@ func BenchmarkServiceEnqueueDeduplicated(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		svc.Enqueue(req)
 	}
 }

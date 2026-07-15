@@ -1,6 +1,10 @@
 package pipeline
 
-import cxlist "github.com/arcgolabs/collectionx/list"
+import (
+	"context"
+
+	cxlist "github.com/arcgolabs/collectionx/list"
+)
 
 type imageEncodeOptions struct {
 	JPEGQuality int
@@ -20,7 +24,9 @@ type imageVariantGenerateRequest struct {
 }
 
 type imageGenerateRequest struct {
+	Context         context.Context
 	SourcePath      string
+	SourceBytes     int64
 	SourceMediaType string
 	TargetFormat    string
 	TargetWidth     int
@@ -29,7 +35,9 @@ type imageGenerateRequest struct {
 }
 
 type imageGenerateBatchRequest struct {
+	Context         context.Context
 	SourcePath      string
+	SourceBytes     int64
 	SourceMediaType string
 	Variants        *cxlist.List[imageVariantGenerateRequest]
 	Encode          imageEncodeOptions

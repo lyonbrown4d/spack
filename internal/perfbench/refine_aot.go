@@ -4,11 +4,12 @@ package perfbench
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/samber/oops"
 )
 
 const refineAOTScript = "scripts/refine-aot-bench.sh"
@@ -21,7 +22,7 @@ func RunRefineAOT(ctx context.Context, args []string) error {
 	}
 	if command == "help" {
 		if _, err := os.Stdout.WriteString(RefineAOTUsage()); err != nil {
-			return fmt.Errorf("write refine-aot usage: %w", err)
+			return oops.Wrapf(err, "write refine-aot usage")
 		}
 		return nil
 	}
@@ -62,7 +63,7 @@ Environment:
 
 func refineAOTCommand(args []string) (string, error) {
 	if len(args) > 1 {
-		return "", fmt.Errorf("too many refine-aot arguments: %s\n%s", strings.Join(args[1:], " "), RefineAOTUsage())
+		return "", oops.Errorf("too many refine-aot arguments: %s\n%s", strings.Join(args[1:], " "), RefineAOTUsage())
 	}
 	command := "smoke"
 	if len(args) == 1 {
@@ -76,7 +77,7 @@ func refineAOTCommand(args []string) (string, error) {
 	case "-h", "--help", "help":
 		return "help", nil
 	default:
-		return "", fmt.Errorf("unknown refine-aot command %q\n%s", command, RefineAOTUsage())
+		return "", oops.Errorf("unknown refine-aot command %q\n%s", command, RefineAOTUsage())
 	}
 }
 
@@ -87,7 +88,7 @@ func runRefineAOTScript(ctx context.Context, command string) error {
 	}
 	script := filepath.Join(root, refineAOTScript)
 	if _, statErr := os.Stat(script); statErr != nil {
-		return fmt.Errorf("stat refine-aot script: %w", statErr)
+		return oops.Wrapf(statErr, "stat refine-aot script")
 	}
 
 	cmd, err := refineAOTScriptCommand(ctx, command)
@@ -100,7 +101,7 @@ func runRefineAOTScript(ctx context.Context, command string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("run refine-aot script: %w", err)
+		return oops.Wrapf(err, "run refine-aot script")
 	}
 	return nil
 }
@@ -120,18 +121,18 @@ func refineAOTScriptCommand(ctx context.Context, command string) (*exec.Cmd, err
 	case "down":
 		return exec.CommandContext(ctx, "bash", "scripts/refine-aot-bench.sh", "down"), nil
 	default:
-		return nil, fmt.Errorf("unsupported refine-aot command %q", command)
+		return nil, oops.Errorf("unsupported refine-aot command %q", command)
 	}
 }
 
 func findRepoRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("get working directory: %w", err)
+		return "", oops.Wrapf(err, "get working directory")
 	}
 	dir, err = filepath.Abs(dir)
 	if err != nil {
-		return "", fmt.Errorf("resolve working directory: %w", err)
+		return "", oops.Wrapf(err, "resolve working directory")
 	}
 	for {
 		if fileExists(filepath.Join(dir, "go.mod")) && fileExists(filepath.Join(dir, refineAOTScript)) {
@@ -139,7 +140,7 @@ func findRepoRoot() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("could not find repository root")
+			return "", oops.In("perfbench").Owner("refine aot").Wrap(errors.New("could not find repository root"))
 		}
 		dir = parent
 	}
@@ -149,4 +150,3 @@ func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
 }
-

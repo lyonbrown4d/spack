@@ -1,7 +1,7 @@
 package server
 
 import (
-	"fmt"
+	"github.com/samber/oops"
 	"log/slog"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
@@ -106,7 +106,7 @@ func (r *assetDeliveryRuntime) sendEarlyResourceHints(c fiber.Ctx, links *cxlist
 		err = c.SendEarlyHints(values)
 	})
 	if err != nil {
-		return fmt.Errorf("send early resource hints: %w", err)
+		return oops.Wrapf(err, "send early resource hints")
 	}
 	return nil
 }

@@ -5,8 +5,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
@@ -42,13 +45,14 @@ func prepareBundleFilePayload(ctx context.Context, file File) (bundleFilePayload
 	if err := ctx.Err(); err != nil {
 		return bundleFilePayload{}, oops.Wrapf(err, "write bundle canceled")
 	}
-	source, err := os.Open(file.FullPath)
+	source, info, err := openBundleSourceFile(file)
 	if err != nil {
 		return bundleFilePayload{}, oops.Wrapf(err, "open bundle file %q", file.Path)
 	}
-	defer func() {
-		discardError(source.Close())
-	}()
+	defer discardClose(source)
+	if info.Size() != file.Size {
+		return bundleFilePayload{}, oops.Errorf("bundle file %q size mismatch", file.Path)
+	}
 
 	hasher := sha256.New()
 	written, err := io.Copy(hasher, source)
@@ -91,13 +95,14 @@ func writePreparedBundleFile(tarWriter *tar.Writer, payload bundleFilePayload) e
 	if err := tarWriter.WriteHeader(header); err != nil {
 		return oops.Wrapf(err, "create bundle file %q", file.Path)
 	}
-	source, err := os.Open(file.FullPath)
+	source, info, err := openBundleSourceFile(file)
 	if err != nil {
 		return oops.Wrapf(err, "open bundle file %q", file.Path)
 	}
-	defer func() {
-		discardError(source.Close())
-	}()
+	defer discardClose(source)
+	if info.Size() != file.Size {
+		return oops.Errorf("bundle file %q size mismatch", file.Path)
+	}
 	hasher := sha256.New()
 	written, err := io.Copy(io.MultiWriter(tarWriter, hasher), source)
 	if err != nil {
@@ -110,4 +115,107 @@ func writePreparedBundleFile(tarWriter *tar.Writer, payload bundleFilePayload) e
 		return oops.Errorf("bundle file %q sha256 changed during write", file.Path)
 	}
 	return nil
+}
+
+func openBundleSourceFile(file File) (*os.File, fs.FileInfo, error) {
+	if !file.AllowExternal && file.root != "" && file.rootRelativePath != "" {
+		return openRootBundleFile(file)
+	}
+	return openExternalBundleFile(file.FullPath)
+}
+
+func openRootBundleFile(file File) (*os.File, fs.FileInfo, error) {
+	rootDir, err := openBundleRoot(file.root, file.rootInfo)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer discardBundleRoot(rootDir)
+	info, err := lstatBundlePathWithinRoot(rootDir, file.root, file.rootRelativePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	opened, err := rootDir.Open(filepath.FromSlash(file.rootRelativePath))
+	if err != nil {
+		return nil, nil, oops.Wrap(err)
+	}
+	openedInfo, err := opened.Stat()
+	if err != nil {
+		discardClose(opened)
+		return nil, nil, oops.Wrap(err)
+	}
+	if openedInfo.IsDir() || !os.SameFile(info, openedInfo) {
+		discardClose(opened)
+		return nil, nil, oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle source changed during open"))
+	}
+	return opened, openedInfo, nil
+}
+
+func openBundleRoot(root string, expected fs.FileInfo) (*os.Root, error) {
+	rootDir, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, oops.Wrap(err)
+	}
+	openedInfo, err := rootDir.Stat(".")
+	if err != nil {
+		discardBundleRoot(rootDir)
+		return nil, oops.Wrap(err)
+	}
+	currentInfo, err := os.Lstat(root)
+	if err != nil {
+		discardBundleRoot(rootDir)
+		return nil, oops.Wrap(err)
+	}
+	if currentInfo.Mode()&os.ModeSymlink != 0 || !currentInfo.IsDir() || !os.SameFile(openedInfo, currentInfo) {
+		discardBundleRoot(rootDir)
+		return nil, oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle root was replaced"))
+	}
+	if expected != nil && !os.SameFile(expected, currentInfo) {
+		discardBundleRoot(rootDir)
+		return nil, oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle root was replaced"))
+	}
+	return rootDir, nil
+}
+
+func openExternalBundleFile(fullPath string) (*os.File, fs.FileInfo, error) {
+	absolute, err := filepath.Abs(filepath.Clean(fullPath))
+	if err != nil {
+		return nil, nil, oops.Wrap(err)
+	}
+	parent := filepath.Dir(absolute)
+	name := filepath.Base(absolute)
+	rootDir, err := os.OpenRoot(parent)
+	if err != nil {
+		return nil, nil, oops.Wrap(err)
+	}
+	defer discardBundleRoot(rootDir)
+	info, err := rootDir.Lstat(name)
+	if err != nil {
+		return nil, nil, oops.Wrap(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || info.IsDir() {
+		return nil, nil, oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle external source is not a regular file"))
+	}
+	opened, err := rootDir.Open(name)
+	if err != nil {
+		return nil, nil, oops.Wrap(err)
+	}
+	openedInfo, err := opened.Stat()
+	if err != nil {
+		discardClose(opened)
+		return nil, nil, oops.Wrap(err)
+	}
+	if !os.SameFile(info, openedInfo) {
+		discardClose(opened)
+		return nil, nil, oops.In("spackbundle").Owner("write").Wrap(errors.New("bundle external source changed during open"))
+	}
+	return opened, openedInfo, nil
+}
+
+func discardClose(file *os.File) {
+	if file == nil {
+		return
+	}
+	if err := file.Close(); err != nil {
+		return
+	}
 }

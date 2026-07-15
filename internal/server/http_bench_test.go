@@ -49,7 +49,7 @@ func BenchmarkHTTPAssetRouteSendfile(b *testing.B) {
 func runHTTPRouteBenchmark(b *testing.B, app *fiber.App, requestURL string) {
 	b.Helper()
 
-	for range b.N {
+	for b.Loop() {
 		runHTTPRouteBenchmarkIteration(b, app, requestURL)
 	}
 }

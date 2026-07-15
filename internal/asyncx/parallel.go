@@ -3,14 +3,14 @@ package asyncx
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/samber/oops"
 	"strings"
 	"time"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/observabilityx"
-  "github.com/samber/lo"
-  "golang.org/x/sync/errgroup"
+	"github.com/samber/lo"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -222,7 +222,7 @@ func contextErr(ctx context.Context) error {
 		return nil
 	}
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("context done: %w", err)
+		return oops.Wrapf(err, "context done")
 	}
 	return nil
 }

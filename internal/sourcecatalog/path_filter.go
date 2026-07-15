@@ -1,7 +1,6 @@
 package sourcecatalog
 
 import (
-	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/samber/oops"
 )
 
 type assetPathFilter struct {
@@ -81,7 +81,7 @@ func matchesAnyGlob(patterns *cxlist.List[string], assetPath string) (bool, erro
 	patterns.Range(func(_ int, pattern string) bool {
 		ok, err := doublestar.Match(pattern, assetPath)
 		if err != nil {
-			matchErr = fmt.Errorf("match asset path %q with glob %q: %w", assetPath, pattern, err)
+			matchErr = oops.Wrapf(err, "match asset path %q with glob %q", assetPath, pattern)
 			return false
 		}
 		if ok {
@@ -104,7 +104,7 @@ func normalizeGlobPatterns(field string, patterns []string) (*cxlist.List[string
 			continue
 		}
 		if !doublestar.ValidatePattern(pattern) {
-			return nil, fmt.Errorf("invalid %s glob pattern %q", field, rawPattern)
+			return nil, oops.Errorf("invalid %s glob pattern %q", field, rawPattern)
 		}
 		normalized.Add(pattern)
 	}

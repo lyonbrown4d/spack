@@ -2,8 +2,12 @@
 package pipeline
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
+	"time"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
@@ -13,15 +17,15 @@ import (
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
 	contentcodingspec "github.com/lyonbrown4d/spack/internal/contentcoding/spec"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/oops"
-	"os"
-	"time"
 )
 
 type compressionStage struct {
 	cfg        *config.Compression
 	store      artifact.Store
 	catalog    catalog.Catalog
+	source     *source.LocalFS
 	strategies contentcoding.Registry
 }
 
@@ -30,11 +34,13 @@ func newCompressionStage(
 	registry contentcoding.Registry,
 	store artifact.Store,
 	cat catalog.Catalog,
+	src *source.LocalFS,
 ) *compressionStage {
 	return &compressionStage{
 		cfg:        cfg,
 		store:      store,
 		catalog:    cat,
+		source:     src,
 		strategies: registry,
 	}
 }
@@ -66,15 +72,22 @@ func (s *compressionStage) Plan(asset *catalog.Asset, request Request) *cxlist.L
 	})
 }
 
-func (s *compressionStage) Execute(task Task, asset *catalog.Asset) (*catalog.Variant, error) {
+func (s *compressionStage) Execute(ctx context.Context, task Task, asset *catalog.Asset) (*catalog.Variant, error) {
 	stageErr := oops.In("pipeline").Owner("compression stage").
 		With("asset_path", asset.Path).
 		With("encoding", task.Encoding)
 	if asset.SourceHash == "" {
 		return nil, stageErr.Wrap(errors.New("asset missing source hash"))
 	}
+	ctx, err := requireStageContext(ctx)
+	if err != nil {
+		return nil, stageErr.Wrap(err)
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, stageErr.Wrap(ctxErr)
+	}
 
-	raw, err := os.ReadFile(asset.FullPath)
+	raw, err := readPipelineSourceFile(s.source, asset.FullPath)
 	if err != nil {
 		return nil, stageErr.Wrap(err)
 	}

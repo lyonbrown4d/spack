@@ -30,7 +30,7 @@ func BenchmarkCacheGetOrLoadMiss(b *testing.B) {
 	b.SetBytes(int64(len(payload)))
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		cache.Delete(path)
 		body, found, err := cache.GetOrLoad(path)
 		if err != nil {
@@ -70,7 +70,7 @@ func BenchmarkCacheGetOrLoadHit(b *testing.B) {
 	b.SetBytes(int64(len(payload)))
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		body, found, err := cache.GetOrLoad(path)
 		if err != nil {
 			b.Fatal(err)

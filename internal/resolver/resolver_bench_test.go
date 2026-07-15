@@ -23,7 +23,7 @@ func BenchmarkResolverResolveAsset(b *testing.B) {
 	b.SetBytes(int64(len(payload)))
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		result, err := assetResolver.Resolve(context.Background(), request)
 		if err != nil {
 			b.Fatal(err)
@@ -62,7 +62,7 @@ func BenchmarkResolverResolveEncodingVariant(b *testing.B) {
 	b.SetBytes(int64(len(variantPayload)))
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		result, err := assetResolver.Resolve(context.Background(), request)
 		if err != nil {
 			b.Fatal(err)
@@ -103,7 +103,7 @@ func BenchmarkResolverResolveImageVariant(b *testing.B) {
 	b.SetBytes(int64(len(variantPayload)))
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		result, err := assetResolver.Resolve(context.Background(), request)
 		if err != nil {
 			b.Fatal(err)

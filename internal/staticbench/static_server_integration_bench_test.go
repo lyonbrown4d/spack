@@ -223,7 +223,7 @@ func runStaticHTTPBenchmark(b *testing.B, benchServer staticBenchServer, benchCa
 	b.ReportAllocs()
 	b.SetBytes(benchCase.size)
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		doStaticBenchmarkRequest(b, client, url, benchCase.size)
 	}
 }

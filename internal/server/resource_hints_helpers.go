@@ -2,7 +2,7 @@ package server
 
 import (
 	"errors"
-	"fmt"
+	"github.com/samber/oops"
 	"io"
 	"net/url"
 	"path"
@@ -25,15 +25,15 @@ import (
 func parseHTMLResourceHints(filePath string, cfg config.ResourceHints, guard *source.LocalRootGuard) (links *cxlist.List[string], err error) {
 	cleanPath := filepath.Clean(filePath)
 	if guard == nil {
-		return nil, fmt.Errorf("local source root guard is required for %s", cleanPath)
+		return nil, oops.Errorf("local source root guard is required for %s", cleanPath)
 	}
 	file, _, err := guard.OpenFile(cleanPath)
 	if err != nil {
-		return nil, fmt.Errorf("open guarded HTML asset: %w", err)
+		return nil, oops.Wrapf(err, "open guarded HTML asset")
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {
-			err = errors.Join(err, fmt.Errorf("close HTML asset: %w", cerr))
+			err = errors.Join(err, oops.Wrapf(cerr, "close HTML asset"))
 		}
 	}()
 
@@ -46,7 +46,7 @@ func tokenizerHTMLParseError(tokenizer *html.Tokenizer) error {
 	if err == nil || errors.Is(err, io.EOF) {
 		return nil
 	}
-	return fmt.Errorf("parse HTML asset: %w", err)
+	return oops.Wrapf(err, "parse HTML asset")
 }
 
 func consumeStartTagResourceHint(

@@ -3,7 +3,7 @@ package server
 import (
 	"cmp"
 	"context"
-	"fmt"
+	"github.com/samber/oops"
 	"log/slog"
 	"strings"
 
@@ -263,7 +263,7 @@ func preparedContextErr(ctx context.Context) error {
 		return nil
 	}
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("prepared compile context: %w", err)
+		return oops.Wrapf(err, "prepared compile context")
 	}
 	return nil
 }
@@ -272,5 +272,5 @@ func preparedCompileError(err error) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("compile prepared snapshot: %w", err)
+	return oops.Wrapf(err, "compile prepared snapshot")
 }

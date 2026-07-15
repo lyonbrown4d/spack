@@ -19,7 +19,7 @@ func BenchmarkCatalogReplace(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		cat := catalog.NewInMemoryCatalog()
 		if err := cat.ReplaceCatalog(catalog.ReplaceCatalogInput{Assets: assets, Variants: variants}); err != nil {
 			b.Fatal(err)
@@ -33,10 +33,12 @@ func BenchmarkCatalogFindAsset(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := range b.N {
+	i := 0
+	for b.Loop() {
 		if _, ok := cat.FindAsset(paths[i%len(paths)]); !ok {
 			b.Fatal("asset not found")
 		}
+		i++
 	}
 }
 
@@ -46,10 +48,12 @@ func BenchmarkCatalogFindEncodingVariant(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := range b.N {
+	i := 0
+	for b.Loop() {
 		if _, ok := cat.FindEncodingVariant(paths[i%len(paths)], "br"); !ok {
 			b.Fatal("variant not found")
 		}
+		i++
 	}
 }
 
@@ -59,10 +63,12 @@ func BenchmarkCatalogListVariants(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := range b.N {
+	i := 0
+	for b.Loop() {
 		if variants := cat.ListVariants(paths[i%len(paths)]); variants.Len() != benchmarkCatalogVariantsPerPath {
 			b.Fatalf("expected %d variants, got %d", benchmarkCatalogVariantsPerPath, variants.Len())
 		}
+		i++
 	}
 }
 
@@ -71,7 +77,7 @@ func BenchmarkCatalogSnapshot(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		if snapshot := cat.Snapshot(); snapshot.Assets.Len() != benchmarkCatalogAssetCount {
 			b.Fatalf("expected %d assets, got %d", benchmarkCatalogAssetCount, snapshot.Assets.Len())
 		}

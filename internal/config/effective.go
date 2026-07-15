@@ -2,9 +2,9 @@ package config
 
 import (
 	"errors"
-	"fmt"
 
 	objectmapper "github.com/arcgolabs/mapper"
+	"github.com/samber/oops"
 )
 
 const redactedValue = "REDACTED"
@@ -159,12 +159,12 @@ func BuildEffectiveConfig(instance *objectmapper.Mapper, cfg *Config, redact boo
 		return EffectiveRuntimeConfig{}, nil
 	}
 	if instance == nil {
-		return EffectiveRuntimeConfig{}, errors.New("effective config mapper is required")
+		return EffectiveRuntimeConfig{}, oops.In("config").Owner("effective").Wrap(errors.New("effective config mapper is required"))
 	}
 
 	var effective EffectiveRuntimeConfig
 	if err := instance.MapInto(&effective, cfg, effectiveFinalizeHook(redact)); err != nil {
-		return EffectiveRuntimeConfig{}, fmt.Errorf("map effective config: %w", err)
+		return EffectiveRuntimeConfig{}, oops.Wrapf(err, "map effective config")
 	}
 	return effective, nil
 }

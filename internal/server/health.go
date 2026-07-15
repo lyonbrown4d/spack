@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/arcgolabs/dix"
@@ -12,6 +11,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/oops"
 	"os"
 	"strings"
 	"time"
@@ -197,10 +197,10 @@ func healthMetricResult(healthy bool) string {
 
 func checkCatalog(cat catalog.Catalog) error {
 	if cat == nil {
-		return errors.New("catalog is not configured")
+		return oops.In("server").Owner("health").Wrap(errors.New("catalog is not configured"))
 	}
 	if cat.Snapshot() == nil {
-		return errors.New("catalog snapshot is unavailable")
+		return oops.In("server").Owner("health").Wrap(errors.New("catalog snapshot is unavailable"))
 	}
 	return nil
 }
@@ -208,12 +208,12 @@ func checkCatalog(cat catalog.Catalog) error {
 func checkAssetsRoot(root string) error {
 	root = strings.TrimSpace(root)
 	if root == "" {
-		return errors.New("assets root is not configured")
+		return oops.In("server").Owner("health").Wrap(errors.New("assets root is not configured"))
 	}
 
 	info, err := os.Stat(root)
 	if err != nil {
-		return fmt.Errorf("stat assets root %q: %w", root, err)
+		return oops.Wrapf(err, "stat assets root %q", root)
 	}
 	if info.IsDir() {
 		return nil
@@ -221,5 +221,5 @@ func checkAssetsRoot(root string) error {
 	if info.Mode().IsRegular() && spackbundle.IsBundlePath(root) {
 		return nil
 	}
-	return fmt.Errorf("assets root %q is not a directory or .spack bundle", root)
+	return oops.Errorf("assets root %q is not a directory or .spack bundle", root)
 }

@@ -121,13 +121,13 @@ func (s *LocalStore) Write(artifactPath string, data []byte) error {
 	}
 	tmpPath := relativePath + ".tmp-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	if err := rootDir.WriteFile(filepath.FromSlash(tmpPath), data, 0o600); err != nil {
-		return fmt.Errorf("write artifact temp file: %w", err)
+		return oops.Wrapf(err, "write artifact temp file")
 	}
 	if err := rootDir.Rename(filepath.FromSlash(tmpPath), filepath.FromSlash(relativePath)); err != nil {
 		if removeErr := rootDir.Remove(filepath.FromSlash(tmpPath)); removeErr != nil && !os.IsNotExist(removeErr) {
-			return errors.Join(fmt.Errorf("rename artifact temp file: %w", err), fmt.Errorf("cleanup artifact temp file: %w", removeErr))
+			return oops.In("artifact").Owner("store").Wrap(oops.Join(oops.Wrapf(err, "rename artifact temp file"), oops.Wrapf(removeErr, "cleanup artifact temp file")))
 		}
-		return fmt.Errorf("rename artifact temp file: %w", err)
+		return oops.Wrapf(err, "rename artifact temp file")
 	}
 	return nil
 }

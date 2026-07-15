@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/samber/oops"
 	"os"
 	"strconv"
 	"strings"
@@ -16,16 +17,16 @@ func readServerAssetFileWithGuard(path string, guard *serverFileGuards) ([]byte,
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
-			return nil, fmt.Errorf("read bundle asset: %w", err)
+			return nil, oops.Wrapf(err, "read bundle asset")
 		}
 		return body, nil
 	}
 	if guard == nil {
-		return nil, fmt.Errorf("local source root guard is required for %s", path)
+		return nil, oops.Errorf("local source root guard is required for %s", path)
 	}
 	body, err := guard.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read guarded asset file: %w", err)
+		return nil, oops.Wrapf(err, "read guarded asset file")
 	}
 	return body, nil
 }
@@ -57,7 +58,7 @@ func (r *assetDeliveryRuntime) sendPreparedBundleAssetFile(
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr
 		}
-		return "", fmt.Errorf("send prepared bundle asset file: %w", err)
+		return "", oops.Wrapf(err, "send prepared bundle asset file")
 	}
 	return sendBundleBody(c, request, body, headerPlan)
 }
@@ -73,7 +74,7 @@ func sendBundleBody(
 	}
 	headerPlan.ApplySendFileOverrides(c, false)
 	if err := c.Send(body); err != nil {
-		return "", fmt.Errorf("send bundle asset body: %w", err)
+		return "", oops.Wrapf(err, "send bundle asset body")
 	}
 	return deliverySendFile, nil
 }
@@ -95,7 +96,7 @@ func sendBundleRangeBody(
 	c.Set(fiber.HeaderContentLength, strconv.FormatInt(byteRange.end-byteRange.start+1, 10))
 	headerPlan.ApplySendFileOverrides(c, true)
 	if err := c.Send(body[byteRange.start : byteRange.end+1]); err != nil {
-		return "", fmt.Errorf("send bundle range body: %w", err)
+		return "", oops.Wrapf(err, "send bundle range body")
 	}
 	return deliverySendFileRange, nil
 }

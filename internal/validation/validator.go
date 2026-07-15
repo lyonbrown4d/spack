@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -9,6 +8,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/go-playground/validator/v10"
 	"github.com/lyonbrown4d/spack/pkg"
+	"github.com/samber/oops"
 )
 
 type validationRule struct {
@@ -29,7 +29,7 @@ func New() (*validator.Validate, error) {
 	var registerErr error
 	rules.Range(func(_ int, rule validationRule) bool {
 		if err := validate.RegisterValidation(rule.tag, rule.fn); err != nil {
-			registerErr = fmt.Errorf("register %s validator: %w", rule.tag, err)
+			registerErr = oops.Wrapf(err, "register %s validator", rule.tag)
 			return false
 		}
 		return true

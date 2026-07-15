@@ -29,7 +29,7 @@ func (r sectionReadCloser) Close() error {
 		return nil
 	}
 	if err := r.closer.Close(); err != nil {
-		return fmt.Errorf("close section stream: %w", err)
+		return oops.Wrapf(err, "close section stream")
 	}
 	return nil
 }
@@ -162,10 +162,10 @@ func (g *serverFileGuards) ReadFile(path string) ([]byte, error) {
 	body, readErr := io.ReadAll(file)
 	closeErr := file.Close()
 	if readErr != nil {
-		return nil, fmt.Errorf("read guarded asset file: %w", readErr)
+		return nil, oops.Wrapf(readErr, "read guarded asset file")
 	}
 	if closeErr != nil {
-		return nil, fmt.Errorf("close guarded asset file: %w", closeErr)
+		return nil, oops.Wrapf(closeErr, "close guarded asset file")
 	}
 	return body, nil
 }
@@ -219,11 +219,11 @@ func (r *assetDeliveryRuntime) openResolvedAssetFile(result *resolver.Result) (*
 func sendServerStream(c fiber.Ctx, stream io.Reader, size int64, action string) error {
 	if size < 0 || size > int64(math.MaxInt) {
 		discardServerStream(stream)
-		return fmt.Errorf("%s size is outside supported range: %d", action, size)
+		return oops.Errorf("%s size is outside supported range: %d", action, size)
 	}
 	if err := c.SendStream(stream, int(size)); err != nil {
 		discardServerStream(stream)
-		return fmt.Errorf("%s: %w", action, err)
+		return oops.Wrapf(err, "send server stream: %s", action)
 	}
 	return nil
 }

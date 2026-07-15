@@ -8,10 +8,13 @@ func (s *LocalFS) Root() string {
 	return s.root
 }
 
-// RootGuard returns a fresh guard bound to the resolved local filesystem root.
+// RootGuard returns a guard bound to the original resolved local filesystem root.
 func (s *LocalFS) RootGuard() (*LocalRootGuard, bool, error) {
-	if s == nil {
+	if s == nil || s.root == "" {
 		return nil, false, nil
 	}
-	return NewLocalRootGuard(s.root)
+	if err := s.validateRoot(); err != nil {
+		return nil, true, err
+	}
+	return &LocalRootGuard{root: s.root, info: s.rootInfo}, true, nil
 }

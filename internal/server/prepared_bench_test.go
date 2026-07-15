@@ -36,7 +36,7 @@ func BenchmarkPreparedSnapshotBuild(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		if err := svc.Rebuild(context.Background()); err != nil {
 			b.Fatal(err)
 		}
@@ -55,7 +55,7 @@ func BenchmarkPreparedResolveEncoding(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		selection, ok := server.ResolvePreparedCleanedForTest(svc, request, "", cleanedPath)
 		if !ok || selection.FilePath == "" {
 			b.Fatal("expected prepared selection")
@@ -89,7 +89,7 @@ func BenchmarkPreparedResourceHintsCacheHit(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		entry, ok := service.Entry(result)
 		if !ok || entry.Header == "" {
 			b.Fatal("expected cached resource hints")
@@ -134,7 +134,7 @@ func BenchmarkHTTPPreparedSmallFile(b *testing.B) {
 	b.SetBytes(int64(len(payload)))
 	b.ResetTimer()
 
-	for range b.N {
+	for b.Loop() {
 		runPreparedHTTPBenchmarkIteration(b, app, "/app.js")
 	}
 }

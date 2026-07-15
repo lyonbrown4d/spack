@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,9 @@ func (e *recordingImageEngine) SupportedTargetFormats() *cxlist.List[string] {
 
 func (e *recordingImageEngine) Generate(request imageGenerateRequest) (imageGenerateResult, error) {
 	results, err := e.GenerateBatch(imageGenerateBatchRequest{
+		Context:         request.Context,
 		SourcePath:      request.SourcePath,
+		SourceBytes:     request.SourceBytes,
 		SourceMediaType: request.SourceMediaType,
 		Variants: cxlist.NewList(imageVariantGenerateRequest{
 			TargetFormat: request.TargetFormat,
@@ -69,9 +72,9 @@ func TestImageStageExecuteBatchWritesMultipleVariantsWithOneEngineBatch(t *testi
 		Enable:         true,
 		JPEGQuality:    70,
 		MinSavingRatio: 0.01,
-	}, engine, batchTestStore{root: filepath.Join(root, "cache")}, cat)
+	}, engine, batchTestStore{root: filepath.Join(root, "cache")}, cat, nil)
 
-	variants, err := stage.ExecuteBatch(Task{
+	variants, err := stage.ExecuteBatch(context.Background(), Task{
 		AssetPath: asset.Path,
 		ImageVariants: cxlist.NewList(
 			ImageVariantTask{Format: "jpeg", Width: 640},
@@ -103,7 +106,7 @@ func TestImageStagePlanLimitsOutputVariants(t *testing.T) {
 	stage := newImageStage(&config.Image{
 		Enable:            true,
 		MaxOutputVariants: 1,
-	}, &recordingImageEngine{}, batchTestStore{root: t.TempDir()}, cat)
+	}, &recordingImageEngine{}, batchTestStore{root: t.TempDir()}, cat, nil)
 
 	tasks := stage.Plan(asset, Request{
 		AssetPath:        asset.Path,
@@ -129,9 +132,9 @@ func TestImageStageExecuteBatchSkipsLowBenefitVariants(t *testing.T) {
 		JPEGQuality:    70,
 	}, &recordingImageEngine{
 		results: cxlist.NewList(lowBenefitImageBatchResultForTest()),
-	}, batchTestStore{root: filepath.Join(root, "cache")}, cat)
+	}, batchTestStore{root: filepath.Join(root, "cache")}, cat, nil)
 
-	_, err := stage.ExecuteBatch(Task{
+	_, err := stage.ExecuteBatch(context.Background(), Task{
 		AssetPath:     asset.Path,
 		ImageVariants: cxlist.NewList(ImageVariantTask{Format: "jpeg", Width: 640}),
 	}, asset)

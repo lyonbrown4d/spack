@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/lyonbrown4d/spack/internal/config"
-  "github.com/samber/lo"
-  "github.com/spf13/pflag"
+	"github.com/samber/lo"
+	"github.com/spf13/pflag"
 )
 
 type FlagKind string

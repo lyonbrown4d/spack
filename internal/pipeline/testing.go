@@ -24,14 +24,14 @@ func NewCompressionStageForTest(cfg *config.Compression, store artifact.Store, c
 		}, cfg.NormalizedEncodings()),
 		store,
 		cat,
-	)
+		nil)
 }
 
 // NewImageStageForTest exposes image stage construction for external tests.
 func NewImageStageForTest(cfg *config.Image, store artifact.Store, cat catalog.Catalog) Stage {
 	logger := slog.New(slog.DiscardHandler)
 	engine := newImageEngine(cfg, logger, nil)
-	return newImageStage(cfg, engine, store, cat)
+	return newImageStage(cfg, engine, store, cat, nil)
 }
 
 // NormalizeEncodingsForTest exposes compression encoding normalization for external tests.
@@ -100,7 +100,7 @@ func (testStage) Plan(_ *catalog.Asset, _ Request) *cxlist.List[Task] {
 	return nil
 }
 
-func (testStage) Execute(_ Task, _ *catalog.Asset) (*catalog.Variant, error) {
+func (testStage) Execute(_ context.Context, _ Task, _ *catalog.Asset) (*catalog.Variant, error) {
 	return nil, ErrVariantSkipped
 }
 

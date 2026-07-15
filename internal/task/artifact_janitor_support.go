@@ -11,7 +11,7 @@ import (
 )
 
 func openArtifactRoot(root string) (*os.Root, error) {
-	rootHandle, err := os.OpenRoot(root)
+	rootHandle, err := openValidatedDirectoryRoot(root, "artifact janitor")
 	if err == nil {
 		return rootHandle, nil
 	}

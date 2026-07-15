@@ -1,7 +1,6 @@
 package source
 
 import (
-	"fmt"
 	"path/filepath"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
@@ -22,7 +21,7 @@ func newBundleSource(bundlePath, extractedRoot string, index spackbundle.Index) 
 		file := index.Files[fileIndex]
 		filePath, ok := cleanRelativeAssetPath(file.Path)
 		if !ok {
-			return nil, fmt.Errorf("invalid bundle index path %q", file.Path)
+			return nil, oops.Errorf("invalid bundle index path %q", file.Path)
 		}
 		file.Path = filePath
 		entries.Set(filePath, file)

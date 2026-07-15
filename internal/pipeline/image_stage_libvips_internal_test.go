@@ -3,6 +3,7 @@
 package pipeline
 
 import (
+	"context"
 	"image"
 	"image/color"
 	"image/png"
@@ -20,7 +21,9 @@ func TestLibvipsImageEngineRejectsSourceByteLimit(t *testing.T) {
 
 	engine := newLibvipsImageEngine(&config.Image{}, slog.New(slog.DiscardHandler), imageEngineTelemetry{})
 	_, err := engine.GenerateBatch(imageGenerateBatchRequest{
-		SourcePath: sourcePath,
+		Context:     context.Background(),
+		SourcePath:  sourcePath,
+		SourceBytes: internalFileSize(t, sourcePath),
 		Variants: cxlist.NewList(imageVariantGenerateRequest{
 			TargetFormat: "png",
 			TargetWidth:  16,
@@ -38,7 +41,9 @@ func TestLibvipsImageEngineRejectsSourcePixelLimit(t *testing.T) {
 
 	engine := newLibvipsImageEngine(&config.Image{}, slog.New(slog.DiscardHandler), imageEngineTelemetry{})
 	_, err := engine.GenerateBatch(imageGenerateBatchRequest{
-		SourcePath: sourcePath,
+		Context:     context.Background(),
+		SourcePath:  sourcePath,
+		SourceBytes: internalFileSize(t, sourcePath),
 		Variants: cxlist.NewList(imageVariantGenerateRequest{
 			TargetFormat: "png",
 			TargetWidth:  2,
@@ -82,6 +87,16 @@ func writeInternalTempBytes(t *testing.T, root string, body []byte) string {
 		t.Fatal(err)
 	}
 	return file.Name()
+}
+
+func internalFileSize(t *testing.T, path string) int64 {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info.Size()
 }
 
 func closeInternalTestFile(t *testing.T, file *os.File) {

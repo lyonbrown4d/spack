@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/samber/oops"
 	"log/slog"
 	"strings"
 
@@ -65,7 +66,7 @@ func (r *assetDeliveryRuntime) trySendHotResolvedAsset(
 	}
 	r.applyResourceHints(c, request, result)
 	if err := c.Send(entry.Body); err != nil {
-		return "", true, fmt.Errorf("send hot cached asset body: %w", err)
+		return "", true, oops.Wrapf(err, "send hot cached asset body")
 	}
 	return deliveryHotResponseHit, true, nil
 }
@@ -141,7 +142,7 @@ func (r *assetDeliveryRuntime) sendCachedResolvedAsset(
 
 func sendCachedResolvedAssetEntry(c fiber.Ctx, entry assetcache.Entry, found bool) (string, error) {
 	if err := c.Send(entry.Body); err != nil {
-		return "", fmt.Errorf("send cached asset body: %w", err)
+		return "", oops.Wrapf(err, "send cached asset body")
 	}
 	return lo.Ternary(found, deliveryMemoryCacheHit, deliveryMemoryCacheFill), nil
 }

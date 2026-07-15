@@ -1,7 +1,6 @@
 package assetprofile
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/arcgolabs/collectionx/bytex"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/samber/oops"
 )
 
 type bundleAssetReader struct {
@@ -26,7 +26,7 @@ func countAssetBytes(fullPath string, limit int64, counter *bytex.Counter) (int6
 	}
 	file, err := openAssetFile(fullPath)
 	if err != nil {
-		return 0, fmt.Errorf("open asset profile file: %w", err)
+		return 0, oops.Wrapf(err, "open asset profile file")
 	}
 	defer discardClose(file)
 	return countReaderBytes(file, limit, counter)
@@ -43,7 +43,7 @@ func countBundleReferenceBytes(reference string, limit int64, counter *bytex.Cou
 		return read, readErr
 	}
 	if closeErr != nil {
-		return read, fmt.Errorf("close bundle asset for profile: %w", closeErr)
+		return read, oops.Wrapf(closeErr, "close bundle asset for profile")
 	}
 	return read, nil
 }
@@ -51,21 +51,21 @@ func countBundleReferenceBytes(reference string, limit int64, counter *bytex.Cou
 func openBundleReferenceAsset(reference string) (*bundleAssetReader, uint64, error) {
 	ref, err := spackbundle.ParseReference(reference)
 	if err != nil {
-		return nil, 0, fmt.Errorf("parse bundle asset reference: %w", err)
+		return nil, 0, oops.Wrapf(err, "parse bundle asset reference")
 	}
 	reader, err := spackbundle.OpenReader(ref.BundlePath)
 	if err != nil {
-		return nil, 0, fmt.Errorf("open bundle for asset profile: %w", err)
+		return nil, 0, oops.Wrapf(err, "open bundle for asset profile")
 	}
 	stat, err := reader.Stat(ref.FilePath)
 	if err != nil {
 		discardClose(reader)
-		return nil, 0, fmt.Errorf("stat bundle asset for profile: %w", err)
+		return nil, 0, oops.Wrapf(err, "stat bundle asset for profile")
 	}
 	source, err := reader.OpenFile(ref.FilePath)
 	if err != nil {
 		discardClose(reader)
-		return nil, 0, fmt.Errorf("open bundle asset for profile: %w", err)
+		return nil, 0, oops.Wrapf(err, "open bundle asset for profile")
 	}
 	return &bundleAssetReader{source: source, bundle: reader}, stat.Size, nil
 }
@@ -85,20 +85,20 @@ func (r *bundleAssetReader) Close() error {
 func openAssetFile(fullPath string) (*os.File, error) {
 	cleaned, err := filepath.Abs(filepath.Clean(fullPath))
 	if err != nil {
-		return nil, fmt.Errorf("resolve asset profile file: %w", err)
+		return nil, oops.Wrapf(err, "resolve asset profile file")
 	}
 	root, err := os.OpenRoot(filepath.Dir(cleaned))
 	if err != nil {
-		return nil, fmt.Errorf("open asset profile root: %w", err)
+		return nil, oops.Wrapf(err, "open asset profile root")
 	}
 	file, openErr := root.Open(filepath.Base(cleaned))
 	closeErr := root.Close()
 	if openErr != nil {
-		return nil, fmt.Errorf("open asset profile file in root: %w", openErr)
+		return nil, oops.Wrapf(openErr, "open asset profile file in root")
 	}
 	if closeErr != nil {
 		discardClose(file)
-		return nil, fmt.Errorf("close asset profile root: %w", closeErr)
+		return nil, oops.Wrapf(closeErr, "close asset profile root")
 	}
 	return file, nil
 }
@@ -133,7 +133,7 @@ func countReaderBytes(reader io.Reader, limit int64, counter *bytex.Counter) (in
 		if err == io.EOF {
 			return total, nil
 		}
-		return total, fmt.Errorf("read asset profile bytes: %w", err)
+		return total, oops.Wrapf(err, "read asset profile bytes")
 	}
 }
 
@@ -142,7 +142,7 @@ func closeReader(closer io.Closer) error {
 		return nil
 	}
 	if err := closer.Close(); err != nil {
-		return fmt.Errorf("close asset profile reader: %w", err)
+		return oops.Wrapf(err, "close asset profile reader")
 	}
 	return nil
 }

@@ -3,6 +3,7 @@
 package pipeline_test
 
 import (
+	"context"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
@@ -120,7 +121,7 @@ func TestImageStageExecuteCreatesResizedVariant(t *testing.T) {
 		JPEGQuality: 70,
 	}, newTestStore(filepath.Join(dir, "cache")), cat)
 
-	variant, err := stage.Execute(pipeline.Task{
+	variant, err := stage.Execute(context.Background(), pipeline.Task{
 		AssetPath: asset.Path,
 		Width:     640,
 	}, asset)
@@ -162,7 +163,7 @@ func TestImageStageExecuteCreatesFormatVariant(t *testing.T) {
 		JPEGQuality: 70,
 	}, newTestStore(filepath.Join(dir, "cache")), cat)
 
-	variant, err := stage.Execute(pipeline.Task{
+	variant, err := stage.Execute(context.Background(), pipeline.Task{
 		AssetPath: asset.Path,
 		Format:    "jpeg",
 		Width:     0,

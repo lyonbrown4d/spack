@@ -26,10 +26,6 @@ func newImageMemoryBudget(limit int64) *imageMemoryBudget {
 	}
 }
 
-func (b *imageMemoryBudget) Acquire(bytes int64) (func(), error) {
-	return b.AcquireContext(context.Background(), bytes)
-}
-
 func (b *imageMemoryBudget) AcquireContext(ctx context.Context, bytes int64) (func(), error) {
 	if b == nil || bytes <= 0 {
 		return noopMemoryRelease, nil

@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"github.com/samber/oops"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -131,7 +131,7 @@ func (s *PreparedService) start(_ context.Context) error {
 					existing()
 				}
 			})
-			return fmt.Errorf("subscribe prepared %s: %w", subscription.name, err)
+			return oops.Wrapf(err, "subscribe prepared %s", subscription.name)
 		}
 		unsubscribes.Add(unsubscribe)
 	}

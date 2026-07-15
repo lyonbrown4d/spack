@@ -3,6 +3,7 @@
 package pipeline
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 
@@ -22,7 +23,9 @@ func TestLibvipsImageEngineGeneratesModernFormatsBatch(t *testing.T) {
 
 	sourcePath := writeInternalPNGFixture(t, t.TempDir(), 64, 64)
 	results, err := engine.GenerateBatch(imageGenerateBatchRequest{
+		Context:         context.Background(),
 		SourcePath:      sourcePath,
+		SourceBytes:     internalFileSize(t, sourcePath),
 		SourceMediaType: "image/png",
 		Variants: cxlist.NewList(
 			imageVariantGenerateRequest{TargetFormat: "webp", TargetWidth: 32},
@@ -47,7 +50,9 @@ func TestLibvipsImageEngineRejectsMemoryBudget(t *testing.T) {
 
 	sourcePath := writeInternalPNGFixture(t, t.TempDir(), 16, 16)
 	_, err := engine.GenerateBatch(imageGenerateBatchRequest{
+		Context:         context.Background(),
 		SourcePath:      sourcePath,
+		SourceBytes:     internalFileSize(t, sourcePath),
 		SourceMediaType: "image/png",
 		Variants: cxlist.NewList(
 			imageVariantGenerateRequest{TargetFormat: "webp", TargetWidth: 8},

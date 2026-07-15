@@ -3,16 +3,18 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
+
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/artifact"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/oops"
 	"golang.org/x/sync/semaphore"
-	"strconv"
-	"time"
 )
 
 type imageStage struct {
@@ -20,15 +22,17 @@ type imageStage struct {
 	engine      imageEngine
 	store       artifact.Store
 	catalog     catalog.Catalog
+	source      *source.LocalFS
 	sourceSlots *semaphore.Weighted
 }
 
-func newImageStage(cfg *config.Image, engine imageEngine, store artifact.Store, cat catalog.Catalog) *imageStage {
+func newImageStage(cfg *config.Image, engine imageEngine, store artifact.Store, cat catalog.Catalog, src *source.LocalFS) *imageStage {
 	stage := &imageStage{
 		cfg:     cfg,
 		engine:  engine,
 		store:   store,
 		catalog: cat,
+		source:  src,
 	}
 	if cfg != nil && cfg.MaxConcurrentSources > 0 {
 		stage.sourceSlots = semaphore.NewWeighted(int64(cfg.MaxConcurrentSources))
@@ -54,8 +58,8 @@ func (s *imageStage) Plan(asset *catalog.Asset, request Request) *cxlist.List[Ta
 	return s.planTasks(asset, formats, widths)
 }
 
-func (s *imageStage) Execute(task Task, asset *catalog.Asset) (*catalog.Variant, error) {
-	variants, err := s.ExecuteBatch(task, asset)
+func (s *imageStage) Execute(ctx context.Context, task Task, asset *catalog.Asset) (*catalog.Variant, error) {
+	variants, err := s.ExecuteBatch(ctx, task, asset)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +70,15 @@ func (s *imageStage) Execute(task Task, asset *catalog.Asset) (*catalog.Variant,
 	return variant, nil
 }
 
-func (s *imageStage) ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List[*catalog.Variant], error) {
+func (s *imageStage) ExecuteBatch(ctx context.Context, task Task, asset *catalog.Asset) (*cxlist.List[*catalog.Variant], error) {
+	ctx, err := requireStageContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, oops.Wrapf(ctxErr, "image stage canceled")
+	}
+
 	requests, err := s.imageGenerateRequests(task, asset)
 	if err != nil {
 		return nil, err
@@ -75,14 +87,21 @@ func (s *imageStage) ExecuteBatch(task Task, asset *catalog.Asset) (*cxlist.List
 		return nil, ErrVariantSkipped
 	}
 
-	release, err := s.acquireSourceSlot()
+	sourceBytes, err := validatePipelineSourceFile(s.source, asset.FullPath)
+	if err != nil {
+		return nil, oops.Wrapf(err, "validate image source file")
+	}
+
+	release, err := s.acquireSourceSlot(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
 
 	results, err := s.engine.GenerateBatch(imageGenerateBatchRequest{
+		Context:         ctx,
 		SourcePath:      asset.FullPath,
+		SourceBytes:     sourceBytes,
 		SourceMediaType: asset.MediaType,
 		Variants:        requests,
 		Encode: imageEncodeOptions{
@@ -198,11 +217,11 @@ func resolveImageVariantTargetFormat(variant ImageVariantTask, asset *catalog.As
 	return resolveTargetFormat(Task{Format: variant.Format, Width: variant.Width}, asset)
 }
 
-func (s *imageStage) acquireSourceSlot() (func(), error) {
+func (s *imageStage) acquireSourceSlot(ctx context.Context) (func(), error) {
 	if s.sourceSlots == nil {
 		return func() {}, nil
 	}
-	if err := s.sourceSlots.Acquire(context.Background(), 1); err != nil {
+	if err := s.sourceSlots.Acquire(ctx, 1); err != nil {
 		return func() {}, oops.Wrapf(err, "acquire image source slot")
 	}
 	return func() {

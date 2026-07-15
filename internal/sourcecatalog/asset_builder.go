@@ -10,8 +10,8 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
-  "github.com/samber/mo"
-  "github.com/samber/oops"
+	"github.com/samber/mo"
+	"github.com/samber/oops"
 	"runtime"
 )
 

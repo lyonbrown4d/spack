@@ -31,7 +31,7 @@ func startLibvips() error {
 func (engine libvipsImageEngine) loadSourceImage(
 	request imageGenerateBatchRequest,
 ) (_ libvipsSourceImage, _ func(), err error) {
-	sourceBytes, err := imageSourceBytes(request.SourcePath, request.Limits)
+	sourceBytes, err := imageSourceBytes(request.SourceBytes, request.Limits)
 	if err != nil {
 		return libvipsSourceImage{}, noopMemoryRelease, err
 	}
@@ -77,7 +77,7 @@ func (engine libvipsImageEngine) acquireSourceMemory(
 ) (func(), error) {
 	waitStartedAt := time.Now()
 	memoryBytes := estimateImageBatchMemoryBytes(source.width, source.height, request.Variants)
-	releaseMemory, err := engine.memory.Acquire(memoryBytes)
+	releaseMemory, err := engine.memory.AcquireContext(request.Context, memoryBytes)
 	engine.telemetry.recordOperation(engine.Name(), "memory_wait", imageEngineResult(err), waitStartedAt)
 	return releaseMemory, err
 }

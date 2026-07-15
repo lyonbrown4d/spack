@@ -3,7 +3,7 @@ package server
 
 import (
 	"errors"
-	"fmt"
+	"github.com/samber/oops"
 	"log/slog"
 	"strings"
 
@@ -64,7 +64,7 @@ func logRequestError(ctx fiber.Ctx, logger *slog.Logger, err error, requestID st
 func sendErrorResponse(ctx fiber.Ctx, code int, body string) error {
 	ctx.Set(fiber.HeaderContentType, fiber.MIMETextPlainCharsetUTF8)
 	if err := ctx.Status(code).SendString(body); err != nil {
-		return fmt.Errorf("send %d response body: %w", code, err)
+		return oops.Wrapf(err, "send %d response body", code)
 	}
 	return nil
 }

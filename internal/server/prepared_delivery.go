@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/samber/oops"
 	"io"
 	"strconv"
 
@@ -27,7 +28,7 @@ func (r *assetDeliveryRuntime) sendPreparedAsset(
 
 	if response.bodyPrepared && !request.RangeRequested {
 		if err := c.Send(response.body); err != nil {
-			return "", nil, fmt.Errorf("send prepared asset body: %w", err)
+			return "", nil, oops.Wrapf(err, "send prepared asset body")
 		}
 		return deliveryPreparedMemory, preparedServedVariantResult(selection), nil
 	}
@@ -66,14 +67,14 @@ func (r *assetDeliveryRuntime) sendPreparedLocalAssetFile(
 	headerPlan preparedHeaderPlan,
 ) (string, error) {
 	if r.fileGuards == nil {
-		return "", fmt.Errorf("local source root guard is required for %s", response.filePath())
+		return "", oops.Errorf("local source root guard is required for %s", response.filePath())
 	}
 	file, info, err := r.fileGuards.OpenFile(response.filePath())
 	if err != nil {
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr
 		}
-		return "", fmt.Errorf("open prepared asset file: %w", err)
+		return "", oops.Wrapf(err, "open prepared asset file")
 	}
 	if request.RangeRequested {
 		return sendPreparedLocalRange(c, file, info.Size(), headerPlan)
