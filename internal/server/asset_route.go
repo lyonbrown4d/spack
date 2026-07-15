@@ -15,6 +15,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/source"
 )
 
 const maxVariantFallbackAttempts = 3
@@ -29,6 +30,7 @@ type assetDeliveryRuntime struct {
 	prepared       *PreparedService
 	trackDelivery  bool
 	resourceHints  *resourceHintService
+	fileGuard      *source.LocalRootGuard
 }
 
 func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
@@ -47,6 +49,7 @@ func newAssetDeliveryRuntime(
 	bodyCache *assetcache.Cache,
 	bus eventx.BusRuntime,
 ) *assetDeliveryRuntime {
+	fileGuard := newServerFileGuard(cfg.Assets.Root, routeRuntime.logger)
 	return &assetDeliveryRuntime{
 		mountPath:      cfg.Assets.Path,
 		responsePolicy: cachepolicy.NewResponsePolicyFromConfig(cfg),
@@ -57,6 +60,7 @@ func newAssetDeliveryRuntime(
 		prepared:       routeRuntime.prepared,
 		trackDelivery:  routeRuntime.trackDelivery,
 		resourceHints:  routeRuntime.resourceHints,
+		fileGuard:      fileGuard,
 	}
 }
 

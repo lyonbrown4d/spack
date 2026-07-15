@@ -17,15 +17,17 @@ import (
 )
 
 type PreparedService struct {
-	cfg           *config.Config
-	cat           catalog.Catalog
-	logger        *slog.Logger
-	resourceHints *resourceHintService
-	bus           eventx.BusRuntime
-	metrics       *RuntimeMetrics
-	snapshot      atomic.Pointer[preparedSnapshot]
-	rebuildMu     sync.Mutex
-	unsubscribes  []func()
+	cfg                  *config.Config
+	cat                  catalog.Catalog
+	logger               *slog.Logger
+	resourceHints        *resourceHintService
+	bus                  eventx.BusRuntime
+	metrics              *RuntimeMetrics
+	snapshot             atomic.Pointer[preparedSnapshot]
+	rebuildMu            sync.Mutex
+	rebuildWorkerRunning atomic.Bool
+	rebuildAgain         atomic.Bool
+	unsubscribes         []func()
 }
 
 type preparedSubscription struct {
@@ -180,12 +182,41 @@ func (s *PreparedService) subscriptions() *cxlist.List[preparedSubscription] {
 }
 
 func (s *PreparedService) rebuildAsync(ctx context.Context, reason string) {
-	go func() {
-		if err := s.Rebuild(ctx); err != nil && s.logger != nil {
-			s.logger.Error("Prepared snapshot rebuild failed",
-				slog.String("reason", reason),
-				slog.String("err", err.Error()),
-			)
+	if s == nil {
+		return
+	}
+	s.rebuildAgain.Store(true)
+	if !s.rebuildWorkerRunning.CompareAndSwap(false, true) {
+		return
+	}
+	go s.runRebuildWorker(ctx, reason)
+}
+
+func (s *PreparedService) runRebuildWorker(ctx context.Context, reason string) {
+	for {
+		if s.rebuildAgain.Swap(false) {
+			s.rebuildOnce(ctx, reason)
+			continue
 		}
-	}()
+		if !s.releaseRebuildWorker() {
+			return
+		}
+	}
+}
+
+func (s *PreparedService) rebuildOnce(ctx context.Context, reason string) {
+	if err := s.Rebuild(ctx); err != nil && s.logger != nil {
+		s.logger.Error("Prepared snapshot rebuild failed",
+			slog.String("reason", reason),
+			slog.String("err", err.Error()),
+		)
+	}
+}
+
+func (s *PreparedService) releaseRebuildWorker() bool {
+	s.rebuildWorkerRunning.Store(false)
+	if !s.rebuildAgain.Load() {
+		return false
+	}
+	return s.rebuildWorkerRunning.CompareAndSwap(false, true)
 }

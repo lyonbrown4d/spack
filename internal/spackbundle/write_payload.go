@@ -98,12 +98,16 @@ func writePreparedBundleFile(tarWriter *tar.Writer, payload bundleFilePayload) e
 	defer func() {
 		discardError(source.Close())
 	}()
-	written, err := io.Copy(tarWriter, source)
+	hasher := sha256.New()
+	written, err := io.Copy(io.MultiWriter(tarWriter, hasher), source)
 	if err != nil {
 		return oops.Wrapf(err, "write bundle file %q", file.Path)
 	}
 	if written != file.Size {
 		return oops.Errorf("bundle file %q size mismatch", file.Path)
+	}
+	if got := hex.EncodeToString(hasher.Sum(nil)); got != file.SHA256 {
+		return oops.Errorf("bundle file %q sha256 changed during write", file.Path)
 	}
 	return nil
 }

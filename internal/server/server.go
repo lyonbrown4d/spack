@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -142,7 +143,7 @@ func metricsMiddleware(obs observabilityx.Observability, runtimeMetrics *Runtime
 		err := c.Next()
 		duration := time.Since(startedAt).Seconds()
 
-		requestAttrs := requestMetricsAttrs(c)
+		requestAttrs := requestMetricsAttrs(c, finalHTTPStatus(c, err))
 		requestCounter.Add(context.Background(), 1, requestAttrs...)
 		requestDuration.Record(context.Background(), duration, requestAttrs...)
 
@@ -158,12 +159,26 @@ func metricsMiddleware(obs observabilityx.Observability, runtimeMetrics *Runtime
 	}
 }
 
-func requestMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
+func requestMetricsAttrs(c fiber.Ctx, status int) []observabilityx.Attribute {
 	return []observabilityx.Attribute{
 		observabilityx.String("method", c.Method()),
 		observabilityx.String("route", requestRoute(c)),
-		observabilityx.String("status", strconv.Itoa(c.Response().StatusCode())),
+		observabilityx.String("status", strconv.Itoa(status)),
 	}
+}
+
+func finalHTTPStatus(c fiber.Ctx, err error) int {
+	if err == nil {
+		status := c.Response().StatusCode()
+		if status == 0 {
+			return fiber.StatusOK
+		}
+		return status
+	}
+	if fiberErr, ok := errors.AsType[*fiber.Error](err); ok {
+		return fiberErr.Code
+	}
+	return fiber.StatusInternalServerError
 }
 
 func assetDeliveryMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
@@ -171,7 +186,7 @@ func assetDeliveryMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
 	if delivery == "" {
 		return nil
 	}
-	return lo.Concat(requestMetricsAttrs(c), []observabilityx.Attribute{observabilityx.String("delivery", delivery)})
+	return lo.Concat(requestMetricsAttrs(c, c.Response().StatusCode()), []observabilityx.Attribute{observabilityx.String("delivery", delivery)})
 }
 
 func requestRoute(c fiber.Ctx) string {

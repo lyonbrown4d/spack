@@ -9,6 +9,7 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/dgraph-io/ristretto/v2"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/samber/oops"
 )
@@ -64,7 +65,7 @@ var assetCacheHistogramSpecs = cxmapping.NewMapFrom(map[string]observabilityx.Hi
 })
 
 func (c *Cache) readFile(path string) ([]byte, error) {
-	body, err := readResolvedAssetPath(path)
+	body, err := readResolvedAssetPath(path, c.fileGuard)
 	if err != nil {
 		if c.logger != nil {
 			c.logger.Error("Read asset failed",
@@ -77,11 +78,18 @@ func (c *Cache) readFile(path string) ([]byte, error) {
 	return body, nil
 }
 
-func readResolvedAssetPath(path string) ([]byte, error) {
+func readResolvedAssetPath(path string, guard *source.LocalRootGuard) ([]byte, error) {
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
 			return nil, oops.Wrapf(err, "read bundle asset")
+		}
+		return body, nil
+	}
+	if guard != nil {
+		body, err := guard.ReadFile(path)
+		if err != nil {
+			return nil, oops.Wrapf(err, "read guarded asset file")
 		}
 		return body, nil
 	}

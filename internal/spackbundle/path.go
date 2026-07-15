@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/oops"
 )
 
@@ -37,6 +38,9 @@ func validateRawBundlePath(raw, trimmed string) error {
 func validateCleanBundlePath(raw, cleaned string) error {
 	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		return oops.Errorf("bundle path %q escapes the bundle root", raw)
+	}
+	if pkg.HasUnsafePortablePathSegment(cleaned) {
+		return oops.Errorf("bundle path %q contains an unsafe portable path segment", raw)
 	}
 	if cleaned == ".spack" || strings.HasPrefix(cleaned, ".spack/") {
 		return oops.Errorf("bundle path %q uses reserved .spack metadata namespace", raw)

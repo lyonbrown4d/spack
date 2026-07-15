@@ -13,6 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/lo"
 )
 
@@ -22,6 +23,8 @@ type preparedCompiler struct {
 	memoryPolicy  cachepolicy.MemoryPolicy
 	resourceHints *resourceHintService
 	logger        *slog.Logger
+	fileGuard     *source.LocalRootGuard
+	bodyBudget    *preparedBodyBudget
 }
 
 func newPreparedCompiler(
@@ -29,12 +32,15 @@ func newPreparedCompiler(
 	resourceHints *resourceHintService,
 	logger *slog.Logger,
 ) preparedCompiler {
+	fileGuard := newServerFileGuard(cfg.Assets.Root, logger)
 	return preparedCompiler{
 		cfg:           cfg,
 		policy:        cachepolicy.NewResponsePolicyFromConfig(cfg),
 		memoryPolicy:  cachepolicy.NewMemoryPolicy(cfg),
 		resourceHints: resourceHints,
 		logger:        logger,
+		fileGuard:     fileGuard,
+		bodyBudget:    newPreparedBodyBudget(cfg),
 	}
 }
 
@@ -149,17 +155,21 @@ func (c preparedCompiler) compileResourceHints(result *resolver.Result) *cxlist.
 
 func (c preparedCompiler) compileBody(result *resolver.Result) ([]byte, bool) {
 	request := buildMemoryCacheRequest(result, resolver.Request{})
-	if c.memoryPolicy == nil || !c.memoryPolicy.ShouldServe(request) {
+	if c.memoryPolicy == nil || !c.memoryPolicy.ShouldServe(request) || !c.bodyBudget.Reserve(request.Size) {
 		return nil, false
 	}
-	body, err := readServerAssetFile(result.FilePath)
+	body, err := readServerAssetFileWithGuard(result.FilePath, c.fileGuard)
 	if err != nil {
+		c.bodyBudget.Release(request.Size)
 		if c.logger != nil {
 			c.logger.Debug("Compile prepared response body failed",
 				slog.String("path", result.FilePath),
 				slog.String("err", err.Error()),
 			)
 		}
+		return nil, false
+	}
+	if !c.bodyBudget.Adjust(request.Size, int64(len(body))) {
 		return nil, false
 	}
 	return body, true

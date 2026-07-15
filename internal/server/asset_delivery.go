@@ -154,6 +154,9 @@ func (r *assetDeliveryRuntime) sendResolvedAssetFile(
 	if request.RangeRequested {
 		return r.sendResolvedAssetFileRange(c, result, headerPlan)
 	}
+	if r.fileGuard != nil {
+		return r.sendResolvedAssetFileStream(c, result, headerPlan)
+	}
 	if err := c.SendFile(result.FilePath, fiber.SendFile{ByteRange: true}); err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr

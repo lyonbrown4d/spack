@@ -9,19 +9,21 @@ import (
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/oops"
 	"golang.org/x/sync/singleflight"
 )
 
 type Cache struct {
-	logger  *slog.Logger
-	obs     observabilityx.Observability
-	policy  cachepolicy.MemoryPolicy
-	warmup  bool
-	cache   *ristretto.Cache[string, *Entry]
-	loader  singleflight.Group
-	bus     eventx.BusRuntime
-	workers *asyncx.Settings
+	logger    *slog.Logger
+	obs       observabilityx.Observability
+	policy    cachepolicy.MemoryPolicy
+	warmup    bool
+	cache     *ristretto.Cache[string, *Entry]
+	loader    singleflight.Group
+	bus       eventx.BusRuntime
+	workers   *asyncx.Settings
+	fileGuard *source.LocalRootGuard
 
 	variantRemovedUnsubscribe   func()
 	variantGeneratedUnsubscribe func()
@@ -42,6 +44,11 @@ func newCache(
 		warmup:  cacheCfg.WarmupEnabled(),
 		bus:     bus,
 		workers: workers,
+	}
+	if guard, ok, err := source.NewLocalRootGuard(cfg.Assets.Root); err != nil {
+		return nil, oops.Wrapf(err, "create local source root guard")
+	} else if ok {
+		cache.fileGuard = guard
 	}
 	if !cacheCfg.Enabled() {
 		return cache, nil

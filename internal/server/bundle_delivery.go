@@ -9,14 +9,26 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 )
 
 func readServerAssetFile(path string) ([]byte, error) {
+	return readServerAssetFileWithGuard(path, nil)
+}
+
+func readServerAssetFileWithGuard(path string, guard *source.LocalRootGuard) ([]byte, error) {
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
 			return nil, fmt.Errorf("read bundle asset: %w", err)
+		}
+		return body, nil
+	}
+	if guard != nil {
+		body, err := guard.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read guarded asset file: %w", err)
 		}
 		return body, nil
 	}
@@ -27,7 +39,6 @@ func readServerAssetFile(path string) ([]byte, error) {
 	}
 	return body, nil
 }
-
 func (r *assetDeliveryRuntime) sendResolvedBundleAsset(
 	c fiber.Ctx,
 	request resolver.Request,

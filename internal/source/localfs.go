@@ -15,6 +15,7 @@ import (
 
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
+	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/oops"
 )
 
@@ -229,7 +230,7 @@ func cleanRelativeAssetPath(raw string) (string, bool) {
 	}
 
 	cleaned := path.Clean(trimmed)
-	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") || pkg.HasUnsafePortablePathSegment(cleaned) {
 		return "", false
 	}
 	return cleaned, true
