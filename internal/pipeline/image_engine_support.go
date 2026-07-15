@@ -10,6 +10,8 @@ import (
 	"github.com/samber/oops"
 )
 
+const maxImageInt64 = int64(1<<63 - 1)
+
 type imageSourceSnapshot struct {
 	width  int
 	height int
@@ -60,7 +62,10 @@ func validateImageSourceLimits(source imageSourceSnapshot, limits imageGenerateL
 }
 
 func validateImagePixelLimits(source imageSourceSnapshot, limits imageGenerateLimits) error {
-	pixels := int64(source.width) * int64(source.height)
+	pixels, ok := imagePixelCount(source.width, source.height)
+	if !ok {
+		return oops.Wrapf(ErrVariantSkipped, "source image pixel count overflows")
+	}
 	if limits.MaxSourcePixels > 0 && pixels > limits.MaxSourcePixels {
 		return oops.Wrapf(
 			ErrVariantSkipped,
@@ -69,11 +74,15 @@ func validateImagePixelLimits(source imageSourceSnapshot, limits imageGenerateLi
 			limits.MaxSourcePixels,
 		)
 	}
-	if limits.MaxMemoryBytes > 0 && pixels*4 > limits.MaxMemoryBytes {
+	decodeBytes, ok := checkedImageMul(pixels, 4)
+	if !ok {
+		return oops.Wrapf(ErrVariantSkipped, "source image decode bytes overflow")
+	}
+	if limits.MaxMemoryBytes > 0 && decodeBytes > limits.MaxMemoryBytes {
 		return oops.Wrapf(
 			ErrVariantSkipped,
 			"source image decode bytes %d exceed max memory bytes %d",
-			pixels*4,
+			decodeBytes,
 			limits.MaxMemoryBytes,
 		)
 	}
@@ -94,17 +103,60 @@ func estimateImageBatchMemoryBytes(
 		if width == sourceWidth {
 			continue
 		}
-		height := max(1, sourceHeight*width/sourceWidth)
-		totalBytes += imageRawMemoryBytes(width, height)
+		height := scaledImageHeight(sourceHeight, width, sourceWidth)
+		totalBytes = saturatingImageAdd(totalBytes, imageRawMemoryBytes(width, height))
 	}
 	return totalBytes
 }
 
 func imageRawMemoryBytes(width, height int) int64 {
-	if width <= 0 || height <= 0 {
-		return 0
+	pixels, ok := imagePixelCount(width, height)
+	if !ok {
+		return maxImageInt64
 	}
-	return int64(width) * int64(height) * 4
+	bytes, ok := checkedImageMul(pixels, 4)
+	if !ok {
+		return maxImageInt64
+	}
+	return bytes
+}
+
+func imagePixelCount(width, height int) (int64, bool) {
+	if width <= 0 || height <= 0 {
+		return 0, true
+	}
+	return checkedImageMul(int64(width), int64(height))
+}
+
+func checkedImageMul(left, right int64) (int64, bool) {
+	if left < 0 || right < 0 {
+		return 0, false
+	}
+	if left == 0 || right == 0 {
+		return 0, true
+	}
+	if left > maxImageInt64/right {
+		return 0, false
+	}
+	return left * right, true
+}
+
+func saturatingImageAdd(left, right int64) int64 {
+	if left > maxImageInt64-right {
+		return maxImageInt64
+	}
+	return left + right
+}
+
+func scaledImageHeight(sourceHeight, width, sourceWidth int) int {
+	if sourceHeight <= 0 || width <= 0 || sourceWidth <= 0 {
+		return 1
+	}
+	numerator, ok := checkedImageMul(int64(sourceHeight), int64(width))
+	if !ok {
+		return sourceHeight
+	}
+	return max(1, int(numerator/int64(sourceWidth)))
 }
 
 func uniqueImageOutputWidths(sourceWidth int, variants *cxlist.List[imageVariantGenerateRequest]) []int {

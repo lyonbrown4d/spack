@@ -1,6 +1,7 @@
 package assetprofile
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -130,7 +131,7 @@ func countReaderBytes(reader io.Reader, limit int64, counter *bytex.Counter) (in
 		if err == nil {
 			continue
 		}
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return total, nil
 		}
 		return total, oops.Wrapf(err, "read asset profile bytes")

@@ -2,16 +2,19 @@
 package cachepolicy
 
 import (
-	cxset "github.com/arcgolabs/collectionx/set"
 	"strings"
 	"time"
 
 	cxinterval "github.com/arcgolabs/collectionx/interval"
+	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 )
 
-const robotsAssetPath = "robots.txt"
+const (
+	robotsAssetPath = "robots.txt"
+	maxInt64Value   = int64(1<<63 - 1)
+)
 
 type MemoryEntryKind string
 
@@ -65,20 +68,27 @@ type StaticMemoryPolicy struct {
 // NewMemoryPolicy builds a memory-cache admission policy from HTTP config.
 func NewMemoryPolicy(cfg *config.Config) MemoryPolicy {
 	if cfg == nil {
-		return StaticMemoryPolicy{}
+		return emptyMemoryPolicy()
 	}
 
 	baseTTL := cfg.HTTP.MemoryCache.ParsedTTL()
 	return StaticMemoryPolicy{
 		maxFileSize:   cfg.HTTP.MemoryCache.MaxFileSize,
 		baseTTL:       baseTTL,
-		priorityTTL:   clampMemoryTTL(baseTTL*2, baseTTL, 30*time.Minute),
-		variantTTL:    clampMemoryTTL(baseTTL+baseTTL/2, baseTTL, 20*time.Minute),
+		priorityTTL:   clampMemoryTTL(scaleMemoryTTL(baseTTL, 2, 1), baseTTL, 30*time.Minute),
+		variantTTL:    clampMemoryTTL(scaleMemoryTTL(baseTTL, 3, 2), baseTTL, 20*time.Minute),
 		genericTTL:    clampMemoryTTL(baseTTL/2, time.Minute, baseTTL),
 		smallFileSize: memorySmallFileSize(cfg.HTTP.MemoryCache.MaxFileSize),
 		largeFileSize: memoryLargeFileSize(cfg.HTTP.MemoryCache.MaxFileSize),
 		textTTLScheme: newMemoryTextTTLScheme(cfg.HTTP.MemoryCache.MaxFileSize),
 		priorityPaths: memoryPriorityPaths(cfg),
+	}
+}
+
+func emptyMemoryPolicy() StaticMemoryPolicy {
+	return StaticMemoryPolicy{
+		textTTLScheme: cxinterval.NewRangeMap[int64, int64](),
+		priorityPaths: cxset.NewOrderedSet[string](),
 	}
 }
 
@@ -125,7 +135,7 @@ func (p StaticMemoryPolicy) TTL(request MemoryRequest) time.Duration {
 }
 
 func (p StaticMemoryPolicy) isPriorityPath(request MemoryRequest) bool {
-	return p.priorityPaths.Contains(memorySubjectPath(request))
+	return p.priorityPaths != nil && p.priorityPaths.Contains(memorySubjectPath(request))
 }
 
 func (p StaticMemoryPolicy) isVariant(request MemoryRequest) bool {
@@ -165,11 +175,11 @@ func (p StaticMemoryPolicy) adjustTTLForSize(ttl time.Duration, size int64) time
 	if ttl <= 0 {
 		return ttl
 	}
-	if size <= 0 {
+	if size <= 0 || p.textTTLScheme == nil {
 		return ttl
 	}
 	if multiplier, ok := p.textTTLScheme.Get(size); ok {
-		return time.Duration(ttl.Nanoseconds()*multiplier/1000) * time.Nanosecond
+		return scaleMemoryTTL(ttl, multiplier, 1000)
 	}
 	return ttl
 }
@@ -180,12 +190,12 @@ func newMemoryTextTTLScheme(maxFileSize int64) *cxinterval.RangeMap[int64, int64
 		return scheme
 	}
 
-	maxExclusive := maxFileSize + 1
+	maxExclusive := memoryExclusiveUpperBound(maxFileSize)
 	_ = scheme.Put(1, maxExclusive, 1000)
 
 	smallFileSize := memorySmallFileSize(maxFileSize)
 	if smallFileSize > 0 {
-		_ = scheme.Put(1, min(memoryClampToBounds(smallFileSize)+1, maxExclusive), 1250)
+		_ = scheme.Put(1, min(memoryExclusiveUpperBound(memoryClampToBounds(smallFileSize)), maxExclusive), 1250)
 	}
 
 	largeFileSize := memoryLargeFileSize(maxFileSize)
@@ -193,6 +203,13 @@ func newMemoryTextTTLScheme(maxFileSize int64) *cxinterval.RangeMap[int64, int64
 		_ = scheme.Put(largeFileSize, maxExclusive, 500)
 	}
 	return scheme
+}
+
+func memoryExclusiveUpperBound(size int64) int64 {
+	if size >= maxInt64Value {
+		return maxInt64Value
+	}
+	return size + 1
 }
 
 func memoryClampToBounds(size int64) int64 {
@@ -214,8 +231,8 @@ func memoryLargeFileSize(maxFileSize int64) int64 {
 	if maxFileSize <= 0 {
 		return 0
 	}
-	candidate := max(1, (maxFileSize*3)/4)
-	return min(candidate, maxFileSize)
+	candidate := maxFileSize - maxFileSize/4
+	return min(max(1, candidate), maxFileSize)
 }
 
 func clampMemorySize(value, minValue, maxValue int64) int64 {
@@ -239,4 +256,15 @@ func clampMemoryTTL(value, minTTL, maxTTL time.Duration) time.Duration {
 	default:
 		return value
 	}
+}
+
+func scaleMemoryTTL(value time.Duration, numerator, denominator int64) time.Duration {
+	if value <= 0 || numerator <= 0 || denominator <= 0 {
+		return value
+	}
+	nanos := value.Nanoseconds()
+	if nanos > maxInt64Value/numerator {
+		return time.Duration(maxInt64Value)
+	}
+	return time.Duration((nanos * numerator) / denominator)
 }

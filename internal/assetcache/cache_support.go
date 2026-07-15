@@ -2,7 +2,6 @@ package assetcache
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
@@ -66,13 +65,7 @@ var assetCacheHistogramSpecs = cxmapping.NewMapFrom(map[string]observabilityx.Hi
 func (c *Cache) readFile(path string) ([]byte, error) {
 	body, err := readResolvedAssetPath(path, c.fileGuard)
 	if err != nil {
-		if c.logger != nil {
-			c.logger.Error("Read asset failed",
-				slog.String("path", path),
-				slog.String("err", err.Error()),
-			)
-		}
-		return nil, oops.Wrapf(err, "read resolved asset")
+		return nil, oops.With("path", path).Wrapf(err, "read resolved asset")
 	}
 	return body, nil
 }

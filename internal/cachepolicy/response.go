@@ -121,7 +121,7 @@ func cacheControlMaxAge(cacheControl string) (time.Duration, bool) {
 			if err != nil || seconds < 0 {
 				return 0, false
 			}
-			return time.Duration(seconds) * time.Second, true
+			return cacheControlDuration(seconds)
 		}
 		if !found {
 			return 0, false
@@ -130,6 +130,13 @@ func cacheControlMaxAge(cacheControl string) (time.Duration, bool) {
 	}
 }
 
+func cacheControlDuration(seconds int64) (time.Duration, bool) {
+	const maxDurationSeconds = int64(1<<63-1) / int64(time.Second)
+	if seconds > maxDurationSeconds {
+		return 0, false
+	}
+	return time.Duration(seconds) * time.Second, true
+}
 func isFingerprintAssetPath(assetPath string) bool {
 	base := path.Base(strings.TrimSpace(assetPath))
 	ext := path.Ext(base)

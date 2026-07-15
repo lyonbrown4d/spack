@@ -8,6 +8,8 @@ import (
 	"github.com/lyonbrown4d/spack/pkg"
 )
 
+const maxFlexibleDurationSeconds = int64(1<<63-1) / int64(time.Second)
+
 func ParseFlexibleDuration(raw string) time.Duration {
 	raw = pkg.Trim(raw)
 	if raw == "" {
@@ -22,7 +24,7 @@ func ParseFlexibleDuration(raw string) time.Duration {
 	}
 
 	seconds, secErr := strconv.ParseInt(raw, 10, 64)
-	if secErr != nil || seconds <= 0 {
+	if secErr != nil || seconds <= 0 || seconds > maxFlexibleDurationSeconds {
 		return 0
 	}
 	return time.Duration(seconds) * time.Second
