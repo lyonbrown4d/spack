@@ -30,7 +30,7 @@ func Clean(raw string) Cleaned {
 		return cleaned
 	}
 
-	clean := path.Clean("/" + strings.TrimPrefix(trimmed, "/"))
+	clean := path.Clean("/" + trimLeadingSlash(trimmed))
 	if clean == "/" || clean == "." {
 		return Cleaned{AllowsEntryFallback: true}
 	}
@@ -78,6 +78,13 @@ func cleanMountPath(mountPath string) string {
 	return "/" + strings.Trim(strings.TrimRight(mount, "/"), "/")
 }
 
+func trimLeadingSlash(value string) string {
+	trimmed, ok := strings.CutPrefix(value, "/")
+	if ok {
+		return trimmed
+	}
+	return value
+}
 func decode(raw string) string {
 	decoded, err := url.PathUnescape(raw)
 	if err != nil {

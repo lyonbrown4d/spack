@@ -151,7 +151,7 @@ func warnServerFileGuard(logger *slog.Logger, message string, err error) {
 	if logger == nil {
 		return
 	}
-	logger.Warn(message, slog.String("err", err.Error()))
+	logger.Warn(message, slog.Any("error", err))
 }
 
 func (g *serverFileGuards) ReadFile(path string) ([]byte, error) {

@@ -115,10 +115,11 @@ type httpByteRange struct {
 
 func parseSingleHTTPRange(header string, size int64) (httpByteRange, bool) {
 	header = strings.TrimSpace(header)
-	if size < 0 || !strings.HasPrefix(header, "bytes=") {
+	spec, ok := strings.CutPrefix(header, "bytes=")
+	if size < 0 || !ok {
 		return httpByteRange{}, false
 	}
-	spec := strings.TrimSpace(strings.TrimPrefix(header, "bytes="))
+	spec = strings.TrimSpace(spec)
 	if spec == "" || strings.Contains(spec, ",") {
 		return httpByteRange{}, false
 	}

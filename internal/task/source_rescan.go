@@ -71,7 +71,7 @@ func runSourceRescan(ctx context.Context, runtime *sourceRescanRuntime, changes 
 	report, err := syncSourceCatalog(ctx, runtime.scanner, runtime.catalog, runtime.bodyCache, changes...)
 	recordTaskRunMetrics(ctx, runtime.obs, "source_rescan", startedAt, err)
 	if err != nil {
-		runtime.logger.Error("Task source rescan failed", slog.String("err", err.Error()))
+		runtime.logger.Error("Task source rescan failed", slog.Any("error", err))
 		return
 	}
 	recordSourceRescanMetrics(ctx, runtime.obs, report)

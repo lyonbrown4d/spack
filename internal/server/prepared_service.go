@@ -108,7 +108,7 @@ func (s *PreparedService) DeleteVariantArtifact(ctx context.Context, artifactPat
 	if err := s.Rebuild(ctx); err != nil && s.logger != nil {
 		s.logger.Error("Prepared snapshot rebuild failed after variant delete",
 			slog.String("artifact_path", artifactPath),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 	}
 	return true
@@ -265,7 +265,7 @@ func (s *PreparedService) rebuildOnce(ctx context.Context, reason string) {
 	if err := s.Rebuild(ctx); err != nil && s.logger != nil {
 		s.logger.Error("Prepared snapshot rebuild failed",
 			slog.String("reason", reason),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 	}
 }

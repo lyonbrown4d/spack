@@ -53,7 +53,7 @@ func runCacheWarmer(ctx context.Context, runtime *cacheWarmerRuntime) {
 	report, err := warmCacheHotset(ctx, runtime.cfg, runtime.catalog, runtime.bodyCache)
 	recordTaskRunMetrics(ctx, runtime.obs, "cache_warmer", startedAt, err)
 	if err != nil {
-		runtime.logger.Error("Task cache warmer failed", slog.String("err", err.Error()))
+		runtime.logger.Error("Task cache warmer failed", slog.Any("error", err))
 		return
 	}
 	recordCacheWarmerMetrics(ctx, runtime.obs, report)

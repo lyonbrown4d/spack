@@ -98,7 +98,7 @@ func (r *assetDeliveryRuntime) sendResourceHintEarlyHints(c fiber.Ctx, links res
 		return
 	}
 	if err := r.sendEarlyResourceHints(c, links); err != nil && r.logger != nil {
-		r.logger.Debug("Send early resource hints failed", slog.String("err", err.Error()))
+		r.logger.Debug("Send early resource hints failed", slog.Any("error", err))
 	}
 }
 
@@ -133,7 +133,7 @@ func (r *assetDeliveryRuntime) sendCachedResolvedAsset(
 			return "", missingErr
 		}
 		if r.logger != nil {
-			r.logger.Debug("Memory cache read failed; falling back to guarded file delivery", slog.String("path", result.FilePath), slog.String("err", err.Error()))
+			r.logger.Debug("Memory cache read failed; falling back to guarded file delivery", slog.String("path", result.FilePath), slog.Any("error", err))
 		}
 		return r.sendResolvedAssetFile(c, assetRequest, result, headerPlan)
 	}

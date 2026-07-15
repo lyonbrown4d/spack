@@ -54,7 +54,7 @@ func (s *Service) publishVariantRemoved(ctx context.Context, path string, reason
 	s.logger.Debug("Publish variant removed event failed",
 		slog.String("path", path),
 		slog.String("reason", string(reason)),
-		slog.String("err", err.Error()),
+		slog.Any("error", err),
 	)
 }
 
@@ -81,7 +81,7 @@ func (s *Service) publishVariantGenerated(ctx context.Context, stage string, var
 		s.logger.Debug("Publish variant generated event failed",
 			slog.String("path", variant.ArtifactPath),
 			slog.String("stage", stage),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 	}
 }
@@ -95,7 +95,7 @@ func (s *Service) publishVariantGeneratedSync(ctx context.Context, event appEven
 	s.logger.Debug("Publish variant generated event sync fallback failed",
 		slog.String("path", event.ArtifactPath),
 		slog.String("stage", event.Stage),
-		slog.String("err", err.Error()),
+		slog.Any("error", err),
 	)
 }
 

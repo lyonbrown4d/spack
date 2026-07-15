@@ -170,7 +170,7 @@ func (c preparedCompiler) compileBody(result *resolver.Result) ([]byte, bool) {
 		if c.logger != nil {
 			c.logger.Debug("Compile prepared response body failed",
 				slog.String("path", result.FilePath),
-				slog.String("err", err.Error()),
+				slog.Any("error", err),
 			)
 		}
 		return nil, false

@@ -47,7 +47,7 @@ func publishVariantServed(
 
 	logger.Debug("Publish variant served event failed",
 		slog.String("path", result.FilePath),
-		slog.String("err", err.Error()),
+		slog.Any("error", err),
 	)
 }
 

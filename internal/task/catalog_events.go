@@ -19,7 +19,7 @@ func publishCatalogChanged(ctx context.Context, bus eventx.BusRuntime, reason st
 	}); err != nil && logger != nil {
 		logger.Debug("Publish catalog changed event failed",
 			slog.String("reason", reason),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 	}
 }

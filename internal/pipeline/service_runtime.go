@@ -240,7 +240,7 @@ func (s *Service) logStageFailure(stage Stage, asset *catalog.Asset, err error) 
 	s.logger.Error("Pipeline stage failed",
 		slog.String("stage", stage.Name()),
 		slog.String("asset", asset.Path),
-		slog.String("err", err.Error()),
+		slog.Any("error", err),
 	)
 }
 
@@ -249,7 +249,7 @@ func (s *Service) upsertStageVariant(ctx context.Context, stage Stage, asset *ca
 		s.logger.Error("Catalog variant upsert failed",
 			slog.String("stage", stage.Name()),
 			slog.String("asset", asset.Path),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 		return
 	}

@@ -75,7 +75,7 @@ func (s *Service) cleanupArtifacts(ctx context.Context, now time.Time) cleanupRe
 
 	files, err := collectCleanupFiles(s.cfg.CacheDir)
 	if err != nil {
-		s.logger.Error("Pipeline cache scan failed", slog.String("err", err.Error()))
+		s.logger.Error("Pipeline cache scan failed", slog.Any("error", err))
 		return cleanupResult{}
 	}
 
@@ -193,7 +193,7 @@ func (s *Service) removeCleanupFile(ctx context.Context, file cleanupFile, reaso
 		if !os.IsNotExist(err) {
 			s.logger.Debug("Pipeline cache cleanup remove failed",
 				slog.String("path", file.path),
-				slog.String("err", err.Error()),
+				slog.Any("error", err),
 			)
 			return false
 		}

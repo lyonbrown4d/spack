@@ -64,6 +64,6 @@ func (r *assetDeliveryRuntime) logSendAssetError(result *resolver.Result, err er
 	}
 	r.logger.Error("Send asset failed",
 		slog.String("path", result.FilePath),
-		slog.String("err", err.Error()),
+		slog.Any("error", err),
 	)
 }

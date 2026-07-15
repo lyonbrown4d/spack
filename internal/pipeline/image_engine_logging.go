@@ -39,7 +39,7 @@ func logImageGenerationError(logger *slog.Logger, message string, err error, att
 		context.Background(),
 		level,
 		message,
-		mergeImageLogAttrs(attrs, slog.String("err", err.Error()))...,
+		mergeImageLogAttrs(attrs, slog.Any("error", err))...,
 	)
 }
 

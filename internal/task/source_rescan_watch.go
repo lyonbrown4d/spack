@@ -21,7 +21,7 @@ func startSourceRescanWatcher(ctx context.Context, watcher *sourceRescanWatcher)
 	changes, err := watcher.runtime.scanner.Watch(watchCtx)
 	if err != nil {
 		cancel()
-		watcher.runtime.logger.Warn("Task source rescan watcher unavailable", slog.String("err", err.Error()))
+		watcher.runtime.logger.Warn("Task source rescan watcher unavailable", slog.Any("error", err))
 		return nil
 	}
 

@@ -54,7 +54,7 @@ func marshalIndex(index Index) ([]byte, error) {
 		return nil, oops.Wrapf(err, "bundle index is too large: %d bytes", len(payload))
 	}
 
-	body := append([]byte(nil), indexMagic...)
+	body := bytes.Clone(indexMagic)
 	body = binary.BigEndian.AppendUint32(body, size)
 	body = append(body, payload...)
 	return body, nil

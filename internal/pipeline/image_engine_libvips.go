@@ -40,7 +40,7 @@ func newLibvipsImageEngine(
 		startupErr: err,
 	}
 	if err != nil {
-		engine.logger.Error("Libvips image engine unavailable", slog.String("err", err.Error()))
+		engine.logger.Error("Libvips image engine unavailable", slog.Any("error", err))
 		return engine
 	}
 	engine.logger.Info("Image engine configured", slog.String("engine", "libvips"))

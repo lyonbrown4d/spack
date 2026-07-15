@@ -64,7 +64,7 @@ func (s *LocalFS) watchLoop(ctx context.Context, watcher *fsnotify.Watcher, chan
 
 func (s *LocalFS) closeWatcher(watcher *fsnotify.Watcher) {
 	if err := watcher.Close(); err != nil && s.logger != nil {
-		s.logger.Debug("Close source watcher failed", slog.String("err", err.Error()))
+		s.logger.Debug("Close source watcher failed", slog.Any("error", err))
 	}
 }
 
@@ -73,7 +73,7 @@ func (s *LocalFS) handleWatchError(err error, ok bool) bool {
 		return false
 	}
 	if err != nil && s.logger != nil {
-		s.logger.Warn("Source watcher error", slog.String("err", err.Error()))
+		s.logger.Warn("Source watcher error", slog.Any("error", err))
 	}
 	return true
 }
@@ -131,7 +131,7 @@ func (s *LocalFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string)
 	if err := watcher.Add(fullPath); err != nil && s.logger != nil {
 		s.logger.Warn("Add source watch directory failed",
 			slog.String("path", fullPath),
-			slog.String("err", err.Error()),
+			slog.Any("error", err),
 		)
 	}
 }

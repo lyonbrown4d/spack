@@ -44,7 +44,7 @@ func newDiagnosticsRoutesRuntime(
 	statsvizServer, err := statsviz.NewServer(statsviz.Root(statsvizRoot))
 	if err != nil {
 		if logger != nil {
-			logger.Error("Statsviz route unavailable", slog.String("err", err.Error()))
+			logger.Error("Statsviz route unavailable", slog.Any("error", err))
 		}
 		return runtime
 	}

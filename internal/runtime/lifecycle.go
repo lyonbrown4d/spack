@@ -39,7 +39,7 @@ func startMainHTTPRuntime(ctx context.Context, runtime mainHTTPRuntime) error {
 	go func() {
 		err := runtime.app.Listen(":"+runtime.cfg.HTTP.GetPort(), listenConfig)
 		if err != nil {
-			runtime.logger.Error("HTTP runtime stopped", slog.String("err", err.Error()))
+			runtime.logger.Error("HTTP runtime stopped", slog.Any("error", err))
 		}
 		done <- err
 		close(done)
@@ -144,7 +144,7 @@ func startRuntimeCollectors(_ context.Context, logger *slog.Logger, registration
 		return nil
 	}
 	if err := registerRuntimeCollectors(registration.cfg, registration.providers); err != nil {
-		logger.Error("Runtime collector registration failed", slog.String("err", err.Error()))
+		logger.Error("Runtime collector registration failed", slog.Any("error", err))
 		return nil
 	}
 	logger.Info("Runtime collectors registered",

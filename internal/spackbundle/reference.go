@@ -31,16 +31,17 @@ func NewReference(bundlePath, filePath string) (string, error) {
 
 // IsReference reports whether path is a SPACK bundle internal reference.
 func IsReference(path string) bool {
-	return strings.HasPrefix(strings.TrimSpace(path), referencePrefix)
+	_, ok := strings.CutPrefix(strings.TrimSpace(path), referencePrefix)
+	return ok
 }
 
 // ParseReference parses a SPACK bundle internal reference.
 func ParseReference(path string) (Reference, error) {
 	path = strings.TrimSpace(path)
-	if !strings.HasPrefix(path, referencePrefix) {
+	body, ok := strings.CutPrefix(path, referencePrefix)
+	if !ok {
 		return Reference{}, oops.In("spackbundle").Owner("reference").Wrap(errors.New("not a spack bundle reference"))
 	}
-	body := strings.TrimPrefix(path, referencePrefix)
 	left, right, ok := strings.Cut(body, ".")
 	if !ok || left == "" || right == "" {
 		return Reference{}, oops.In("spackbundle").Owner("reference").Wrap(errors.New("invalid spack bundle reference"))
