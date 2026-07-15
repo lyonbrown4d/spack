@@ -41,7 +41,7 @@ func (s *LocalFS) addWatchDirs(watcher *fsnotify.Watcher) error {
 	})
 }
 
-func (s *LocalFS) watchLoop(ctx context.Context, watcher *fsnotify.Watcher, changes chan<- ChangeEvent) {
+func (s *LocalFS) watchLoop(ctx context.Context, watcher *fsnotify.Watcher, changes chan ChangeEvent) {
 	defer close(changes)
 	defer s.closeWatcher(watcher)
 
@@ -78,7 +78,7 @@ func (s *LocalFS) handleWatchError(err error, ok bool) bool {
 	return true
 }
 
-func (s *LocalFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- ChangeEvent, event fsnotify.Event) {
+func (s *LocalFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan ChangeEvent, event fsnotify.Event) {
 	if event.Op.Has(fsnotify.Create) {
 		s.addCreatedWatchDir(watcher, event.Name)
 	}
@@ -90,8 +90,26 @@ func (s *LocalFS) handleWatchEvent(watcher *fsnotify.Watcher, changes chan<- Cha
 	if !ok {
 		return
 	}
+	s.emitWatchChange(changes, change)
+}
+
+func (s *LocalFS) emitWatchChange(changes chan ChangeEvent, change ChangeEvent) {
 	select {
 	case changes <- change:
+		return
+	default:
+	}
+
+	select {
+	case <-changes:
+	default:
+	}
+	fullRescan := ChangeEvent{Op: "overflow", FullRescan: true}
+	select {
+	case changes <- fullRescan:
+		if s.logger != nil {
+			s.logger.Warn("Source watcher overflow, scheduling full rescan")
+		}
 	default:
 	}
 }

@@ -19,7 +19,8 @@ type File struct {
 }
 
 type ChangeEvent struct {
-	Path     string
-	FullPath string
-	Op       string
+	Path       string
+	FullPath   string
+	Op         string
+	FullRescan bool
 }

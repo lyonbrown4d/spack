@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/samber/oops"
@@ -12,6 +13,7 @@ type cleanupRuntime struct {
 	run      func(context.Context)
 	stop     chan struct{}
 	done     chan struct{}
+	stopOnce sync.Once
 }
 
 func newCleanupRuntime(interval time.Duration, run func(context.Context)) *cleanupRuntime {
@@ -28,7 +30,9 @@ func (r *cleanupRuntime) Start(ctx context.Context) {
 }
 
 func (r *cleanupRuntime) Stop(ctx context.Context) error {
-	close(r.stop)
+	r.stopOnce.Do(func() {
+		close(r.stop)
+	})
 	select {
 	case <-r.done:
 		return nil
@@ -45,6 +49,8 @@ func (r *cleanupRuntime) loop(ctx context.Context) {
 	defer ticker.Stop()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-r.stop:
 			return
 		case <-ticker.C:

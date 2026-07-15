@@ -71,6 +71,11 @@ type mainHTTPRuntime struct {
 	cfg    *config.Config
 	cat    catalog.Catalog
 	logger *slog.Logger
+	state  *mainHTTPRuntimeState
+}
+
+type mainHTTPRuntimeState struct {
+	done chan error
 }
 
 func newMainHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog, logger *slog.Logger) mainHTTPRuntime {
@@ -79,6 +84,7 @@ func newMainHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog,
 		cfg:    cfg,
 		cat:    cat,
 		logger: logger,
+		state:  &mainHTTPRuntimeState{},
 	}
 }
 

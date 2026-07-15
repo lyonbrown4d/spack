@@ -9,9 +9,10 @@ const maxExtractedFileBytes = 2 << 30
 
 // Extracted describes an extracted SPACK bundle.
 type Extracted struct {
-	BundlePath string
-	Root       string
-	Index      Index
+	BundlePath  string
+	Root        string
+	Index       Index
+	cleanupRoot string
 }
 
 // IsBundlePath reports whether bundlePath names a SPACK bundle candidate.

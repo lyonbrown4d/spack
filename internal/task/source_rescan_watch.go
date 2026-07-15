@@ -48,23 +48,38 @@ func (w *sourceRescanWatcher) watchSourceChanges(ctx context.Context, changes <-
 			if !ok {
 				return
 			}
-			w.runtime.logger.Debug("Source change detected",
-				slog.String("path", change.Path),
-				slog.String("op", change.Op),
-			)
-			pending.PushBack(change)
-			resetTimer(timer, sourceRescanDebounce)
+			w.recordPendingSourceChange(pending, change, timer)
 		case <-timer.C:
-			if pending.IsEmpty() {
-				continue
-			}
-			events := pending.Values()
-			pending.Clear()
-			runSourceRescan(ctx, w.runtime, events...)
+			w.flushPendingSourceChanges(ctx, pending)
 		}
 	}
 }
 
+func (w *sourceRescanWatcher) recordPendingSourceChange(
+	pending *cxlist.Deque[source.ChangeEvent],
+	change source.ChangeEvent,
+	timer *time.Timer,
+) {
+	if change.FullRescan {
+		w.runtime.logger.Warn("Source watcher requested full rescan", slog.String("op", change.Op))
+	} else {
+		w.runtime.logger.Debug("Source change detected",
+			slog.String("path", change.Path),
+			slog.String("op", change.Op),
+		)
+	}
+	pending.PushBack(change)
+	resetTimer(timer, sourceRescanDebounce)
+}
+
+func (w *sourceRescanWatcher) flushPendingSourceChanges(ctx context.Context, pending *cxlist.Deque[source.ChangeEvent]) {
+	if pending.IsEmpty() {
+		return
+	}
+	events := pending.Values()
+	pending.Clear()
+	runSourceRescan(ctx, w.runtime, events...)
+}
 func stopSourceRescanWatcher(ctx context.Context, watcher *sourceRescanWatcher) error {
 	if watcher == nil || watcher.cancel == nil {
 		return nil

@@ -12,6 +12,10 @@ func (r *sourceRescanRun) buildIncrementalChangeSet() (*sourceRescanChangeSet, e
 
 	var buildErr error
 	r.changes.Range(func(_ int, change source.ChangeEvent) bool {
+		if change.FullRescan {
+			buildErr = errFullSourceRescanRequired
+			return false
+		}
 		if err := r.addChangeToIncrementalSet(changeSet, strings.TrimSpace(change.Path), change.Op); err != nil {
 			buildErr = err
 			return false

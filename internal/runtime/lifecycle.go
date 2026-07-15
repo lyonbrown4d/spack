@@ -14,27 +14,48 @@ import (
 	"github.com/samber/oops"
 )
 
+const httpRuntimeStartupProbeDelay = 150 * time.Millisecond
+
 type collectorRegistration struct {
 	enabled   bool
 	cfg       *config.Config
 	providers []collectorProvider
 }
 
-func startMainHTTPRuntime(_ context.Context, runtime mainHTTPRuntime) error {
+func startMainHTTPRuntime(ctx context.Context, runtime mainHTTPRuntime) error {
+	address := "127.0.0.1:" + runtime.cfg.HTTP.GetPort()
+	listenConfig := newMainHTTPListenConfig()
+	runtime.logger.Info("HTTP runtime listening",
+		slog.String("address", "http://"+address),
+		slog.String("mount_path", runtime.cfg.Assets.Path),
+		slog.Int("assets", runtime.cat.AssetCount()),
+		slog.Int("variants", runtime.cat.VariantCount()),
+	)
+
+	done := make(chan error, 1)
+	if runtime.state != nil {
+		runtime.state.done = done
+	}
 	go func() {
-		address := "127.0.0.1:" + runtime.cfg.HTTP.GetPort()
-		listenConfig := newMainHTTPListenConfig()
-		runtime.logger.Info("HTTP runtime listening",
-			slog.String("address", "http://"+address),
-			slog.String("mount_path", runtime.cfg.Assets.Path),
-			slog.Int("assets", runtime.cat.AssetCount()),
-			slog.Int("variants", runtime.cat.VariantCount()),
-		)
-		if err := runtime.app.Listen(":"+runtime.cfg.HTTP.GetPort(), listenConfig); err != nil {
+		err := runtime.app.Listen(":"+runtime.cfg.HTTP.GetPort(), listenConfig)
+		if err != nil {
 			runtime.logger.Error("HTTP runtime stopped", slog.String("err", err.Error()))
 		}
+		done <- err
+		close(done)
 	}()
-	return nil
+
+	select {
+	case err := <-done:
+		if err != nil {
+			return oops.In("runtime").Owner("http runtime").Wrap(err)
+		}
+		return nil
+	case <-time.After(httpRuntimeStartupProbeDelay):
+		return nil
+	case <-ctx.Done():
+		return oops.In("runtime").Owner("http runtime").Wrap(ctx.Err())
+	}
 }
 
 func newMainHTTPListenConfig() fiber.ListenConfig {
@@ -49,7 +70,22 @@ func stopMainHTTPRuntime(ctx context.Context, runtime mainHTTPRuntime) error {
 	if err := runtime.app.ShutdownWithContext(ctx); err != nil {
 		return oops.In("runtime").Owner("http runtime").Wrap(err)
 	}
-	return nil
+	return runtime.waitStopped(ctx)
+}
+
+func (r mainHTTPRuntime) waitStopped(ctx context.Context) error {
+	if r.state == nil || r.state.done == nil {
+		return nil
+	}
+	select {
+	case err, ok := <-r.state.done:
+		if ok && err != nil {
+			return oops.In("runtime").Owner("http runtime").Wrap(err)
+		}
+		return nil
+	case <-ctx.Done():
+		return oops.In("runtime").Owner("http runtime").Wrap(ctx.Err())
+	}
 }
 
 func buildCollectorRegistration(

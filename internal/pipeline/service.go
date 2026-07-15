@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -33,6 +34,9 @@ type Service struct {
 	tasks          chan Request
 	lazyWorkerPool *ants.PoolWithFunc
 	workerStopOnce sync.Once
+	workerCancel   context.CancelFunc
+	workerClosing  atomic.Bool
+	enqueueMu      sync.RWMutex
 	sf             singleflight.Group
 	pending        *cxset.ConcurrentSet[string]
 
@@ -51,7 +55,7 @@ func (s *Service) Enqueue(request Request) {
 	if !s.cfg.PipelineEnabled() || s.cfg.NormalizedMode() != config.CompressionModeLazy {
 		return
 	}
-	if strings.TrimSpace(request.AssetPath) == "" {
+	if strings.TrimSpace(request.AssetPath) == "" || s.workerClosing.Load() {
 		return
 	}
 
@@ -63,20 +67,32 @@ func (s *Service) Enqueue(request Request) {
 		return
 	}
 
+	s.enqueueMu.RLock()
+	defer s.enqueueMu.RUnlock()
+	if s.workerClosing.Load() {
+		s.pending.Remove(key)
+		s.recordQueueDrop(request)
+		return
+	}
+
 	select {
 	case s.tasks <- request:
 		s.updateQueueLengthMetric()
 	default:
 		s.pending.Remove(key)
-		if s.metrics != nil {
-			s.metrics.EnqueueDroppedTotal.Inc()
-		}
-		s.logger.Debug("Pipeline queue full",
-			slog.String("asset", request.AssetPath),
-			slog.Int("queue_len", len(s.tasks)),
-			slog.Int("queue_cap", cap(s.tasks)),
-		)
+		s.recordQueueDrop(request)
 	}
+}
+
+func (s *Service) recordQueueDrop(request Request) {
+	if s.metrics != nil {
+		s.metrics.EnqueueDroppedTotal.Inc()
+	}
+	s.logger.Debug("Pipeline queue full",
+		slog.String("asset", request.AssetPath),
+		slog.Int("queue_len", len(s.tasks)),
+		slog.Int("queue_cap", cap(s.tasks)),
+	)
 }
 
 func (s *Service) MarkVariantHit(path string) {

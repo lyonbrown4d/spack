@@ -56,18 +56,19 @@ func Extract(ctx context.Context, bundlePath string) (Extracted, error) {
 		return Extracted{}, err
 	}
 	committed = true
-	return Extracted{BundlePath: absolute, Root: root, Index: index}, nil
+	return Extracted{BundlePath: absolute, Root: root, Index: index, cleanupRoot: root}, nil
 }
 
 // Cleanup removes extracted bundle contents.
 func (e Extracted) Cleanup() error {
-	if strings.TrimSpace(e.Root) == "" {
+	cleanupRoot := strings.TrimSpace(e.cleanupRoot)
+	if cleanupRoot == "" {
 		return nil
 	}
-	if err := makeExtractedTreeWritable(e.Root); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := makeExtractedTreeWritable(cleanupRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return oops.Wrapf(err, "prepare extracted bundle root cleanup")
 	}
-	if err := os.RemoveAll(e.Root); err != nil {
+	if err := os.RemoveAll(cleanupRoot); err != nil {
 		return oops.Wrapf(err, "cleanup extracted bundle root")
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 
 	"github.com/panjf2000/ants/v2"
 	"github.com/samber/oops"
@@ -11,18 +12,25 @@ import (
 
 func (s *Service) startWorkers(ctx context.Context, workers int) error {
 	workers = max(workers, 1)
+	workerCtx, cancel := context.WithCancel(ctx)
+	s.workerCancel = cancel
+	s.workerClosing.Store(false)
 	pool, err := ants.NewPoolWithFunc(
 		workers,
 		func(any) {
-			s.runWorker(ctx)
+			s.runWorker(workerCtx)
 		},
 		ants.WithDisablePurge(true),
 		ants.WithLogger(pipelineWorkerPoolLogger{logger: s.logger}),
 		ants.WithPanicHandler(func(value any) {
-			s.logger.Error("Pipeline worker panicked", slog.Any("panic", value))
+			s.logger.Error("Pipeline worker panicked",
+				slog.Any("panic", value),
+				slog.String("stack", string(debug.Stack())),
+			)
 		}),
 	)
 	if err != nil {
+		cancel()
 		return oops.Wrapf(err, "create pipeline worker pool")
 	}
 
@@ -38,8 +46,16 @@ func (s *Service) startWorkers(ctx context.Context, workers int) error {
 }
 
 func (s *Service) runWorker(ctx context.Context) {
-	for request := range s.tasks {
-		s.processQueuedRequest(ctx, request)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case request, ok := <-s.tasks:
+			if !ok {
+				return
+			}
+			s.processQueuedRequest(ctx, request)
+		}
 	}
 }
 
@@ -63,6 +79,12 @@ func (s *Service) stopWorkers(ctx context.Context) error {
 
 func (s *Service) closeTaskQueue() {
 	s.workerStopOnce.Do(func() {
+		s.workerClosing.Store(true)
+		if s.workerCancel != nil {
+			s.workerCancel()
+		}
+		s.enqueueMu.Lock()
+		defer s.enqueueMu.Unlock()
 		close(s.tasks)
 	})
 }

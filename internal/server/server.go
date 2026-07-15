@@ -78,6 +78,7 @@ func registerMiddleware(
 	runtimeMetrics *RuntimeMetrics,
 ) {
 	app.Use(identityHeaderMiddleware(cfg))
+	app.Use(requestContextMiddleware())
 	requestIDConfig := requestid.ConfigDefault
 	requestIDConfig.Header = RequestIDHeader
 	app.Use(requestid.New(requestIDConfig))
@@ -99,6 +100,21 @@ func registerMiddleware(
 	app.Use(recoverer.New(recoverConfig))
 }
 
+func requestContextMiddleware() fiber.Handler {
+	return func(c fiber.Ctx) error {
+		parent := c.Context()
+		if parent == nil {
+			parent = context.Background()
+		}
+		ctx, cancel := context.WithCancel(parent)
+		c.SetContext(ctx)
+		defer cancel()
+		if err := c.Next(); err != nil {
+			return oops.In("server").Wrap(fmt.Errorf("run request context middleware chain: %w", err))
+		}
+		return nil
+	}
+}
 func identityHeaderMiddleware(cfg *config.Config) fiber.Handler {
 	stripServerHeader := cfg == nil || !cfg.HTTP.ExposeServerHeader
 	return func(c fiber.Ctx) error {
@@ -117,48 +133,74 @@ func metricsMiddleware(obs observabilityx.Observability, runtimeMetrics *Runtime
 	if obs == nil && runtimeMetrics == nil {
 		return nil
 	}
-
 	if obs == nil {
-		return func(c fiber.Ctx) error {
-			runtimeMetrics.IncRequestsInFlight()
-			defer runtimeMetrics.DecRequestsInFlight()
-
-			if err := c.Next(); err != nil {
-				return oops.In("server").Wrap(fmt.Errorf("run metrics middleware chain: %w", err))
-			}
-			return nil
-		}
+		return runtimeInFlightMiddleware(runtimeMetrics)
 	}
 
-	requestCounter := obs.Counter(httpRequestsTotalSpec)
-	requestDuration := obs.Histogram(httpRequestDurationSpec)
-	assetDeliveryCounter := obs.Counter(httpAssetDeliveryTotalSpec)
-	assetDeliveryDuration := obs.Histogram(httpAssetDeliveryDurationSpec)
-
+	recorder := newHTTPMetricsRecorder(obs)
 	return func(c fiber.Ctx) error {
 		runtimeMetrics.IncRequestsInFlight()
 		defer runtimeMetrics.DecRequestsInFlight()
 
 		startedAt := time.Now()
 		err := c.Next()
-		duration := time.Since(startedAt).Seconds()
-
-		requestAttrs := requestMetricsAttrs(c, finalHTTPStatus(c, err))
-		requestCounter.Add(context.Background(), 1, requestAttrs...)
-		requestDuration.Record(context.Background(), duration, requestAttrs...)
-
-		deliveryAttrs := assetDeliveryMetricsAttrs(c)
-		if len(deliveryAttrs) > 0 {
-			assetDeliveryCounter.Add(context.Background(), 1, deliveryAttrs...)
-			assetDeliveryDuration.Record(context.Background(), duration, deliveryAttrs...)
-		}
-		if err != nil {
-			return oops.In("server").Wrap(fmt.Errorf("run metrics middleware chain: %w", err))
-		}
-		return nil
+		recorder.Record(c, finalHTTPStatus(c, err), time.Since(startedAt).Seconds())
+		return wrapMetricsMiddlewareError(err)
 	}
 }
 
+type httpMetricsRecorder struct {
+	requestCounter        observabilityx.Counter
+	requestDuration       observabilityx.Histogram
+	assetDeliveryCounter  observabilityx.Counter
+	assetDeliveryDuration observabilityx.Histogram
+}
+
+func newHTTPMetricsRecorder(obs observabilityx.Observability) httpMetricsRecorder {
+	return httpMetricsRecorder{
+		requestCounter:        obs.Counter(httpRequestsTotalSpec),
+		requestDuration:       obs.Histogram(httpRequestDurationSpec),
+		assetDeliveryCounter:  obs.Counter(httpAssetDeliveryTotalSpec),
+		assetDeliveryDuration: obs.Histogram(httpAssetDeliveryDurationSpec),
+	}
+}
+
+func runtimeInFlightMiddleware(runtimeMetrics *RuntimeMetrics) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		runtimeMetrics.IncRequestsInFlight()
+		defer runtimeMetrics.DecRequestsInFlight()
+		return wrapMetricsMiddlewareError(c.Next())
+	}
+}
+
+func (r httpMetricsRecorder) Record(c fiber.Ctx, status int, duration float64) {
+	ctx := fiberRequestContext(c)
+	requestAttrs := requestMetricsAttrs(c, status)
+	r.requestCounter.Add(ctx, 1, requestAttrs...)
+	r.requestDuration.Record(ctx, duration, requestAttrs...)
+
+	deliveryAttrs := assetDeliveryMetricsAttrs(c)
+	if len(deliveryAttrs) == 0 {
+		return
+	}
+	r.assetDeliveryCounter.Add(ctx, 1, deliveryAttrs...)
+	r.assetDeliveryDuration.Record(ctx, duration, deliveryAttrs...)
+}
+
+func fiberRequestContext(c fiber.Ctx) context.Context {
+	ctx := c.Context()
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+func wrapMetricsMiddlewareError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return oops.In("server").Wrap(fmt.Errorf("run metrics middleware chain: %w", err))
+}
 func requestMetricsAttrs(c fiber.Ctx, status int) []observabilityx.Attribute {
 	return []observabilityx.Attribute{
 		observabilityx.String("method", c.Method()),

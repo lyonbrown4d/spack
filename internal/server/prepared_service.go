@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"github.com/samber/oops"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -15,6 +14,7 @@ import (
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/mo"
+	"github.com/samber/oops"
 )
 
 type PreparedService struct {
@@ -28,6 +28,10 @@ type PreparedService struct {
 	rebuildMu            sync.Mutex
 	rebuildWorkerRunning atomic.Bool
 	rebuildAgain         atomic.Bool
+	rebuildStopped       atomic.Bool
+	rebuildWG            sync.WaitGroup
+	lifecycleCtx         context.Context
+	lifecycleCancel      context.CancelFunc
 	unsubscribes         []func()
 	fileGuards           *serverFileGuards
 }
@@ -117,10 +121,13 @@ func (s *PreparedService) current() *preparedSnapshot {
 	return s.snapshot.Load()
 }
 
-func (s *PreparedService) start(_ context.Context) error {
+func (s *PreparedService) start(ctx context.Context) error {
 	if s == nil || s.bus == nil || len(s.unsubscribes) > 0 {
 		return nil
 	}
+
+	s.lifecycleCtx, s.lifecycleCancel = context.WithCancel(context.WithoutCancel(ctx))
+	s.rebuildStopped.Store(false)
 
 	unsubscribes := cxlist.NewListWithCapacity[func()](3)
 	for _, subscription := range s.subscriptions().Values() {
@@ -131,6 +138,7 @@ func (s *PreparedService) start(_ context.Context) error {
 					existing()
 				}
 			})
+			s.cancelLifecycle()
 			return oops.Wrapf(err, "subscribe prepared %s", subscription.name)
 		}
 		unsubscribes.Add(unsubscribe)
@@ -140,17 +148,44 @@ func (s *PreparedService) start(_ context.Context) error {
 	return nil
 }
 
-func (s *PreparedService) stop(_ context.Context) error {
+func (s *PreparedService) stop(ctx context.Context) error {
 	if s == nil {
 		return nil
 	}
+	s.rebuildStopped.Store(true)
 	cxlist.NewList[func()](s.unsubscribes...).Each(func(_ int, unsubscribe func()) {
 		if unsubscribe != nil {
 			unsubscribe()
 		}
 	})
 	s.unsubscribes = nil
+	s.cancelLifecycle()
+	if err := s.waitRebuildWorkers(ctx); err != nil {
+		return err
+	}
+	s.lifecycleCtx = nil
+	s.lifecycleCancel = nil
 	return nil
+}
+
+func (s *PreparedService) cancelLifecycle() {
+	if s.lifecycleCancel != nil {
+		s.lifecycleCancel()
+	}
+}
+
+func (s *PreparedService) waitRebuildWorkers(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		s.rebuildWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return oops.Wrapf(ctx.Err(), "wait for prepared rebuild worker")
+	}
 }
 
 func (s *PreparedService) subscriptions() *cxlist.List[preparedSubscription] {
@@ -186,18 +221,36 @@ func (s *PreparedService) subscriptions() *cxlist.List[preparedSubscription] {
 }
 
 func (s *PreparedService) rebuildAsync(ctx context.Context, reason string) {
-	if s == nil {
+	if s == nil || s.rebuildStopped.Load() {
 		return
 	}
 	s.rebuildAgain.Store(true)
 	if !s.rebuildWorkerRunning.CompareAndSwap(false, true) {
 		return
 	}
-	go s.runRebuildWorker(ctx, reason)
+	workerCtx := s.rebuildContext(ctx)
+	s.rebuildWG.Go(func() {
+		s.runRebuildWorker(workerCtx, reason)
+	})
+}
+
+func (s *PreparedService) rebuildContext(ctx context.Context) context.Context {
+	if s.lifecycleCtx != nil {
+		return s.lifecycleCtx
+	}
+	if ctx == nil {
+		return context.Background()
+	}
+	return context.WithoutCancel(ctx)
 }
 
 func (s *PreparedService) runRebuildWorker(ctx context.Context, reason string) {
 	for {
+		if s.rebuildStopped.Load() || ctx.Err() != nil {
+			s.rebuildAgain.Store(false)
+			s.rebuildWorkerRunning.Store(false)
+			return
+		}
 		if s.rebuildAgain.Swap(false) {
 			s.rebuildOnce(ctx, reason)
 			continue
