@@ -2,6 +2,7 @@ package sourcecatalog
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 
@@ -20,6 +21,8 @@ const (
 	BundleCompressionStage = "compression"
 	BundleImageStage       = "image"
 )
+
+var errScanContextNil = errors.New("source catalog context is nil")
 
 type Snapshot struct {
 	Assets     *cxmapping.Map[string, *catalog.Asset]
@@ -118,6 +121,11 @@ func (s Scanner) SourceStats() source.Stats {
 }
 
 func (s Scanner) Watch(ctx context.Context) (<-chan source.ChangeEvent, error) {
+	var ctxErr error
+	ctx, ctxErr = requireScanContext(ctx, "watch")
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
 	changes, err := s.src.Watch(ctx)
 	if err != nil {
 		return nil, oops.In("sourcecatalog").Owner("watch").Wrap(err)
@@ -126,7 +134,11 @@ func (s Scanner) Watch(ctx context.Context) (<-chan source.ChangeEvent, error) {
 }
 
 func (s Scanner) ScanWithCatalog(ctx context.Context, cat catalog.Catalog) (Snapshot, error) {
-	ctx = normalizeScanContext(ctx)
+	var ctxErr error
+	ctx, ctxErr = requireScanContext(ctx, "scan context")
+	if ctxErr != nil {
+		return Snapshot{}, ctxErr
+	}
 	if err := s.pathFilter.Err(); err != nil {
 		return Snapshot{}, oops.In("sourcecatalog").Owner("scan filter").Wrap(err)
 	}
@@ -215,16 +227,16 @@ func normalizeSourcePath(path string) string {
 	return strings.TrimPrefix(filepath.ToSlash(filepath.Clean(trimmed)), "/")
 }
 
-func normalizeScanContext(ctx context.Context) context.Context {
+func requireScanContext(ctx context.Context, owner string) (context.Context, error) {
 	if ctx == nil {
-		return context.Background()
+		return nil, oops.In("sourcecatalog").Owner(owner).Wrap(errScanContextNil)
 	}
-	return ctx
+	return ctx, nil
 }
 
 func scanContextErr(ctx context.Context) error {
 	if ctx == nil {
-		return nil
+		return oops.In("sourcecatalog").Owner("scan context").Wrap(errScanContextNil)
 	}
 	if err := ctx.Err(); err != nil {
 		return oops.In("sourcecatalog").Owner("scan context").Wrap(err)

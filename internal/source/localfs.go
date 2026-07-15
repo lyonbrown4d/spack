@@ -23,7 +23,8 @@ var (
 	// ErrSymlinkNotAllowed reports that a source path includes a symlink.
 	ErrSymlinkNotAllowed = errors.New("source symlink not allowed")
 	// ErrRootReplaced reports that the configured source root no longer refers to the original directory.
-	ErrRootReplaced = errors.New("source root was replaced")
+	ErrRootReplaced     = errors.New("source root was replaced")
+	errSourceContextNil = errors.New("source context is nil")
 )
 
 type LocalFS struct {
@@ -36,7 +37,11 @@ type LocalFS struct {
 }
 
 func NewLocalFS(cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
-	return NewSourceFactory(NewResolver(), logger).LocalFS(cfg)
+	return NewLocalFSContext(context.TODO(), cfg, logger)
+}
+
+func NewLocalFSContext(ctx context.Context, cfg *config.Assets, logger *slog.Logger) (*LocalFS, error) {
+	return NewSourceFactory(NewResolver(), logger).LocalFSContext(ctx, cfg)
 }
 
 func (s *LocalFS) Cleanup() error {
@@ -59,20 +64,20 @@ type resolvedLocalFSRoot struct {
 	bundleExtractionDuration time.Duration
 }
 
-func resolveLocalFSResolvedRoot(resolved Resolved) (resolvedLocalFSRoot, error) {
+func resolveLocalFSResolvedRoot(ctx context.Context, resolved Resolved) (resolvedLocalFSRoot, error) {
 	switch resolved.Type {
 	case TypeDirectory:
 		return resolveLocalFSDirectoryRoot(resolved.Root)
 	case TypeBundle:
-		return resolveLocalFSBundleRoot(resolved.Root)
+		return resolveLocalFSBundleRoot(ctx, resolved.Root)
 	default:
 		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(fmt.Errorf("assets root must be a directory or .spack bundle: %s", resolved.Root))
 	}
 }
 
-func resolveLocalFSBundleRoot(root string) (resolvedLocalFSRoot, error) {
+func resolveLocalFSBundleRoot(ctx context.Context, root string) (resolvedLocalFSRoot, error) {
 	startedAt := time.Now()
-	extracted, err := spackbundle.ExtractReadOnly(context.Background(), root)
+	extracted, err := spackbundle.ExtractReadOnly(ctx, root)
 	extractionDuration := time.Since(startedAt)
 	if err != nil {
 		return resolvedLocalFSRoot{}, oops.Owner("source").Wrap(err)

@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 
@@ -27,6 +28,13 @@ func NewSourceFactory(resolver *Resolver, logger *slog.Logger) *SourceFactory {
 }
 
 func (f *SourceFactory) LocalFS(cfg *config.Assets) (*LocalFS, error) {
+	return f.LocalFSContext(context.TODO(), cfg)
+}
+
+func (f *SourceFactory) LocalFSContext(ctx context.Context, cfg *config.Assets) (*LocalFS, error) {
+	if ctx == nil {
+		return nil, oops.Owner("source").Wrap(errSourceContextNil)
+	}
 	if cfg == nil {
 		return nil, oops.Owner("source").Wrap(errors.New("assets root is required"))
 	}
@@ -34,7 +42,7 @@ func (f *SourceFactory) LocalFS(cfg *config.Assets) (*LocalFS, error) {
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := resolveLocalFSResolvedRoot(resolvedSource)
+	resolved, err := resolveLocalFSResolvedRoot(ctx, resolvedSource)
 	if err != nil {
 		return nil, err
 	}

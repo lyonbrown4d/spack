@@ -57,11 +57,14 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	golang.org/x/image v0.44.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57 // indirect
+	golang.org/x/tools v0.47.0 // indirect
+	golang.org/x/vuln v1.4.0 // indirect
 )
 
 require (
 	github.com/arcgolabs/collectionx/graph v0.9.0 // indirect
-	github.com/arcgolabs/collectionx/tree v0.9.0
 	github.com/arcgolabs/pkg/option v0.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -107,3 +110,5 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
+
+tool golang.org/x/vuln/cmd/govulncheck

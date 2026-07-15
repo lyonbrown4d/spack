@@ -73,7 +73,7 @@ func (c *Cache) subscribeVariantGenerated() (func(), error) {
 				c.logger.Debug("Preload generated variant failed",
 					slog.String("path", event.ArtifactPath),
 					slog.String("stage", event.Stage),
-					slog.String("err", preloadErr.Error()),
+					slog.Any("error", preloadErr),
 				)
 			}
 			return nil

@@ -10,6 +10,7 @@ import (
 	contentcodingspec "github.com/lyonbrown4d/spack/internal/contentcoding/spec"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
+	"github.com/samber/oops"
 	"log/slog"
 	"path"
 	"strings"
@@ -17,7 +18,8 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("asset not found")
+	ErrNotFound           = errors.New("asset not found")
+	errResolverContextNil = errors.New("resolver context is nil")
 
 	resolverResolutionsTotalSpec = observabilityx.NewCounterSpec(
 		"resolver_resolutions_total",
@@ -57,7 +59,11 @@ func newResolver(
 }
 
 func (r *Resolver) Resolve(ctx context.Context, request Request) (*Result, error) {
-	ctx = normalizeResolveContext(ctx)
+	var ctxErr error
+	ctx, ctxErr = requireResolveContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
 	startedAt := time.Now()
 	asset, fallbackUsed, err := r.findAsset(request.Path)
 	if err != nil {
@@ -143,11 +149,11 @@ func (r *Resolver) recordMetrics(ctx context.Context, startedAt time.Time, resul
 	}
 }
 
-func normalizeResolveContext(ctx context.Context) context.Context {
+func requireResolveContext(ctx context.Context) (context.Context, error) {
 	if ctx == nil {
-		return context.Background()
+		return nil, oops.In("resolver").Owner("resolve").Wrap(errResolverContextNil)
 	}
-	return ctx
+	return ctx, nil
 }
 
 func resolutionResultKind(result *Result, err error) string {

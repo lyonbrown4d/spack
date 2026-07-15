@@ -241,7 +241,7 @@ func durationMS(durationValue time.Duration) float64 {
 
 func contextOrBackground(ctx context.Context) context.Context {
 	if ctx == nil {
-		return context.Background()
+		return context.TODO()
 	}
 	return ctx
 }

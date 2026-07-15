@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/samber/oops"
 	"io"
+	"log/slog"
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
@@ -166,6 +167,6 @@ func (r *assetDeliveryRuntime) sendPreparedEarlyResourceHints(c fiber.Ctx, links
 		return
 	}
 	if err := r.sendEarlyResourceHints(c, links); err != nil && r.logger != nil {
-		r.logger.Debug("Send early resource hints failed", "err", err.Error())
+		r.logger.Debug("Send early resource hints failed", slog.Any("error", err))
 	}
 }

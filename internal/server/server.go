@@ -42,6 +42,8 @@ var (
 		observabilityx.WithDescription("Total number of asset delivery responses by delivery path."),
 		observabilityx.WithLabelKeys("method", "route", "status", "delivery"),
 	)
+	errFiberRequestContextNil = errors.New("fiber request context is nil")
+
 	httpAssetDeliveryDurationSpec = observabilityx.NewHistogramSpec(
 		"http_asset_delivery_duration_seconds",
 		observabilityx.WithDescription("Asset delivery request duration in seconds."),
@@ -104,7 +106,7 @@ func requestContextMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		parent := c.Context()
 		if parent == nil {
-			parent = context.Background()
+			return oops.In("server").Owner("request context").Wrap(errFiberRequestContextNil)
 		}
 		ctx, cancel := context.WithCancel(parent)
 		c.SetContext(ctx)
@@ -190,7 +192,7 @@ func (r httpMetricsRecorder) Record(c fiber.Ctx, status int, duration float64) {
 func fiberRequestContext(c fiber.Ctx) context.Context {
 	ctx := c.Context()
 	if ctx == nil {
-		return context.Background()
+		return context.TODO()
 	}
 	return ctx
 }

@@ -239,7 +239,7 @@ func (s *PreparedService) rebuildContext(ctx context.Context) context.Context {
 		return s.lifecycleCtx
 	}
 	if ctx == nil {
-		return context.Background()
+		return context.TODO()
 	}
 	return context.WithoutCancel(ctx)
 }

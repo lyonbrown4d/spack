@@ -186,6 +186,13 @@ func (c command) String() string {
 	return strings.Join(parts, " ")
 }
 
+func fatalBuildStartup(err error) {
+	if _, writeErr := fmt.Fprintf(os.Stderr, "build task startup failed: %v`n", err); writeErr != nil {
+		os.Exit(1)
+	}
+	os.Exit(1)
+}
+
 func trimGoRunSeparator() {
 	if len(os.Args) > 1 && os.Args[1] == "--" {
 		os.Args = append(os.Args[:1], os.Args[2:]...)
