@@ -36,7 +36,7 @@ func logImageGenerationError(logger *slog.Logger, message string, err error, att
 		level = slog.LevelDebug
 	}
 	logger.Log(
-		context.Background(),
+		context.TODO(),
 		level,
 		message,
 		mergeImageLogAttrs(attrs, slog.Any("error", err))...,

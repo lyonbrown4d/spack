@@ -105,7 +105,7 @@ func (c *Cache) onEviction(item *ristretto.Item[*Entry]) {
 }
 
 func (c *Cache) addCounter(name string, value int64) {
-	c.addCounterWithContext(context.Background(), name, value)
+	c.addCounterWithContext(context.TODO(), name, value)
 }
 
 func (c *Cache) addCounterWithContext(ctx context.Context, name string, value int64) {

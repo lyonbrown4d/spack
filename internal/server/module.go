@@ -268,7 +268,7 @@ func newAssetRouteRuntime(
 }
 
 func shouldTrackAssetDelivery(logger *slog.Logger, obs observabilityx.Observability) bool {
-	return obs != nil || (logger != nil && logger.Enabled(context.Background(), slog.LevelInfo))
+	return obs != nil || (logger != nil && logger.Enabled(context.TODO(), slog.LevelInfo))
 }
 
 func newServerRegistrations(

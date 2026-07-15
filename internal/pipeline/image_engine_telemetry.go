@@ -88,7 +88,7 @@ func (t imageEngineTelemetry) recordOperation(engine, operation, result string, 
 		observabilityx.String("operation", strings.TrimSpace(operation)),
 		observabilityx.String("result", strings.TrimSpace(result)),
 	}
-	ctx := context.Background()
+	ctx := context.TODO()
 	t.obs.Counter(imageEngineOperationsTotalSpec).Add(ctx, 1, attrs...)
 	t.obs.Histogram(imageEngineOperationDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs...)
 }
@@ -98,7 +98,7 @@ func (t imageEngineTelemetry) recordSource(engine string, sourceBytes int64, wid
 		return
 	}
 	attrs := []observabilityx.Attribute{observabilityx.String("engine", strings.TrimSpace(engine))}
-	ctx := context.Background()
+	ctx := context.TODO()
 	if sourceBytes > 0 {
 		t.obs.Counter(imageEngineSourceBytesTotalSpec).Add(ctx, sourceBytes, attrs...)
 	}
@@ -122,7 +122,7 @@ func (t imageEngineTelemetry) recordVariant(
 		observabilityx.String("engine", strings.TrimSpace(engine)),
 		observabilityx.String("target_format", strings.TrimSpace(targetFormat)),
 	}
-	ctx := context.Background()
+	ctx := context.TODO()
 	if outputBytes > 0 {
 		t.obs.Counter(imageEngineOutputBytesTotalSpec).Add(ctx, outputBytes, attrs...)
 	}
@@ -141,7 +141,7 @@ func (t imageEngineTelemetry) recordSkip(engine, reason string) {
 		return
 	}
 	t.obs.Counter(imageEngineSkipsTotalSpec).Add(
-		context.Background(),
+		context.TODO(),
 		1,
 		observabilityx.String("engine", strings.TrimSpace(engine)),
 		observabilityx.String("reason", reason),
