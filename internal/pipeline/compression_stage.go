@@ -90,7 +90,10 @@ func (s *compressionStage) Execute(task Task, asset *catalog.Asset) (*catalog.Va
 		return nil, ErrVariantSkipped
 	}
 
-	targetPath := s.store.PathFor(asset.Path, asset.SourceHash, "encoding", suffix)
+	targetPath, err := s.store.PathFor(asset.Path, asset.SourceHash, "encoding", suffix)
+	if err != nil {
+		return nil, stageErr.Wrap(err)
+	}
 	if err := s.store.Write(targetPath, compressed); err != nil {
 		return nil, stageErr.With("artifact_path", targetPath).Wrap(err)
 	}

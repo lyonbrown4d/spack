@@ -13,7 +13,6 @@ import (
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/resolver"
-	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/lo"
 )
 
@@ -23,7 +22,7 @@ type preparedCompiler struct {
 	memoryPolicy  cachepolicy.MemoryPolicy
 	resourceHints *resourceHintService
 	logger        *slog.Logger
-	fileGuard     *source.LocalRootGuard
+	fileGuards    *serverFileGuards
 	bodyBudget    *preparedBodyBudget
 }
 
@@ -31,20 +30,23 @@ func newPreparedCompiler(
 	cfg *config.Config,
 	resourceHints *resourceHintService,
 	logger *slog.Logger,
+	fileGuards *serverFileGuards,
 ) preparedCompiler {
-	fileGuard := newServerFileGuard(cfg.Assets.Root, logger)
 	return preparedCompiler{
 		cfg:           cfg,
 		policy:        cachepolicy.NewResponsePolicyFromConfig(cfg),
 		memoryPolicy:  cachepolicy.NewMemoryPolicy(cfg),
 		resourceHints: resourceHints,
 		logger:        logger,
-		fileGuard:     fileGuard,
+		fileGuards:    fileGuards,
 		bodyBudget:    newPreparedBodyBudget(cfg),
 	}
 }
 
-func (c preparedCompiler) Compile(_ context.Context, cat catalog.Catalog) (*preparedSnapshot, error) {
+func (c preparedCompiler) Compile(ctx context.Context, cat catalog.Catalog) (*preparedSnapshot, error) {
+	if err := preparedContextErr(ctx); err != nil {
+		return nil, err
+	}
 	catalogSnapshot := cat.Snapshot()
 	snapshot := newPreparedSnapshot(catalogSnapshot.Assets.Len())
 	c.compileRoutes(catalogSnapshot.Assets).Each(func(_ int, route *preparedRoute) {
@@ -155,12 +157,16 @@ func (c preparedCompiler) compileResourceHints(result *resolver.Result) *cxlist.
 
 func (c preparedCompiler) compileBody(result *resolver.Result) ([]byte, bool) {
 	request := buildMemoryCacheRequest(result, resolver.Request{})
-	if c.memoryPolicy == nil || !c.memoryPolicy.ShouldServe(request) || !c.bodyBudget.Reserve(request.Size) {
+	if c.memoryPolicy == nil || !c.memoryPolicy.ShouldServe(request) {
 		return nil, false
 	}
-	body, err := readServerAssetFileWithGuard(result.FilePath, c.fileGuard)
+	reserved, ok := c.bodyBudget.Reserve(request.Size)
+	if !ok {
+		return nil, false
+	}
+	body, err := readServerAssetFileWithGuard(result.FilePath, c.fileGuards)
 	if err != nil {
-		c.bodyBudget.Release(request.Size)
+		c.bodyBudget.Release(reserved)
 		if c.logger != nil {
 			c.logger.Debug("Compile prepared response body failed",
 				slog.String("path", result.FilePath),
@@ -169,7 +175,7 @@ func (c preparedCompiler) compileBody(result *resolver.Result) ([]byte, bool) {
 		}
 		return nil, false
 	}
-	if !c.bodyBudget.Adjust(request.Size, int64(len(body))) {
+	if !c.bodyBudget.Adjust(reserved, int64(len(body))) {
 		return nil, false
 	}
 	return body, true
@@ -250,6 +256,16 @@ func preparedEntryAlias(routePath, entry string) string {
 		return ""
 	}
 	return strings.TrimSuffix(routePath, suffix)
+}
+
+func preparedContextErr(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("prepared compile context: %w", err)
+	}
+	return nil
 }
 
 func preparedCompileError(err error) error {

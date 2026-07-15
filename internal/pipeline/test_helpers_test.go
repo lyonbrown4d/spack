@@ -23,9 +23,9 @@ func (s *testStore) Root() string {
 	return s.root
 }
 
-func (s *testStore) PathFor(assetPath, sourceHash, namespace, suffix string) string {
+func (s *testStore) PathFor(assetPath, sourceHash, namespace, suffix string) (string, error) {
 	cleanPath := filepath.Clean(filepath.FromSlash(assetPath))
-	return filepath.Join(s.root, namespace, sourceHash, cleanPath+suffix)
+	return filepath.Join(s.root, namespace, sourceHash, cleanPath+suffix), nil
 }
 
 func (s *testStore) Write(path string, data []byte) error {

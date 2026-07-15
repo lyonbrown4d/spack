@@ -3,6 +3,8 @@ package assetcache
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/arcgolabs/eventx"
 	"github.com/arcgolabs/observabilityx"
@@ -21,9 +23,8 @@ func NewCacheWithObservabilityForTest(
 	logger *slog.Logger,
 	obs observabilityx.Observability,
 ) *Cache {
-	testCfg := config.DefaultConfigForTest()
-	testCfg.HTTP.MemoryCache = cfg
-	cache, err := newCache(&testCfg, logger, obs, nil, nil)
+	testCfg := newCacheConfigForTest(cfg)
+	cache, err := newCache(testCfg, logger, obs, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -37,9 +38,8 @@ func NewCacheWithBusForTest(
 	obs observabilityx.Observability,
 	bus eventx.BusRuntime,
 ) *Cache {
-	testCfg := config.DefaultConfigForTest()
-	testCfg.HTTP.MemoryCache = cfg
-	cache, err := newCache(&testCfg, logger, obs, bus, nil)
+	testCfg := newCacheConfigForTest(cfg)
+	cache, err := newCache(testCfg, logger, obs, bus, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -53,13 +53,33 @@ func NewCacheWithSettingsForTest(
 	obs observabilityx.Observability,
 	settings *asyncx.Settings,
 ) *Cache {
-	testCfg := config.DefaultConfigForTest()
-	testCfg.HTTP.MemoryCache = cfg
-	cache, err := newCache(&testCfg, logger, obs, nil, settings)
+	testCfg := newCacheConfigForTest(cfg)
+	cache, err := newCache(testCfg, logger, obs, nil, settings, nil)
 	if err != nil {
 		panic(err)
 	}
 	return cache
+}
+
+func newCacheConfigForTest(cfg config.MemoryCache) *config.Config {
+	testCfg := config.DefaultConfigForTest()
+	testCfg.HTTP.MemoryCache = cfg
+	testCfg.Assets.Root = testCacheRootForTest()
+	return &testCfg
+}
+
+func testCacheRootForTest() string {
+	for _, dir := range []string{os.Getenv("GOTMPDIR"), os.TempDir()} {
+		if dir == "" {
+			continue
+		}
+		volume := filepath.VolumeName(dir)
+		if volume == "" {
+			return string(os.PathSeparator)
+		}
+		return volume + string(os.PathSeparator)
+	}
+	return string(os.PathSeparator)
 }
 
 // StartForTest exposes cache lifecycle start for external tests.

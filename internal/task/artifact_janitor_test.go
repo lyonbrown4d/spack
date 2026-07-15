@@ -94,8 +94,8 @@ func (s *testArtifactStore) Root() string {
 	return s.root
 }
 
-func (s *testArtifactStore) PathFor(assetPath, sourceHash, namespace, suffix string) string {
-	return filepath.Join(s.root, namespace, sourceHash, assetPath+suffix)
+func (s *testArtifactStore) PathFor(assetPath, sourceHash, namespace, suffix string) (string, error) {
+	return filepath.Join(s.root, namespace, sourceHash, assetPath+suffix), nil
 }
 
 func (s *testArtifactStore) Write(path string, data []byte) error {

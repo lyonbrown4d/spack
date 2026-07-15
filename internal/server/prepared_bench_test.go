@@ -73,7 +73,8 @@ func BenchmarkPreparedResourceHintsCacheHit(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	service := server.NewResourceHintServiceForTest(&cfg.Frontend, logger)
+	cfg.Assets.Root = root
+	service := server.NewResourceHintServiceForTest(&cfg, logger)
 	result := &resolver.Result{
 		Asset: &catalog.Asset{
 			Path:      "index.html",

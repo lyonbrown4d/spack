@@ -14,18 +14,16 @@ func newPreparedBodyBudget(cfg *config.Config) *preparedBodyBudget {
 	return &preparedBodyBudget{max: cfg.HTTP.MemoryCache.MaxCost()}
 }
 
-func (b *preparedBodyBudget) Reserve(size int64) bool {
+func (b *preparedBodyBudget) Reserve(size int64) (int64, bool) {
 	if b == nil || b.max <= 0 || size < 0 {
-		return false
+		return 0, false
 	}
-	if size == 0 {
-		size = 1
+	reserved := normalizedPreparedBodyBudgetSize(size)
+	if b.used > b.max-reserved {
+		return 0, false
 	}
-	if b.used > b.max-size {
-		return false
-	}
-	b.used += size
-	return true
+	b.used += reserved
+	return reserved, true
 }
 
 func (b *preparedBodyBudget) Release(size int64) {
@@ -39,12 +37,10 @@ func (b *preparedBodyBudget) Release(size int64) {
 }
 
 func (b *preparedBodyBudget) Adjust(reserved, actual int64) bool {
-	if b == nil {
+	if b == nil || reserved <= 0 {
 		return false
 	}
-	if actual <= 0 {
-		actual = 1
-	}
+	actual = normalizedPreparedBodyBudgetSize(actual)
 	if actual == reserved {
 		return true
 	}
@@ -59,4 +55,11 @@ func (b *preparedBodyBudget) Adjust(reserved, actual int64) bool {
 	}
 	b.used += extra
 	return true
+}
+
+func normalizedPreparedBodyBudgetSize(size int64) int64 {
+	if size <= 0 {
+		return 1
+	}
+	return size
 }

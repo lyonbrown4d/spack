@@ -155,7 +155,10 @@ func (s *imageStage) imageGenerateRequests(
 }
 
 func (s *imageStage) writeImageVariant(asset *catalog.Asset, result imageGenerateResult) (*catalog.Variant, error) {
-	targetPath := s.store.PathFor(asset.Path, asset.SourceHash, "image", imageVariantSuffix(result.Width, result.TargetFormat, result.Extension))
+	targetPath, err := s.store.PathFor(asset.Path, asset.SourceHash, "image", imageVariantSuffix(result.Width, result.TargetFormat, result.Extension))
+	if err != nil {
+		return nil, oops.Wrapf(err, "resolve image artifact path")
+	}
 	if err := s.store.Write(targetPath, result.Payload); err != nil {
 		return nil, oops.Wrapf(err, "write image artifact")
 	}

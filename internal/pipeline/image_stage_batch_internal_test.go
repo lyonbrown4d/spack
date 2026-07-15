@@ -192,8 +192,8 @@ func (s batchTestStore) Root() string {
 	return s.root
 }
 
-func (s batchTestStore) PathFor(assetPath, sourceHash, namespace, suffix string) string {
-	return filepath.Join(s.root, namespace, sourceHash, filepath.Clean(assetPath)+suffix)
+func (s batchTestStore) PathFor(assetPath, sourceHash, namespace, suffix string) (string, error) {
+	return filepath.Join(s.root, namespace, sourceHash, filepath.Clean(assetPath)+suffix), nil
 }
 
 func (s batchTestStore) Write(path string, data []byte) error {

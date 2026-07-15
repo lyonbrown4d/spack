@@ -2,6 +2,8 @@ package server
 
 import (
 	"fmt"
+	"io"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/resolver"
@@ -54,17 +56,67 @@ func (r *assetDeliveryRuntime) sendPreparedAssetFile(
 	if spackbundle.IsReference(response.filePath()) {
 		return r.sendPreparedBundleAssetFile(c, request, response, headerPlan)
 	}
-	if err := c.SendFile(response.filePath(), fiber.SendFile{ByteRange: true}); err != nil {
+	return r.sendPreparedLocalAssetFile(c, request, response, headerPlan)
+}
+
+func (r *assetDeliveryRuntime) sendPreparedLocalAssetFile(
+	c fiber.Ctx,
+	request resolver.Request,
+	response *preparedResponse,
+	headerPlan preparedHeaderPlan,
+) (string, error) {
+	if r.fileGuards == nil {
+		return "", fmt.Errorf("local source root guard is required for %s", response.filePath())
+	}
+	file, info, err := r.fileGuards.OpenFile(response.filePath())
+	if err != nil {
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr
 		}
-		return "", fmt.Errorf("send prepared asset file: %w", err)
+		return "", fmt.Errorf("open prepared asset file: %w", err)
 	}
-	headerPlan.ApplySendFileOverrides(c, request.RangeRequested)
 	if request.RangeRequested {
-		return deliverySendFileRange, nil
+		return sendPreparedLocalRange(c, file, info.Size(), headerPlan)
+	}
+	headerPlan.ApplySendFileOverrides(c, false)
+	if err := sendServerStream(c, file, info.Size(), "send prepared asset file"); err != nil {
+		return "", err
 	}
 	return deliveryPreparedFile, nil
+}
+
+func sendPreparedLocalRange(c fiber.Ctx, file io.ReaderAt, size int64, headerPlan preparedHeaderPlan) (string, error) {
+	byteRange, ok := parseSingleHTTPRange(c.Get(fiber.HeaderRange), size)
+	closer, hasCloser := file.(io.Closer)
+	if !ok {
+		sendUnsatisfiedRange(c, size, headerPlan)
+		if hasCloser {
+			closePreparedReader(closer)
+		}
+		return deliverySendFileRange, nil
+	}
+	length := byteRange.end - byteRange.start + 1
+	c.Status(fiber.StatusPartialContent)
+	c.Set(fiber.HeaderContentRange, fmt.Sprintf("bytes %d-%d/%d", byteRange.start, byteRange.end, size))
+	c.Set(fiber.HeaderContentLength, strconv.FormatInt(length, 10))
+	headerPlan.ApplySendFileOverrides(c, true)
+	stream := sectionReadCloser{
+		SectionReader: io.NewSectionReader(file, byteRange.start, length),
+		closer:        closer,
+	}
+	if err := sendServerStream(c, stream, length, "send prepared ranged asset body"); err != nil {
+		return "", err
+	}
+	return deliverySendFileRange, nil
+}
+
+func closePreparedReader(closer io.Closer) {
+	if closer == nil {
+		return
+	}
+	if err := closer.Close(); err != nil {
+		return
+	}
 }
 
 func (r *assetDeliveryRuntime) retryPreparedArtifactMiss(

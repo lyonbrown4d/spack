@@ -12,20 +12,21 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"log/slog"
 )
 
 var Module = dix.NewModule("server",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),
-		dix.Provider2(newResourceHintService),
+		dix.Provider3(newResourceHintService),
 		dix.Provider6(newPreparedService),
-		dix.Provider4(newAssetRouteRuntime),
+		dix.Provider5(newAssetRouteRuntime),
 		dix.Provider2(newHealthCheckDefinitions),
 		dix.Provider4(newDiagnosticsRoutesRuntime),
 		dix.Provider4(newMiddlewareRegistrationDeps),
 		dix.Provider4(newRobotsRouteRegistrationDeps),
-		dix.Provider5(newAssetRouteRegistrationDeps),
+		dix.Provider6(newAssetRouteRegistrationDeps),
 		dix.Contribute1(newMiddlewareRegistration),
 		dix.Contribute1(newDiagnosticsRoutesRegistration),
 		dix.Contribute2(newHealthRoutesRegistration),
@@ -51,7 +52,7 @@ var Module = dix.NewModule("server",
 var CoreModule = dix.NewModule("server_core",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),
-		dix.Provider2(newResourceHintService),
+		dix.Provider3(newResourceHintService),
 		dix.Provider6(newPreparedService),
 		dix.Provider2(newEventPublisher),
 		dix.Provider4(newServerFromDeps),
@@ -102,8 +103,8 @@ var RobotsModule = dix.NewModule("server_robots",
 
 var AssetsModule = dix.NewModule("server_assets",
 	dix.WithModuleProviders(
-		dix.Provider4(newAssetRouteRuntime),
-		dix.Provider5(newAssetRouteRegistrationDeps),
+		dix.Provider5(newAssetRouteRuntime),
+		dix.Provider6(newAssetRouteRegistrationDeps),
 		dix.Contribute1(newAssetRouteRegistration),
 	),
 )
@@ -130,6 +131,7 @@ type assetRouteRuntime struct {
 	trackDelivery bool
 	resourceHints *resourceHintService
 	prepared      *PreparedService
+	fileGuards    *serverFileGuards
 }
 
 func newAppRegistration(order int, name string, apply func(*fiber.App)) appRegistration {
@@ -215,6 +217,7 @@ type assetRouteRegistrationDeps struct {
 	assetResolver *resolver.Resolver
 	bodyCache     *assetcache.Cache
 	bus           eventx.BusRuntime
+	cat           catalog.Catalog
 }
 
 func newAssetRouteRegistrationDeps(
@@ -223,6 +226,7 @@ func newAssetRouteRegistrationDeps(
 	assetResolver *resolver.Resolver,
 	bodyCache *assetcache.Cache,
 	bus eventx.BusRuntime,
+	cat catalog.Catalog,
 ) assetRouteRegistrationDeps {
 	return assetRouteRegistrationDeps{
 		cfg:           cfg,
@@ -230,6 +234,7 @@ func newAssetRouteRegistrationDeps(
 		assetResolver: assetResolver,
 		bodyCache:     bodyCache,
 		bus:           bus,
+		cat:           cat,
 	}
 }
 
@@ -241,6 +246,7 @@ func newAssetRouteRegistration(deps assetRouteRegistrationDeps) appRegistration 
 			deps.assetResolver,
 			deps.bodyCache,
 			deps.bus,
+			deps.cat,
 		))
 	})
 }
@@ -250,12 +256,14 @@ func newAssetRouteRuntime(
 	obs observabilityx.Observability,
 	resourceHints *resourceHintService,
 	prepared *PreparedService,
+	src *source.LocalFS,
 ) assetRouteRuntime {
 	return assetRouteRuntime{
 		logger:        logger,
 		trackDelivery: shouldTrackAssetDelivery(logger, obs),
 		resourceHints: resourceHints,
 		prepared:      prepared,
+		fileGuards:    newServerFileGuards(nil, src, nil, logger),
 	}
 }
 

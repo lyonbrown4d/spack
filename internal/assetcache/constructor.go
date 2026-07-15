@@ -35,20 +35,21 @@ func newCache(
 	obs observabilityx.Observability,
 	bus eventx.BusRuntime,
 	workers *asyncx.Settings,
+	src *source.LocalFS,
 ) (*Cache, error) {
 	cacheCfg := cfg.HTTP.MemoryCache
-	cache := &Cache{
-		logger:  logger,
-		obs:     observabilityx.Normalize(obs, logger),
-		policy:  cachepolicy.NewMemoryPolicy(cfg),
-		warmup:  cacheCfg.WarmupEnabled(),
-		bus:     bus,
-		workers: workers,
+	fileGuard, err := newCacheSourceGuard(src, cfg.Assets.Root)
+	if err != nil {
+		return nil, err
 	}
-	if guard, ok, err := source.NewLocalRootGuard(cfg.Assets.Root); err != nil {
-		return nil, oops.Wrapf(err, "create local source root guard")
-	} else if ok {
-		cache.fileGuard = guard
+	cache := &Cache{
+		logger:    logger,
+		obs:       observabilityx.Normalize(obs, logger),
+		policy:    cachepolicy.NewMemoryPolicy(cfg),
+		warmup:    cacheCfg.WarmupEnabled(),
+		bus:       bus,
+		workers:   workers,
+		fileGuard: fileGuard,
 	}
 	if !cacheCfg.Enabled() {
 		return cache, nil
@@ -66,4 +67,26 @@ func newCache(
 	}
 	cache.cache = bodyCache
 	return cache, nil
+}
+
+func newCacheSourceGuard(src *source.LocalFS, fallbackRoot string) (*source.LocalRootGuard, error) {
+	switch {
+	case src != nil:
+		guard, ok, err := src.RootGuard()
+		if err != nil {
+			return nil, oops.Wrapf(err, "create local source root guard")
+		}
+		if ok {
+			return guard, nil
+		}
+	default:
+		guard, ok, err := source.NewLocalRootGuard(fallbackRoot)
+		if err != nil {
+			return nil, oops.Wrapf(err, "create local source root guard")
+		}
+		if ok {
+			return guard, nil
+		}
+	}
+	return nil, oops.Errorf("local source root guard is required")
 }

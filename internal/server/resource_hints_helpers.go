@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -18,15 +17,19 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/lo"
 	"github.com/samber/mo"
 )
 
-func parseHTMLResourceHints(filePath string, cfg config.ResourceHints) (links *cxlist.List[string], err error) {
+func parseHTMLResourceHints(filePath string, cfg config.ResourceHints, guard *source.LocalRootGuard) (links *cxlist.List[string], err error) {
 	cleanPath := filepath.Clean(filePath)
-	file, err := os.Open(cleanPath)
+	if guard == nil {
+		return nil, fmt.Errorf("local source root guard is required for %s", cleanPath)
+	}
+	file, _, err := guard.OpenFile(cleanPath)
 	if err != nil {
-		return nil, fmt.Errorf("open HTML asset: %w", err)
+		return nil, fmt.Errorf("open guarded HTML asset: %w", err)
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {

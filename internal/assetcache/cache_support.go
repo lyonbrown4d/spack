@@ -3,7 +3,6 @@ package assetcache
 import (
 	"context"
 	"log/slog"
-	"os"
 	"time"
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
@@ -86,17 +85,12 @@ func readResolvedAssetPath(path string, guard *source.LocalRootGuard) ([]byte, e
 		}
 		return body, nil
 	}
-	if guard != nil {
-		body, err := guard.ReadFile(path)
-		if err != nil {
-			return nil, oops.Wrapf(err, "read guarded asset file")
-		}
-		return body, nil
+	if guard == nil {
+		return nil, oops.Errorf("local source root guard is required for %s", path)
 	}
-	// #nosec G304 -- path comes from resolver/catalog-selected asset paths already validated against the asset tree.
-	body, err := os.ReadFile(path)
+	body, err := guard.ReadFile(path)
 	if err != nil {
-		return nil, oops.Wrapf(err, "read asset file")
+		return nil, oops.Wrapf(err, "read guarded asset file")
 	}
 	return body, nil
 }

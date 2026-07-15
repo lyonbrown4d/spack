@@ -8,7 +8,7 @@ import (
 
 var Module = dix.NewModule("assetcache",
 	dix.WithModuleProviders(
-		dix.ProviderErr5(newCache),
+		dix.ProviderErr6(newCache),
 	),
 	dix.WithModuleHooks(
 		dix.OnStart(func(ctx context.Context, cache *Cache) error {

@@ -11,11 +11,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
+	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
-	"github.com/lyonbrown4d/spack/internal/source"
 )
 
 const maxVariantFallbackAttempts = 3
@@ -30,7 +30,7 @@ type assetDeliveryRuntime struct {
 	prepared       *PreparedService
 	trackDelivery  bool
 	resourceHints  *resourceHintService
-	fileGuard      *source.LocalRootGuard
+	fileGuards     *serverFileGuards
 }
 
 func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
@@ -48,8 +48,12 @@ func newAssetDeliveryRuntime(
 	assetResolver *resolver.Resolver,
 	bodyCache *assetcache.Cache,
 	bus eventx.BusRuntime,
+	cat catalog.Catalog,
 ) *assetDeliveryRuntime {
-	fileGuard := newServerFileGuard(cfg.Assets.Root, routeRuntime.logger)
+	fileGuards := mergeServerFileGuards(
+		routeRuntime.fileGuards,
+		newServerFileGuards(cfg, nil, cat, routeRuntime.logger),
+	)
 	return &assetDeliveryRuntime{
 		mountPath:      cfg.Assets.Path,
 		responsePolicy: cachepolicy.NewResponsePolicyFromConfig(cfg),
@@ -60,7 +64,7 @@ func newAssetDeliveryRuntime(
 		prepared:       routeRuntime.prepared,
 		trackDelivery:  routeRuntime.trackDelivery,
 		resourceHints:  routeRuntime.resourceHints,
-		fileGuard:      fileGuard,
+		fileGuards:     fileGuards,
 	}
 }
 

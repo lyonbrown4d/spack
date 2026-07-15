@@ -92,7 +92,10 @@ func assertCompressionVariantCreated(t *testing.T, spec compressionVariantSpec) 
 		t.Fatalf("expected %s encoding, got %q", spec.encoding, variant.Encoding)
 	}
 
-	expectedPath := store.PathFor(asset.Path, asset.SourceHash, "encoding", spec.suffix)
+	expectedPath, err := store.PathFor(asset.Path, asset.SourceHash, "encoding", spec.suffix)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(expectedPath); err != nil {
 		t.Fatalf("expected artifact to exist: %v", err)
 	}

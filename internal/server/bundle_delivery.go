@@ -9,15 +9,10 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/resolver"
-	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 )
 
-func readServerAssetFile(path string) ([]byte, error) {
-	return readServerAssetFileWithGuard(path, nil)
-}
-
-func readServerAssetFileWithGuard(path string, guard *source.LocalRootGuard) ([]byte, error) {
+func readServerAssetFileWithGuard(path string, guard *serverFileGuards) ([]byte, error) {
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
@@ -25,27 +20,23 @@ func readServerAssetFileWithGuard(path string, guard *source.LocalRootGuard) ([]
 		}
 		return body, nil
 	}
-	if guard != nil {
-		body, err := guard.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("read guarded asset file: %w", err)
-		}
-		return body, nil
+	if guard == nil {
+		return nil, fmt.Errorf("local source root guard is required for %s", path)
 	}
-	// #nosec G304 -- path comes from resolver/catalog-selected asset paths already validated against the asset tree.
-	body, err := os.ReadFile(path)
+	body, err := guard.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read asset file: %w", err)
+		return nil, fmt.Errorf("read guarded asset file: %w", err)
 	}
 	return body, nil
 }
+
 func (r *assetDeliveryRuntime) sendResolvedBundleAsset(
 	c fiber.Ctx,
 	request resolver.Request,
 	result *resolver.Result,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
-	body, err := readServerAssetFile(result.FilePath)
+	body, err := readServerAssetFileWithGuard(result.FilePath, r.fileGuards)
 	if err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr
@@ -61,7 +52,7 @@ func (r *assetDeliveryRuntime) sendPreparedBundleAssetFile(
 	response *preparedResponse,
 	headerPlan preparedHeaderPlan,
 ) (string, error) {
-	body, err := readServerAssetFile(response.filePath())
+	body, err := readServerAssetFileWithGuard(response.filePath(), r.fileGuards)
 	if err != nil {
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr

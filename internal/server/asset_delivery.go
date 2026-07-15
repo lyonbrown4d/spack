@@ -34,7 +34,7 @@ func (r *assetDeliveryRuntime) sendResolvedAsset(
 	r.applyResourceHints(c, request, result)
 
 	if r.bodyCache.ShouldServeRequest(cacheRequest) {
-		return r.sendCachedResolvedAsset(c, result, cacheRequest, hotResponseCacheKey(result, requestedFormat), headerPlan)
+		return r.sendCachedResolvedAsset(c, request, result, cacheRequest, hotResponseCacheKey(result, requestedFormat), headerPlan)
 	}
 
 	return r.sendResolvedAssetFile(c, request, result, headerPlan)
@@ -115,14 +115,15 @@ func handleConditionalAssetRequest(c fiber.Ctx, request resolver.Request) bool {
 
 func (r *assetDeliveryRuntime) sendCachedResolvedAsset(
 	c fiber.Ctx,
+	assetRequest resolver.Request,
 	result *resolver.Result,
-	request cachepolicy.MemoryRequest,
+	cacheRequest cachepolicy.MemoryRequest,
 	hotKey hotResponseKey,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
 	entry, found, err := r.bodyCache.GetEntryForServe(
 		result.FilePath,
-		request,
+		cacheRequest,
 		&hotResponseEntry{Key: hotKey, HeaderPlan: headerPlan},
 		hotResponseMatches(hotKey),
 	)
@@ -130,7 +131,10 @@ func (r *assetDeliveryRuntime) sendCachedResolvedAsset(
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr
 		}
-		return "", fiber.ErrInternalServerError
+		if r.logger != nil {
+			r.logger.Debug("Memory cache read failed; falling back to guarded file delivery", slog.String("path", result.FilePath), slog.String("err", err.Error()))
+		}
+		return r.sendResolvedAssetFile(c, assetRequest, result, headerPlan)
 	}
 	return sendCachedResolvedAssetEntry(c, entry, found)
 }
@@ -154,28 +158,7 @@ func (r *assetDeliveryRuntime) sendResolvedAssetFile(
 	if request.RangeRequested {
 		return r.sendResolvedAssetFileRange(c, result, headerPlan)
 	}
-	if r.fileGuard != nil {
-		return r.sendResolvedAssetFileStream(c, result, headerPlan)
-	}
-	if err := c.SendFile(result.FilePath, fiber.SendFile{ByteRange: true}); err != nil {
-		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
-			return "", missingErr
-		}
-		if r.logger != nil {
-			r.logger.Error("Send asset failed",
-				slog.String("path", result.FilePath),
-				slog.String("err", err.Error()),
-			)
-		}
-		return "", fiber.ErrInternalServerError
-	}
-
-	// Override Fiber's extension-derived headers so variant metadata stays authoritative.
-	headerPlan.ApplySendFileOverrides(c, request.RangeRequested)
-	if request.RangeRequested {
-		return deliverySendFileRange, nil
-	}
-	return deliverySendFile, nil
+	return r.sendResolvedAssetFileStream(c, result, headerPlan)
 }
 
 func resolvedAssetSize(result *resolver.Result) (int64, bool) {

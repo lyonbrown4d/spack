@@ -13,6 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
+	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/mo"
 )
 
@@ -28,6 +29,7 @@ type PreparedService struct {
 	rebuildWorkerRunning atomic.Bool
 	rebuildAgain         atomic.Bool
 	unsubscribes         []func()
+	fileGuards           *serverFileGuards
 }
 
 type preparedSubscription struct {
@@ -39,17 +41,18 @@ func newPreparedService(
 	cfg *config.Config,
 	cat catalog.Catalog,
 	logger *slog.Logger,
-	resourceHints *resourceHintService,
 	bus eventx.BusRuntime,
 	metrics *RuntimeMetrics,
+	src *source.LocalFS,
 ) *PreparedService {
 	return &PreparedService{
 		cfg:           cfg,
 		cat:           cat,
 		logger:        logger,
-		resourceHints: resourceHints,
+		resourceHints: newResourceHintService(cfg, logger, src),
 		bus:           bus,
 		metrics:       metrics,
+		fileGuards:    newServerFileGuards(cfg, src, cat, logger),
 	}
 }
 
@@ -62,7 +65,8 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 	defer s.rebuildMu.Unlock()
 
 	startedAt := time.Now()
-	compiler := newPreparedCompiler(s.cfg, s.resourceHints, s.logger)
+	s.fileGuards = mergeServerFileGuards(s.fileGuards, newServerFileGuards(s.cfg, nil, s.cat, s.logger))
+	compiler := newPreparedCompiler(s.cfg, s.resourceHints, s.logger, s.fileGuards)
 	snapshot, err := compiler.Compile(ctx, s.cat)
 	if err != nil {
 		return preparedCompileError(err)

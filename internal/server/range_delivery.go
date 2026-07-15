@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,14 +11,11 @@ import (
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
-var errServerAssetDirectory = errors.New("asset path is a directory")
-
 func (r *assetDeliveryRuntime) sendResolvedAssetFileRange(
 	c fiber.Ctx,
 	result *resolver.Result,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
-	// #nosec G304 -- path comes from resolver/catalog-selected asset paths already validated against the asset tree.
 	file, info, err := r.openResolvedAssetFile(result)
 	if err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {

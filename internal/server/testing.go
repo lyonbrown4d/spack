@@ -74,10 +74,10 @@ func PublishVariantServedForTest(
 }
 
 func NewResourceHintServiceForTest(
-	cfg *config.Frontend,
+	cfg *config.Config,
 	logger *slog.Logger,
 ) *ResourceHintServiceForTest {
-	return &ResourceHintServiceForTest{service: newResourceHintService(cfg, logger)}
+	return &ResourceHintServiceForTest{service: newResourceHintService(cfg, logger, nil)}
 }
 
 func (s *ResourceHintServiceForTest) Entry(result *resolver.Result) (ResourceHintEntryForTest, bool) {
@@ -169,10 +169,11 @@ func newObservedAppForTest(
 			}),
 			newAssetRouteRegistration(assetRouteRegistrationDeps{
 				cfg:           cfg,
-				runtime:       newAssetRouteRuntime(logger, obs, newResourceHintService(&cfg.Frontend, logger), prepared),
+				runtime:       newAssetRouteRuntime(logger, obs, newResourceHintService(cfg, logger, nil), prepared, nil),
 				assetResolver: assetResolver,
 				bodyCache:     bodyCache,
 				bus:           bus,
+				cat:           cat,
 			}),
 		),
 	))
@@ -183,7 +184,7 @@ func NewPreparedServiceForTest(
 	logger *slog.Logger,
 	cat catalog.Catalog,
 ) *PreparedService {
-	return newPreparedService(cfg, cat, logger, newResourceHintService(&cfg.Frontend, logger), nil, nil)
+	return newPreparedService(cfg, cat, logger, nil, nil, nil)
 }
 
 func NewPreparedServiceWithRuntimeMetricsForTest(
@@ -192,7 +193,7 @@ func NewPreparedServiceWithRuntimeMetricsForTest(
 	cat catalog.Catalog,
 	metrics *RuntimeMetrics,
 ) *PreparedService {
-	return newPreparedService(cfg, cat, logger, newResourceHintService(&cfg.Frontend, logger), nil, metrics)
+	return newPreparedService(cfg, cat, logger, nil, metrics, nil)
 }
 func ResolvePreparedForTest(
 	svc *PreparedService,

@@ -2,21 +2,23 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/lyonbrown4d/spack/internal/resolver"
-	"log/slog"
+	"github.com/lyonbrown4d/spack/internal/source"
 )
 
 const maxResourceHintScanBytes = 512 * 1024
 
 type resourceHintService struct {
-	cfg    config.ResourceHints
-	logger *slog.Logger
-	cache  *cxmapping.ConcurrentMap[string, resourceHintCacheEntry]
+	cfg       config.ResourceHints
+	logger    *slog.Logger
+	cache     *cxmapping.ConcurrentMap[string, resourceHintCacheEntry]
+	fileGuard *source.LocalRootGuard
 }
 
 type resourceHintCacheEntry struct {
@@ -33,15 +35,18 @@ type resourceHint struct {
 	crossorigin string
 }
 
-func newResourceHintService(cfg *config.Frontend, logger *slog.Logger) *resourceHintService {
+func newResourceHintService(cfg *config.Config, logger *slog.Logger, src *source.LocalFS) *resourceHintService {
 	var hints config.ResourceHints
+	var fallbackRoot string
 	if cfg != nil {
-		hints = cfg.ResourceHints
+		hints = cfg.Frontend.ResourceHints
+		fallbackRoot = cfg.Assets.Root
 	}
 	return &resourceHintService{
-		cfg:    hints,
-		logger: logger,
-		cache:  cxmapping.NewConcurrentMap[string, resourceHintCacheEntry](),
+		cfg:       hints,
+		logger:    logger,
+		cache:     cxmapping.NewConcurrentMap[string, resourceHintCacheEntry](),
+		fileGuard: newServerFileGuard(src, fallbackRoot, logger),
 	}
 }
 
@@ -66,7 +71,7 @@ func (s *resourceHintService) Entry(result *resolver.Result) (resourceHintCacheE
 		return cached, true
 	}
 
-	links, err := parseHTMLResourceHints(result.Asset.FullPath, s.cfg)
+	links, err := parseHTMLResourceHints(result.Asset.FullPath, s.cfg, s.fileGuard)
 	if err != nil && s.logger != nil {
 		s.logger.Debug("Parse HTML resource hints failed",
 			slog.String("path", result.Asset.FullPath),
