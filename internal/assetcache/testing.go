@@ -17,6 +17,17 @@ func NewCacheForTest(cfg config.MemoryCache, logger *slog.Logger) *Cache {
 	return NewCacheWithObservabilityForTest(cfg, logger, nil)
 }
 
+// NewCacheWithRootForTest exposes cache construction bound to a specific local source root.
+func NewCacheWithRootForTest(cfg config.MemoryCache, logger *slog.Logger, root string) *Cache {
+	testCfg := newCacheConfigForTest(cfg)
+	testCfg.Assets.Root = root
+	cache, err := newCache(testCfg, logger, nil, nil, nil, nil)
+	if err != nil {
+		return nil
+	}
+	return cache
+}
+
 // NewCacheWithObservabilityForTest exposes cache construction with observability for external tests.
 func NewCacheWithObservabilityForTest(
 	cfg config.MemoryCache,

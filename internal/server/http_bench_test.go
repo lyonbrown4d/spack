@@ -106,7 +106,10 @@ func newHTTPBenchmarkApp(b *testing.B, memoryCacheEnabled bool, assetName string
 	}
 
 	logger := slog.New(slog.DiscardHandler)
-	bodyCache := assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger)
+	bodyCache := assetcache.NewCacheWithRootForTest(cfg.HTTP.MemoryCache, logger, root)
+	if bodyCache == nil {
+		b.Fatal("create benchmark body cache")
+	}
 	if memoryCacheEnabled {
 		if _, found, err := bodyCache.GetOrLoad(assetPath); err != nil {
 			b.Fatal(err)

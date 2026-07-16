@@ -140,12 +140,14 @@ run_workload() {
   trap down EXIT
   write_startup_sample "$run_tag"
 
-  while read -r target; do
+  local -a targets=()
+  mapfile -t targets < <(collect_bench_targets)
+  for target in "${targets[@]}"; do
     url="$(resolve_target_url "$target")"
     prefix="refine-${target}"
     run_frontend_k6 "$prefix" "$url" "${prefix}-${run_tag}.json"
     run_static_k6 "$prefix" "$url" "${prefix}-static-${run_tag}.json"
-  done < <(collect_bench_targets)
+  done
 }
 
 collect_bench_targets() {

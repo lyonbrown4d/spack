@@ -44,12 +44,14 @@ parse_concurrencies() {
 
 run_matrix() {
   local concurrency
+  local -a concurrencies=()
 
   bash "$BENCH_SCRIPT" prepare
 
-  while IFS= read -r concurrency; do
+  mapfile -t concurrencies < <(parse_concurrencies)
+  for concurrency in "${concurrencies[@]}"; do
     REFINE_AOT_SKIP_PREPARE=true REFINE_AOT_RUN_TAG="vus-${concurrency}" K6_VUS="$concurrency" bash "$BENCH_SCRIPT" perf
-  done < <(parse_concurrencies)
+  done
 }
 
 run_repeat() {
