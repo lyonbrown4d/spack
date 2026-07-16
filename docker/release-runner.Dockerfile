@@ -2,7 +2,7 @@
 # It keeps local release reproducible on Windows hosts that cannot build Linux CGO/libvips binaries directly.
 FROM docker:29.1.3-cli AS dockercli
 
-FROM golang:1.26.4-bookworm
+FROM golang:1.26.5-bookworm
 
 COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=dockercli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx

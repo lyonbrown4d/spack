@@ -1,9 +1,12 @@
-# Digest locked from Docker Hub library/golang:1.26.4-alpine linux/amd64 on 2026-06-22.
-FROM golang:1.26.4-alpine@sha256:0648ddfa35769070197ba1cdf22a16dc452caf9315e66b91791308a543baf229 AS build
+# Digest locked from Docker Hub library/golang:1.26.5-alpine linux/amd64 on 2026-07-15.
+FROM golang:1.26.5-alpine@sha256:111d79159b2326f7e80c4a4706e1ba166acb0e2611df853955f3621828cd49e8 AS build
 
 RUN apk add --no-cache upx
 
 WORKDIR /src
+
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=${GOPROXY}
 
 COPY go.mod go.sum ./
 RUN go mod download
