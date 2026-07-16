@@ -15,15 +15,15 @@ import (
 )
 
 type Cache struct {
-	logger    *slog.Logger
-	obs       observabilityx.Observability
-	policy    cachepolicy.MemoryPolicy
-	warmup    bool
-	cache     *ristretto.Cache[string, *Entry]
-	loader    singleflight.Group
-	bus       eventx.BusRuntime
-	workers   *asyncx.Settings
-	fileGuard *source.LocalRootGuard
+	logger  *slog.Logger
+	obs     observabilityx.Observability
+	policy  cachepolicy.MemoryPolicy
+	warmup  bool
+	cache   *ristretto.Cache[string, *Entry]
+	loader  singleflight.Group
+	bus     eventx.BusRuntime
+	workers *asyncx.Settings
+	files   *source.LocalFS
 
 	variantRemovedUnsubscribe   func()
 	variantGeneratedUnsubscribe func()
@@ -38,18 +38,18 @@ func newCache(
 	src *source.LocalFS,
 ) (*Cache, error) {
 	cacheCfg := cfg.HTTP.MemoryCache
-	fileGuard, err := newCacheSourceGuard(src, cfg.Assets.Root)
+	files, err := newCacheFileSource(src, cfg.Assets.Root)
 	if err != nil {
 		return nil, err
 	}
 	cache := &Cache{
-		logger:    logger,
-		obs:       observabilityx.Normalize(obs, logger),
-		policy:    cachepolicy.NewMemoryPolicy(cfg),
-		warmup:    cacheCfg.WarmupEnabled(),
-		bus:       bus,
-		workers:   workers,
-		fileGuard: fileGuard,
+		logger:  logger,
+		obs:     observabilityx.Normalize(obs, logger),
+		policy:  cachepolicy.NewMemoryPolicy(cfg),
+		warmup:  cacheCfg.WarmupEnabled(),
+		bus:     bus,
+		workers: workers,
+		files:   files,
 	}
 	if !cacheCfg.Enabled() {
 		return cache, nil
@@ -69,24 +69,20 @@ func newCache(
 	return cache, nil
 }
 
-func newCacheSourceGuard(src *source.LocalFS, fallbackRoot string) (*source.LocalRootGuard, error) {
+func newCacheFileSource(src *source.LocalFS, fallbackRoot string) (*source.LocalFS, error) {
 	switch {
 	case src != nil:
-		guard, ok, err := src.RootGuard()
-		if err != nil {
-			return nil, oops.Wrapf(err, "create local source root guard")
-		}
-		if ok {
-			return guard, nil
+		if src.Root() != "" {
+			return src, nil
 		}
 	default:
-		guard, ok, err := source.NewLocalRootGuard(fallbackRoot)
+		files, ok, err := source.NewLocalDirectory(fallbackRoot)
 		if err != nil {
-			return nil, oops.Wrapf(err, "create local source root guard")
+			return nil, oops.Wrapf(err, "create local cache file source")
 		}
 		if ok {
-			return guard, nil
+			return files, nil
 		}
 	}
-	return nil, oops.Errorf("local source root guard is required")
+	return nil, oops.Errorf("local cache file source is required")
 }

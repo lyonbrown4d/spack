@@ -43,13 +43,6 @@ func readPrefixRelativePath(assetPath string, maxBytes int64) (string, bool) {
 	return cleanRelativeAssetPath(assetPath)
 }
 
-func (s *LocalFS) openValidatedRoot() (*os.Root, error) {
-	if err := s.validateRoot(); err != nil {
-		return nil, err
-	}
-	return s.openRoot()
-}
-
 func (s *LocalFS) hasReadableRegularFile(rootDir *os.Root, relativePath string) (bool, error) {
 	info, err := lstatPathWithinRoot(rootDir, s.root, relativePath)
 	if err != nil {

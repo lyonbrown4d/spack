@@ -63,14 +63,14 @@ var assetCacheHistogramSpecs = cxmapping.NewMapFrom(map[string]observabilityx.Hi
 })
 
 func (c *Cache) readFile(path string) ([]byte, error) {
-	body, err := readResolvedAssetPath(path, c.fileGuard)
+	body, err := readResolvedAssetPath(path, c.files)
 	if err != nil {
 		return nil, oops.With("path", path).Wrapf(err, "read resolved asset")
 	}
 	return body, nil
 }
 
-func readResolvedAssetPath(path string, guard *source.LocalRootGuard) ([]byte, error) {
+func readResolvedAssetPath(path string, files *source.LocalFS) ([]byte, error) {
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
@@ -78,12 +78,12 @@ func readResolvedAssetPath(path string, guard *source.LocalRootGuard) ([]byte, e
 		}
 		return body, nil
 	}
-	if guard == nil {
-		return nil, oops.Errorf("local source root guard is required for %s", path)
+	if files == nil {
+		return nil, oops.Errorf("local file source is required for %s", path)
 	}
-	body, err := guard.ReadFile(path)
+	body, err := files.ReadFile(path)
 	if err != nil {
-		return nil, oops.Wrapf(err, "read guarded asset file")
+		return nil, oops.Wrapf(err, "read local asset file")
 	}
 	return body, nil
 }

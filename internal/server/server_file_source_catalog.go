@@ -8,7 +8,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 )
 
-func catalogFileGuardRoot(cat catalog.Catalog) string {
+func catalogFileSourceRoot(cat catalog.Catalog) string {
 	root := ""
 	cat.AllAssets().Each(func(_ int, asset *catalog.Asset) {
 		if asset != nil {

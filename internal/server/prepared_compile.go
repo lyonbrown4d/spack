@@ -22,7 +22,7 @@ type preparedCompiler struct {
 	memoryPolicy  cachepolicy.MemoryPolicy
 	resourceHints *resourceHintService
 	logger        *slog.Logger
-	fileGuards    *serverFileGuards
+	fileSources   *serverFileSources
 	bodyBudget    *preparedBodyBudget
 }
 
@@ -30,7 +30,7 @@ func newPreparedCompiler(
 	cfg *config.Config,
 	resourceHints *resourceHintService,
 	logger *slog.Logger,
-	fileGuards *serverFileGuards,
+	fileSources *serverFileSources,
 ) preparedCompiler {
 	return preparedCompiler{
 		cfg:           cfg,
@@ -38,7 +38,7 @@ func newPreparedCompiler(
 		memoryPolicy:  cachepolicy.NewMemoryPolicy(cfg),
 		resourceHints: resourceHints,
 		logger:        logger,
-		fileGuards:    fileGuards,
+		fileSources:   fileSources,
 		bodyBudget:    newPreparedBodyBudget(cfg),
 	}
 }
@@ -164,7 +164,7 @@ func (c preparedCompiler) compileBody(result *resolver.Result) ([]byte, bool) {
 	if !ok {
 		return nil, false
 	}
-	body, err := readServerAssetFileWithGuard(result.FilePath, c.fileGuards)
+	body, err := readServerAssetFile(result.FilePath, c.fileSources)
 	if err != nil {
 		c.bodyBudget.Release(reserved)
 		if c.logger != nil {

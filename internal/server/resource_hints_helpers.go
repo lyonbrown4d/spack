@@ -22,14 +22,14 @@ import (
 	"github.com/samber/mo"
 )
 
-func parseHTMLResourceHints(filePath string, cfg config.ResourceHints, guard *source.LocalRootGuard) (links *cxlist.List[string], err error) {
+func parseHTMLResourceHints(filePath string, cfg config.ResourceHints, files *source.LocalFS) (links *cxlist.List[string], err error) {
 	cleanPath := filepath.Clean(filePath)
-	if guard == nil {
-		return nil, oops.Errorf("local source root guard is required for %s", cleanPath)
+	if files == nil {
+		return nil, oops.Errorf("local file source is required for %s", cleanPath)
 	}
-	file, _, err := guard.OpenFile(cleanPath)
+	file, _, err := files.OpenFile(cleanPath)
 	if err != nil {
-		return nil, oops.Wrapf(err, "open guarded HTML asset")
+		return nil, oops.Wrapf(err, "open local HTML asset")
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {

@@ -33,7 +33,7 @@ type PreparedService struct {
 	lifecycleCtx         context.Context
 	lifecycleCancel      context.CancelFunc
 	unsubscribes         []func()
-	fileGuards           *serverFileGuards
+	fileSources          *serverFileSources
 }
 
 type preparedSubscription struct {
@@ -56,7 +56,7 @@ func newPreparedService(
 		resourceHints: newResourceHintService(cfg, logger, src),
 		bus:           bus,
 		metrics:       metrics,
-		fileGuards:    newServerFileGuards(cfg, src, cat, logger),
+		fileSources:   newServerFileSources(cfg, src, cat, logger),
 	}
 }
 
@@ -69,8 +69,8 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 	defer s.rebuildMu.Unlock()
 
 	startedAt := time.Now()
-	s.fileGuards = mergeServerFileGuards(s.fileGuards, newServerFileGuards(s.cfg, nil, s.cat, s.logger))
-	compiler := newPreparedCompiler(s.cfg, s.resourceHints, s.logger, s.fileGuards)
+	s.fileSources = mergeServerFileSources(s.fileSources, newServerFileSources(s.cfg, nil, s.cat, s.logger))
+	compiler := newPreparedCompiler(s.cfg, s.resourceHints, s.logger, s.fileSources)
 	snapshot, err := compiler.Compile(ctx, s.cat)
 	if err != nil {
 		return preparedCompileError(err)

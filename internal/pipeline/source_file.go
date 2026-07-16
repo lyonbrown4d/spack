@@ -18,13 +18,13 @@ func readPipelineSourceFile(src *source.LocalFS, fullPath string) ([]byte, error
 		}
 		return body, nil
 	}
-	guard, err := pipelineSourceGuard(src, fullPath)
+	files, err := pipelineFileSource(src, fullPath)
 	if err != nil {
 		return nil, err
 	}
-	body, err := guard.ReadFile(fullPath)
+	body, err := files.ReadFile(fullPath)
 	if err != nil {
-		return nil, oops.Wrapf(err, "read guarded pipeline source")
+		return nil, oops.Wrapf(err, "read pipeline source")
 	}
 	return body, nil
 }
@@ -37,40 +37,34 @@ func validatePipelineSourceFile(src *source.LocalFS, fullPath string) (int64, er
 		}
 		return int64(len(body)), nil
 	}
-	guard, err := pipelineSourceGuard(src, fullPath)
+	files, err := pipelineFileSource(src, fullPath)
 	if err != nil {
 		return 0, err
 	}
-	file, info, err := guard.OpenFile(fullPath)
+	file, info, err := files.OpenFile(fullPath)
 	if err != nil {
-		return 0, oops.Wrapf(err, "open guarded pipeline source")
+		return 0, oops.Wrapf(err, "open pipeline source")
 	}
 	if closeErr := file.Close(); closeErr != nil {
-		return 0, oops.Wrapf(closeErr, "close guarded pipeline source")
+		return 0, oops.Wrapf(closeErr, "close pipeline source")
 	}
 	if info == nil {
-		return 0, oops.In("pipeline").Owner("source guard").Wrap(errors.New("pipeline source info is nil"))
+		return 0, oops.In("pipeline").Owner("source").Wrap(errors.New("pipeline source info is nil"))
 	}
 	return info.Size(), nil
 }
 
-func pipelineSourceGuard(src *source.LocalFS, fullPath string) (*source.LocalRootGuard, error) {
-	if src != nil {
-		guard, ok, err := src.RootGuard()
-		if err != nil {
-			return nil, oops.Wrapf(err, "create local source root guard")
-		}
-		if ok && guard != nil {
-			return guard, nil
-		}
+func pipelineFileSource(src *source.LocalFS, fullPath string) (*source.LocalFS, error) {
+	if src != nil && src.Root() != "" {
+		return src, nil
 	}
 	root := filepath.Dir(strings.TrimSpace(fullPath))
-	guard, ok, err := source.NewLocalRootGuard(root)
+	files, ok, err := source.NewLocalDirectory(root)
 	if err != nil {
-		return nil, oops.Wrapf(err, "create fallback source root guard")
+		return nil, oops.Wrapf(err, "create fallback pipeline source")
 	}
-	if !ok || guard == nil {
-		return nil, oops.In("pipeline").Owner("source guard").Wrap(errors.New("local source root guard is required"))
+	if !ok || files == nil {
+		return nil, oops.In("pipeline").Owner("source").Wrap(errors.New("local file source is required"))
 	}
-	return guard, nil
+	return files, nil
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 )
 
-func readServerAssetFileWithGuard(path string, guard *serverFileGuards) ([]byte, error) {
+func readServerAssetFile(path string, files *serverFileSources) ([]byte, error) {
 	if spackbundle.IsReference(path) {
 		body, err := spackbundle.ReadReference(path)
 		if err != nil {
@@ -21,12 +21,12 @@ func readServerAssetFileWithGuard(path string, guard *serverFileGuards) ([]byte,
 		}
 		return body, nil
 	}
-	if guard == nil {
-		return nil, oops.Errorf("local source root guard is required for %s", path)
+	if files == nil {
+		return nil, oops.Errorf("local file source is required for %s", path)
 	}
-	body, err := guard.ReadFile(path)
+	body, err := files.ReadFile(path)
 	if err != nil {
-		return nil, oops.Wrapf(err, "read guarded asset file")
+		return nil, oops.Wrapf(err, "read local asset file")
 	}
 	return body, nil
 }
@@ -37,7 +37,7 @@ func (r *assetDeliveryRuntime) sendResolvedBundleAsset(
 	result *resolver.Result,
 	headerPlan resolvedHeaderPlan,
 ) (string, error) {
-	body, err := readServerAssetFileWithGuard(result.FilePath, r.fileGuards)
+	body, err := readServerAssetFile(result.FilePath, r.fileSources)
 	if err != nil {
 		if missingErr := newMissingResolvedVariantError(result, err); missingErr != nil {
 			return "", missingErr
@@ -53,7 +53,7 @@ func (r *assetDeliveryRuntime) sendPreparedBundleAssetFile(
 	response *preparedResponse,
 	headerPlan preparedHeaderPlan,
 ) (string, error) {
-	body, err := readServerAssetFileWithGuard(response.filePath(), r.fileGuards)
+	body, err := readServerAssetFile(response.filePath(), r.fileSources)
 	if err != nil {
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr

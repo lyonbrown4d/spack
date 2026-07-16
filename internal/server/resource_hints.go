@@ -15,10 +15,10 @@ import (
 const maxResourceHintScanBytes = 512 * 1024
 
 type resourceHintService struct {
-	cfg       config.ResourceHints
-	logger    *slog.Logger
-	cache     *cxmapping.ConcurrentMap[string, resourceHintCacheEntry]
-	fileGuard *source.LocalRootGuard
+	cfg    config.ResourceHints
+	logger *slog.Logger
+	cache  *cxmapping.ConcurrentMap[string, resourceHintCacheEntry]
+	files  *source.LocalFS
 }
 
 type resourceHintCacheEntry struct {
@@ -43,10 +43,10 @@ func newResourceHintService(cfg *config.Config, logger *slog.Logger, src *source
 		fallbackRoot = cfg.Assets.Root
 	}
 	return &resourceHintService{
-		cfg:       hints,
-		logger:    logger,
-		cache:     cxmapping.NewConcurrentMap[string, resourceHintCacheEntry](),
-		fileGuard: newServerFileGuard(src, fallbackRoot, logger),
+		cfg:    hints,
+		logger: logger,
+		cache:  cxmapping.NewConcurrentMap[string, resourceHintCacheEntry](),
+		files:  newServerFileSource(src, fallbackRoot, logger),
 	}
 }
 
@@ -71,7 +71,7 @@ func (s *resourceHintService) Entry(result *resolver.Result) (resourceHintCacheE
 		return cloneResourceHintEntry(cached), true
 	}
 
-	links, err := parseHTMLResourceHints(result.Asset.FullPath, s.cfg, s.fileGuard)
+	links, err := parseHTMLResourceHints(result.Asset.FullPath, s.cfg, s.files)
 	if err != nil && s.logger != nil {
 		s.logger.Debug("Parse HTML resource hints failed",
 			slog.String("path", result.Asset.FullPath),

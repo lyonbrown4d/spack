@@ -34,155 +34,143 @@ func (r sectionReadCloser) Close() error {
 	return nil
 }
 
-type serverFileGuards struct {
-	guards []*source.LocalRootGuard
+type serverFileSources struct {
+	sources []*source.LocalFS
 }
 
-func newServerFileGuards(
+func newServerFileSources(
 	cfg *config.Config,
 	src *source.LocalFS,
 	cat catalog.Catalog,
 	logger *slog.Logger,
-) *serverFileGuards {
-	return mergeServerFileGuards(
-		newServerFileGuardsFromSource(src, logger),
-		newServerFileGuardsFromConfig(cfg, logger),
-		newServerFileGuardsFromCatalog(cat, logger),
+) *serverFileSources {
+	return mergeServerFileSources(
+		newServerFileSourcesFromSource(src),
+		newServerFileSourcesFromConfig(cfg, logger),
+		newServerFileSourcesFromCatalog(cat, logger),
 	)
 }
 
-func newServerFileGuardsFromSource(src *source.LocalFS, logger *slog.Logger) *serverFileGuards {
-	if guard, resolved := serverFileGuardFromSource(src, logger); resolved && guard != nil {
-		return &serverFileGuards{guards: []*source.LocalRootGuard{guard}}
+func newServerFileSourcesFromSource(src *source.LocalFS) *serverFileSources {
+	if src != nil && src.Root() != "" {
+		return &serverFileSources{sources: []*source.LocalFS{src}}
 	}
 	return nil
 }
 
-func newServerFileGuardsFromConfig(cfg *config.Config, logger *slog.Logger) *serverFileGuards {
+func newServerFileSourcesFromConfig(cfg *config.Config, logger *slog.Logger) *serverFileSources {
 	if cfg == nil {
 		return nil
 	}
-	return mergeServerFileGuards(
-		newServerFileGuardsFromRoot(cfg.Assets.Root, logger),
-		newServerFileGuardsFromRoot(cfg.Compression.CacheDir, logger),
+	return mergeServerFileSources(
+		newServerFileSourcesFromRoot(cfg.Assets.Root, logger),
+		newServerFileSourcesFromRoot(cfg.Compression.CacheDir, logger),
 	)
 }
 
-func newServerFileGuardsFromCatalog(cat catalog.Catalog, logger *slog.Logger) *serverFileGuards {
+func newServerFileSourcesFromCatalog(cat catalog.Catalog, logger *slog.Logger) *serverFileSources {
 	if cat == nil {
 		return nil
 	}
-	return newServerFileGuardsFromRoot(catalogFileGuardRoot(cat), logger)
+	return newServerFileSourcesFromRoot(catalogFileSourceRoot(cat), logger)
 }
 
-func newServerFileGuardsFromRoot(root string, logger *slog.Logger) *serverFileGuards {
-	guard := serverFileGuardFromRoot(root, logger)
-	if guard == nil {
+func newServerFileSourcesFromRoot(root string, logger *slog.Logger) *serverFileSources {
+	files := serverFileSourceFromRoot(root, logger)
+	if files == nil {
 		return nil
 	}
-	return &serverFileGuards{guards: []*source.LocalRootGuard{guard}}
+	return &serverFileSources{sources: []*source.LocalFS{files}}
 }
 
-func mergeServerFileGuards(groups ...*serverFileGuards) *serverFileGuards {
-	merged := &serverFileGuards{}
+func mergeServerFileSources(groups ...*serverFileSources) *serverFileSources {
+	merged := &serverFileSources{}
 	seen := make(map[string]struct{}, len(groups))
 	for _, group := range groups {
-		mergeServerFileGuardGroup(merged, seen, group)
+		mergeServerFileSourceGroup(merged, seen, group)
 	}
-	if len(merged.guards) == 0 {
+	if len(merged.sources) == 0 {
 		return nil
 	}
 	return merged
 }
 
-func mergeServerFileGuardGroup(merged *serverFileGuards, seen map[string]struct{}, group *serverFileGuards) {
+func mergeServerFileSourceGroup(merged *serverFileSources, seen map[string]struct{}, group *serverFileSources) {
 	if group == nil {
 		return
 	}
-	for _, guard := range group.guards {
-		mergeServerFileGuard(merged, seen, guard)
+	for _, files := range group.sources {
+		mergeServerFileSource(merged, seen, files)
 	}
 }
 
-func mergeServerFileGuard(merged *serverFileGuards, seen map[string]struct{}, guard *source.LocalRootGuard) {
-	if guard == nil || guard.Root() == "" {
+func mergeServerFileSource(merged *serverFileSources, seen map[string]struct{}, files *source.LocalFS) {
+	if files == nil || files.Root() == "" {
 		return
 	}
-	key := strings.ToLower(filepath.Clean(guard.Root()))
+	key := strings.ToLower(filepath.Clean(files.Root()))
 	if _, ok := seen[key]; ok {
 		return
 	}
 	seen[key] = struct{}{}
-	merged.guards = append(merged.guards, guard)
+	merged.sources = append(merged.sources, files)
 }
 
-func newServerFileGuard(src *source.LocalFS, fallbackRoot string, logger *slog.Logger) *source.LocalRootGuard {
-	if guard, resolved := serverFileGuardFromSource(src, logger); resolved {
-		return guard
+func newServerFileSource(src *source.LocalFS, fallbackRoot string, logger *slog.Logger) *source.LocalFS {
+	if src != nil && src.Root() != "" {
+		return src
 	}
-	return serverFileGuardFromRoot(fallbackRoot, logger)
+	return serverFileSourceFromRoot(fallbackRoot, logger)
 }
 
-func serverFileGuardFromSource(src *source.LocalFS, logger *slog.Logger) (*source.LocalRootGuard, bool) {
-	if src == nil {
-		return nil, false
-	}
-	guard, ok, err := src.RootGuard()
+func serverFileSourceFromRoot(fallbackRoot string, logger *slog.Logger) *source.LocalFS {
+	files, ok, err := source.NewLocalDirectory(fallbackRoot)
 	if err != nil {
-		warnServerFileGuard(logger, "Resolved local source root guard unavailable", err)
-		return nil, true
-	}
-	return guard, ok
-}
-
-func serverFileGuardFromRoot(fallbackRoot string, logger *slog.Logger) *source.LocalRootGuard {
-	guard, ok, err := source.NewLocalRootGuard(fallbackRoot)
-	if err != nil {
-		warnServerFileGuard(logger, "Local source root guard unavailable", err)
+		warnServerFileSource(logger, "Local file source unavailable", err)
 		return nil
 	}
 	if !ok {
 		return nil
 	}
-	return guard
+	return files
 }
 
-func warnServerFileGuard(logger *slog.Logger, message string, err error) {
+func warnServerFileSource(logger *slog.Logger, message string, err error) {
 	if logger == nil {
 		return
 	}
 	logger.Warn(message, slog.Any("error", err))
 }
 
-func (g *serverFileGuards) ReadFile(path string) ([]byte, error) {
-	file, _, err := g.OpenFile(path)
+func (s *serverFileSources) ReadFile(path string) ([]byte, error) {
+	file, _, err := s.OpenFile(path)
 	if err != nil {
 		return nil, err
 	}
 	body, readErr := io.ReadAll(file)
 	closeErr := file.Close()
 	if readErr != nil {
-		return nil, oops.Wrapf(readErr, "read guarded asset file")
+		return nil, oops.Wrapf(readErr, "read local asset file")
 	}
 	if closeErr != nil {
-		return nil, oops.Wrapf(closeErr, "close guarded asset file")
+		return nil, oops.Wrapf(closeErr, "close local asset file")
 	}
 	return body, nil
 }
 
-func (g *serverFileGuards) OpenFile(path string) (*os.File, fs.FileInfo, error) {
-	if g == nil || len(g.guards) == 0 {
-		return nil, nil, oops.Owner("server").Wrap(fmt.Errorf("local file guard is required for %s", path))
+func (s *serverFileSources) OpenFile(path string) (*os.File, fs.FileInfo, error) {
+	if s == nil || len(s.sources) == 0 {
+		return nil, nil, oops.Owner("server").Wrap(fmt.Errorf("local file source is required for %s", path))
 	}
-	errs := make([]error, 0, len(g.guards))
-	for _, guard := range g.guards {
-		file, info, err := guard.OpenFile(path)
+	errs := make([]error, 0, len(s.sources))
+	for _, files := range s.sources {
+		file, info, err := files.OpenFile(path)
 		if err == nil {
 			return file, info, nil
 		}
 		errs = append(errs, err)
 	}
-	return nil, nil, oops.Owner("server").Wrap(fmt.Errorf("open guarded asset file: %w", errors.Join(errs...)))
+	return nil, nil, oops.Owner("server").Wrap(fmt.Errorf("open local asset file: %w", errors.Join(errs...)))
 }
 
 func (r *assetDeliveryRuntime) sendResolvedAssetFileStream(
@@ -206,14 +194,14 @@ func (r *assetDeliveryRuntime) sendResolvedAssetFileStream(
 }
 
 func (r *assetDeliveryRuntime) openResolvedAssetFile(result *resolver.Result) (*os.File, fs.FileInfo, error) {
-	if r != nil && r.fileGuards != nil {
-		file, info, err := r.fileGuards.OpenFile(result.FilePath)
+	if r != nil && r.fileSources != nil {
+		file, info, err := r.fileSources.OpenFile(result.FilePath)
 		if err != nil {
-			return nil, nil, oops.Wrapf(err, "open guarded asset file")
+			return nil, nil, oops.Wrapf(err, "open local asset file")
 		}
 		return file, info, nil
 	}
-	return nil, nil, oops.Owner("server").Wrap(fmt.Errorf("local file guard is required for %s", result.FilePath))
+	return nil, nil, oops.Owner("server").Wrap(fmt.Errorf("local file source is required for %s", result.FilePath))
 }
 
 func sendServerStream(c fiber.Ctx, stream io.Reader, size int64, action string) error {

@@ -30,7 +30,7 @@ type assetDeliveryRuntime struct {
 	prepared       *PreparedService
 	trackDelivery  bool
 	resourceHints  *resourceHintService
-	fileGuards     *serverFileGuards
+	fileSources    *serverFileSources
 }
 
 func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
@@ -50,9 +50,9 @@ func newAssetDeliveryRuntime(
 	bus eventx.BusRuntime,
 	cat catalog.Catalog,
 ) *assetDeliveryRuntime {
-	fileGuards := mergeServerFileGuards(
-		routeRuntime.fileGuards,
-		newServerFileGuards(cfg, nil, cat, routeRuntime.logger),
+	fileSources := mergeServerFileSources(
+		routeRuntime.fileSources,
+		newServerFileSources(cfg, nil, cat, routeRuntime.logger),
 	)
 	return &assetDeliveryRuntime{
 		mountPath:      cfg.Assets.Path,
@@ -64,7 +64,7 @@ func newAssetDeliveryRuntime(
 		prepared:       routeRuntime.prepared,
 		trackDelivery:  routeRuntime.trackDelivery,
 		resourceHints:  routeRuntime.resourceHints,
-		fileGuards:     fileGuards,
+		fileSources:    fileSources,
 	}
 }
 

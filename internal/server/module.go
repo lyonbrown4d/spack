@@ -131,7 +131,7 @@ type assetRouteRuntime struct {
 	trackDelivery bool
 	resourceHints *resourceHintService
 	prepared      *PreparedService
-	fileGuards    *serverFileGuards
+	fileSources   *serverFileSources
 }
 
 func newAppRegistration(order int, name string, apply func(*fiber.App)) appRegistration {
@@ -263,7 +263,7 @@ func newAssetRouteRuntime(
 		trackDelivery: shouldTrackAssetDelivery(logger, obs),
 		resourceHints: resourceHints,
 		prepared:      prepared,
-		fileGuards:    newServerFileGuards(nil, src, nil, logger),
+		fileSources:   newServerFileSources(nil, src, nil, logger),
 	}
 }
 

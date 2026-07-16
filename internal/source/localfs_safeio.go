@@ -12,44 +12,9 @@ import (
 	"github.com/samber/oops"
 )
 
-// LocalRootGuard binds final file opens to the configured local source root.
-// It rejects symlinks, root replacement, and paths outside the original root.
-type LocalRootGuard struct {
-	root string
-	info fs.FileInfo
-}
-
-func NewLocalRootGuard(root string) (*LocalRootGuard, bool, error) {
-	root = strings.TrimSpace(root)
-	if root == "" {
-		return nil, false, nil
-	}
-	absolute, err := filepath.Abs(filepath.Clean(root))
-	if err != nil {
-		return nil, false, oops.Wrapf(err, "resolve local source root")
-	}
-	info, err := os.Lstat(absolute)
-	if err != nil {
-		return nil, false, oops.Wrapf(err, "stat local source root")
-	}
-	if isSymlink(info) {
-		return nil, false, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrSymlinkNotAllowed, absolute))
-	}
-	if !info.IsDir() {
-		return nil, false, nil
-	}
-	return &LocalRootGuard{root: absolute, info: info}, true, nil
-}
-
-func (g *LocalRootGuard) Root() string {
-	if g == nil {
-		return ""
-	}
-	return g.root
-}
-
-func (g *LocalRootGuard) ReadFile(fullPath string) ([]byte, error) {
-	file, _, err := g.OpenFile(fullPath)
+// ReadFile reads a file only after binding the open to this source's root.
+func (s *LocalFS) ReadFile(fullPath string) ([]byte, error) {
+	file, _, err := s.OpenFile(fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -64,36 +29,38 @@ func (g *LocalRootGuard) ReadFile(fullPath string) ([]byte, error) {
 	return body, nil
 }
 
-func (g *LocalRootGuard) OpenFile(fullPath string) (*os.File, fs.FileInfo, error) {
-	if g == nil {
-		return nil, nil, oops.Owner("source").Wrap(errors.New("local source root guard is nil"))
+// OpenFile opens a regular file under this source root while rejecting
+// symlinks, root replacement, path escapes, and open-time replacement.
+func (s *LocalFS) OpenFile(fullPath string) (*os.File, fs.FileInfo, error) {
+	if s == nil {
+		return nil, nil, oops.Owner("source").Wrap(errors.New("local source is nil"))
 	}
-	relativePath, err := g.relativePath(fullPath)
+	relativePath, err := s.relativePath(fullPath)
 	if err != nil {
 		return nil, nil, err
 	}
-	rootDir, err := g.openValidatedRoot()
+	rootDir, err := s.openValidatedRoot()
 	if err != nil {
 		return nil, nil, err
 	}
 	defer closeRoot(rootDir)
-	return g.openStableFile(rootDir, relativePath, fullPath)
+	return s.openStableFile(rootDir, relativePath, fullPath)
 }
 
-func (g *LocalRootGuard) openValidatedRoot() (*os.Root, error) {
-	rootDir, err := os.OpenRoot(g.root)
+func (s *LocalFS) openValidatedRoot() (*os.Root, error) {
+	rootDir, err := os.OpenRoot(s.root)
 	if err != nil {
 		return nil, oops.Wrap(err)
 	}
-	if err := g.validateCurrentRoot(rootDir); err != nil {
+	if err := s.validateCurrentRoot(rootDir); err != nil {
 		closeRoot(rootDir)
 		return nil, err
 	}
 	return rootDir, nil
 }
 
-func (g *LocalRootGuard) openStableFile(rootDir *os.Root, relativePath, fullPath string) (*os.File, fs.FileInfo, error) {
-	info, err := g.lstatRegularFile(rootDir, relativePath, fullPath)
+func (s *LocalFS) openStableFile(rootDir *os.Root, relativePath, fullPath string) (*os.File, fs.FileInfo, error) {
+	info, err := s.lstatRegularFile(rootDir, relativePath, fullPath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -117,8 +84,8 @@ func (g *LocalRootGuard) openStableFile(rootDir *os.Root, relativePath, fullPath
 	return file, openedInfo, nil
 }
 
-func (g *LocalRootGuard) lstatRegularFile(rootDir *os.Root, relativePath, fullPath string) (fs.FileInfo, error) {
-	info, err := lstatPathWithinRoot(rootDir, g.root, relativePath)
+func (s *LocalFS) lstatRegularFile(rootDir *os.Root, relativePath, fullPath string) (fs.FileInfo, error) {
+	info, err := lstatPathWithinRoot(rootDir, s.root, relativePath)
 	if err != nil {
 		return nil, oops.Wrap(err)
 	}
@@ -128,30 +95,30 @@ func (g *LocalRootGuard) lstatRegularFile(rootDir *os.Root, relativePath, fullPa
 	return info, nil
 }
 
-func (g *LocalRootGuard) validateCurrentRoot(rootDir *os.Root) error {
+func (s *LocalFS) validateCurrentRoot(rootDir *os.Root) error {
 	openedInfo, err := rootDir.Stat(".")
 	if err != nil {
 		return oops.Wrap(err)
 	}
-	currentInfo, err := os.Lstat(g.root)
+	currentInfo, err := os.Lstat(s.root)
 	if err != nil {
 		return oops.Wrap(err)
 	}
-	if err := validateOpenedDirectoryRoot(g.root, openedInfo, currentInfo); err != nil {
+	if err := validateOpenedDirectoryRoot(s.root, openedInfo, currentInfo); err != nil {
 		return err
 	}
-	if !os.SameFile(g.info, currentInfo) {
-		return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrRootReplaced, g.root))
+	if !os.SameFile(s.rootInfo, currentInfo) {
+		return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrRootReplaced, s.root))
 	}
 	return nil
 }
 
-func (g *LocalRootGuard) relativePath(fullPath string) (string, error) {
+func (s *LocalFS) relativePath(fullPath string) (string, error) {
 	absolute, err := filepath.Abs(filepath.Clean(strings.TrimSpace(fullPath)))
 	if err != nil {
 		return "", oops.Wrapf(err, "resolve source path")
 	}
-	relativePath, err := filepath.Rel(g.root, absolute)
+	relativePath, err := filepath.Rel(s.root, absolute)
 	if err != nil {
 		return "", oops.Wrapf(err, "resolve source relative path")
 	}

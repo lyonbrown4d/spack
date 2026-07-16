@@ -67,10 +67,10 @@ func (r *assetDeliveryRuntime) sendPreparedLocalAssetFile(
 	response *preparedResponse,
 	headerPlan preparedHeaderPlan,
 ) (string, error) {
-	if r.fileGuards == nil {
-		return "", oops.Errorf("local source root guard is required for %s", response.filePath())
+	if r.fileSources == nil {
+		return "", oops.Errorf("local file source is required for %s", response.filePath())
 	}
-	file, info, err := r.fileGuards.OpenFile(response.filePath())
+	file, info, err := r.fileSources.OpenFile(response.filePath())
 	if err != nil {
 		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
 			return "", retryErr
