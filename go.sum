@@ -112,10 +112,16 @@ github.com/knadh/koanf/parsers/hcl v1.0.0 h1:abJ3xIM2SNCPVpuBcPOuHYBuIVWpmh/as1h
 github.com/knadh/koanf/parsers/hcl v1.0.0/go.mod h1:6V1NBUhDVQf9aPl20bDJjsdaFAo4ND/qHG78tmBqUFU=
 github.com/knadh/koanf/parsers/json v1.0.0 h1:1pVR1JhMwbqSg5ICzU+surJmeBbdT4bQm7jjgnA+f8o=
 github.com/knadh/koanf/parsers/json v1.0.0/go.mod h1:zb5WtibRdpxSoSJfXysqGbVxvbszdlroWDHGdDkkEYU=
+github.com/knadh/koanf/parsers/json v1.0.1 h1:w/HTGw5+t5R4dA1OUtHNwOQCBsdNTcVw8Fhje2u76+c=
+github.com/knadh/koanf/parsers/json v1.0.1/go.mod h1:zb5WtibRdpxSoSJfXysqGbVxvbszdlroWDHGdDkkEYU=
 github.com/knadh/koanf/parsers/toml/v2 v2.2.1 h1:bDF9KugExgzHrvNvfxxYgaxqJHSv+ZOoa0j30BYNhW4=
 github.com/knadh/koanf/parsers/toml/v2 v2.2.1/go.mod h1:Lul0orUj0zAWE2R5yWKATUPq5yl1a6hlggz87rtDKnQ=
+github.com/knadh/koanf/parsers/toml/v2 v2.2.2 h1:wbGxbgzNMsdEpnybeSPpI8sZixARaEr4+sLW+j+/hLM=
+github.com/knadh/koanf/parsers/toml/v2 v2.2.2/go.mod h1:JMyUfTKxpuou5VgLw/RXvKXMixIKEwJXALZon+pt0pg=
 github.com/knadh/koanf/parsers/yaml v1.1.0 h1:3ltfm9ljprAHt4jxgeYLlFPmUaunuCgu1yILuTXRdM4=
 github.com/knadh/koanf/parsers/yaml v1.1.0/go.mod h1:HHmcHXUrp9cOPcuC+2wrr44GTUB0EC+PyfN3HZD9tFg=
+github.com/knadh/koanf/parsers/yaml v1.1.1 h1:u70vV5IyaM0HvONh8HoqBC97oTgO33KcpZbTLiKVinU=
+github.com/knadh/koanf/parsers/yaml v1.1.1/go.mod h1:HHmcHXUrp9cOPcuC+2wrr44GTUB0EC+PyfN3HZD9tFg=
 github.com/knadh/koanf/providers/confmap v1.0.0 h1:mHKLJTE7iXEys6deO5p6olAiZdG5zwp8Aebir+/EaRE=
 github.com/knadh/koanf/providers/confmap v1.0.0/go.mod h1:txHYHiI2hAtF0/0sCmcuol4IDcuQbKTybiB1nOcUo1A=
 github.com/knadh/koanf/providers/env/v2 v2.0.0 h1:Ad5H3eun722u+FvchiIcEIJZsZ2M6oxCkgZfWN5B5KY=

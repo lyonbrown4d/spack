@@ -52,9 +52,9 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/hcl v1.0.0 // indirect
-	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
-	github.com/knadh/koanf/parsers/toml/v2 v2.2.1 // indirect
-	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
+	github.com/knadh/koanf/parsers/json v1.0.1 // indirect
+	github.com/knadh/koanf/parsers/toml/v2 v2.2.2 // indirect
+	github.com/knadh/koanf/parsers/yaml v1.1.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/mod v0.37.0 // indirect
