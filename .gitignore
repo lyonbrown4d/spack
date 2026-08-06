@@ -80,3 +80,4 @@ dist
 test/node_modules
 test/build
 tmp
+.claude
