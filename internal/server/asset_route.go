@@ -21,16 +21,17 @@ import (
 const maxVariantFallbackAttempts = 3
 
 type assetDeliveryRuntime struct {
-	mountPath      string
-	responsePolicy cachepolicy.ResponsePolicy
-	logger         *slog.Logger
-	assetResolver  *resolver.Resolver
-	bodyCache      *assetcache.Cache
-	bus            eventx.BusRuntime
-	prepared       *PreparedService
-	trackDelivery  bool
-	resourceHints  *resourceHintService
-	fileSources    *serverFileSources
+	mountPath          string
+	responsePolicy     cachepolicy.ResponsePolicy
+	logger             *slog.Logger
+	assetResolver      *resolver.Resolver
+	bodyCache          *assetcache.Cache
+	bus                eventx.BusRuntime
+	prepared           *PreparedService
+	trackDelivery      bool
+	resourceHints      *resourceHintService
+	fileSources        *serverFileSources
+	staleAssetRecovery config.StaleAssetRecovery
 }
 
 func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
@@ -55,16 +56,17 @@ func newAssetDeliveryRuntime(
 		newServerFileSources(cfg, nil, cat, routeRuntime.logger),
 	)
 	return &assetDeliveryRuntime{
-		mountPath:      cfg.Assets.Path,
-		responsePolicy: cachepolicy.NewResponsePolicyFromConfig(cfg),
-		logger:         routeRuntime.logger,
-		assetResolver:  assetResolver,
-		bodyCache:      bodyCache,
-		bus:            bus,
-		prepared:       routeRuntime.prepared,
-		trackDelivery:  routeRuntime.trackDelivery,
-		resourceHints:  routeRuntime.resourceHints,
-		fileSources:    fileSources,
+		mountPath:          cfg.Assets.Path,
+		responsePolicy:     cachepolicy.NewResponsePolicyFromConfig(cfg),
+		logger:             routeRuntime.logger,
+		assetResolver:      assetResolver,
+		bodyCache:          bodyCache,
+		bus:                bus,
+		prepared:           routeRuntime.prepared,
+		trackDelivery:      routeRuntime.trackDelivery,
+		resourceHints:      routeRuntime.resourceHints,
+		fileSources:        fileSources,
+		staleAssetRecovery: cfg.Frontend.StaleAssetRecovery,
 	}
 }
 
@@ -85,12 +87,12 @@ func (r *assetDeliveryRuntime) handle(c fiber.Ctx) error {
 			r.afterAssetServed(c, delivery, result)
 			return nil
 		}
-		return fiber.ErrNotFound
+		return r.tryStaleAssetRecovery(c, cleanedPath.Value)
 	}
 
 	result, err := r.assetResolver.Resolve(c.Context(), request)
 	if err != nil {
-		return fiber.ErrNotFound
+		return r.tryStaleAssetRecovery(c, cleanedPath.Value)
 	}
 
 	delivery, resolvedResult, deliveryErr := r.sendResolvedAssetWithVariantFallback(c, request, result, requestedFormat)

@@ -7,8 +7,13 @@ import (
 )
 
 type Frontend struct {
-	ResourceHints  ResourceHints  `koanf:"resource_hints"  validate:"required"`
-	ImmutableCache ImmutableCache `koanf:"immutable_cache" validate:"required"`
+	ResourceHints      ResourceHints      `koanf:"resource_hints"       validate:"required"`
+	ImmutableCache     ImmutableCache     `koanf:"immutable_cache"      validate:"required"`
+	StaleAssetRecovery StaleAssetRecovery `koanf:"stale_asset_recovery" validate:"required"`
+}
+
+type StaleAssetRecovery struct {
+	Enable bool `koanf:"enable"`
 }
 
 type ResourceHints struct {

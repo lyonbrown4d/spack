@@ -82,7 +82,7 @@ func (p StaticResponsePolicy) assetCacheControl(result *resolver.Result) string 
 	if !p.immutable.enabled || p.immutable.maxAge <= 0 || result.Asset == nil {
 		return RevalidateCacheControl
 	}
-	if !isFingerprintAssetPath(result.Asset.Path) {
+	if !IsFingerprintAssetPath(result.Asset.Path) {
 		return RevalidateCacheControl
 	}
 	return fmt.Sprintf("public, max-age=%d, immutable", int(p.immutable.maxAge.Seconds()))
@@ -137,7 +137,7 @@ func cacheControlDuration(seconds int64) (time.Duration, bool) {
 	}
 	return time.Duration(seconds) * time.Second, true
 }
-func isFingerprintAssetPath(assetPath string) bool {
+func IsFingerprintAssetPath(assetPath string) bool {
 	base := path.Base(strings.TrimSpace(assetPath))
 	ext := path.Ext(base)
 	if base == "." || ext == "" {

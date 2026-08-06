@@ -236,6 +236,25 @@ func NewHelmetConfigForTest() helmet.Config {
 	return newHelmetConfig()
 }
 
+// AssetDeliveryRuntimeForTest exposes stale-asset recovery behavior for external tests.
+type AssetDeliveryRuntimeForTest struct {
+	runtime *assetDeliveryRuntime
+}
+
+// NewAssetDeliveryRuntimeForTest creates a test wrapper around assetDeliveryRuntime.
+func NewAssetDeliveryRuntimeForTest(cfg *config.Config) *AssetDeliveryRuntimeForTest {
+	return &AssetDeliveryRuntimeForTest{
+		runtime: &assetDeliveryRuntime{
+			staleAssetRecovery: cfg.Frontend.StaleAssetRecovery,
+		},
+	}
+}
+
+// TryStaleAssetRecovery exposes the stale asset recovery check for external tests.
+func (rt *AssetDeliveryRuntimeForTest) TryStaleAssetRecovery(c fiber.Ctx, assetPath string) error {
+	return rt.runtime.tryStaleAssetRecovery(c, assetPath)
+}
+
 // NewHealthModuleForTest exposes the dix health-check setup for external tests.
 func NewHealthModuleForTest(cfg *config.Config, cat catalog.Catalog) dix.Module {
 	return dix.NewModule("server_health_test",
