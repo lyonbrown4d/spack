@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,7 +33,7 @@ func setupStaleRecoveryRoute(
 			assetPath = assetPath[1:]
 		}
 		if err := rt.TryStaleAssetRecovery(c, assetPath); err != nil {
-			return c.SendStatus(fiber.StatusInternalServerError)
+			return fmt.Errorf("try stale asset recovery: %w", err)
 		}
 		return nil
 	})

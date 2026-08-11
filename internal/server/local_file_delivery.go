@@ -64,7 +64,7 @@ func newServerFileSourcesFromConfig(cfg *config.Config, logger *slog.Logger) *se
 	}
 	return mergeServerFileSources(
 		newServerFileSourcesFromRoot(cfg.Assets.Root, logger),
-		newServerFileSourcesFromRoot(cfg.Compression.CacheDir, logger),
+		newServerFileSourcesFromOptionalRoot(cfg.Compression.CacheDir, logger),
 	)
 }
 
@@ -77,6 +77,14 @@ func newServerFileSourcesFromCatalog(cat catalog.Catalog, logger *slog.Logger) *
 
 func newServerFileSourcesFromRoot(root string, logger *slog.Logger) *serverFileSources {
 	files := serverFileSourceFromRoot(root, logger)
+	if files == nil {
+		return nil
+	}
+	return &serverFileSources{sources: []*source.LocalFS{files}}
+}
+
+func newServerFileSourcesFromOptionalRoot(root string, logger *slog.Logger) *serverFileSources {
+	files := serverFileSourceFromOptionalRoot(root, logger)
 	if files == nil {
 		return nil
 	}
@@ -126,6 +134,21 @@ func newServerFileSource(src *source.LocalFS, fallbackRoot string, logger *slog.
 func serverFileSourceFromRoot(fallbackRoot string, logger *slog.Logger) *source.LocalFS {
 	files, ok, err := source.NewLocalDirectory(fallbackRoot)
 	if err != nil {
+		warnServerFileSource(logger, "Local file source unavailable", err)
+		return nil
+	}
+	if !ok {
+		return nil
+	}
+	return files
+}
+
+func serverFileSourceFromOptionalRoot(fallbackRoot string, logger *slog.Logger) *source.LocalFS {
+	files, ok, err := source.NewLocalDirectory(fallbackRoot)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
 		warnServerFileSource(logger, "Local file source unavailable", err)
 		return nil
 	}
