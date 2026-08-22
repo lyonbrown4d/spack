@@ -15,6 +15,7 @@ esac
 
 GORELEASER_VERSION="${GORELEASER_VERSION:-v2.15.4}"
 RELEASE_RUNNER_IMAGE="${SPACK_RELEASE_RUNNER_IMAGE:-spack-release-runner:local}"
+RELEASE_RUNNER_PLATFORM="${SPACK_RELEASE_RUNNER_PLATFORM:-linux/amd64}"
 GOPROXY_VALUE="${GOPROXY:-https://goproxy.cn,direct}"
 RUNTIME_PLATFORMS="${SPACK_RUNTIME_PLATFORMS:-linux/amd64,linux/arm64}"
 COMPILER_PLATFORMS="${SPACK_COMPILER_PLATFORMS:-linux/amd64}"
@@ -54,7 +55,7 @@ if [[ -z "$GITHUB_TOKEN" ]]; then
 fi
 
 build_release_runner() {
-  docker build -t "$RELEASE_RUNNER_IMAGE" -f docker/release-runner.Dockerfile .
+  docker build --platform "$RELEASE_RUNNER_PLATFORM" -t "$RELEASE_RUNNER_IMAGE" -f docker/release-runner.Dockerfile .
 }
 
 run_goreleaser() {
@@ -66,6 +67,7 @@ run_goreleaser() {
   local repo_mount
   repo_mount="$(native_path "$ROOT_DIR")"
   MSYS_NO_PATHCONV=1 docker run --rm \
+    --platform "$RELEASE_RUNNER_PLATFORM" \
     -e GITHUB_TOKEN \
     -e "GOPROXY=$GOPROXY_VALUE" \
     -v /var/run/docker.sock:/var/run/docker.sock \
