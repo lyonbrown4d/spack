@@ -16,6 +16,8 @@ esac
 GORELEASER_VERSION="${GORELEASER_VERSION:-v2.15.4}"
 RELEASE_RUNNER_IMAGE="${SPACK_RELEASE_RUNNER_IMAGE:-spack-release-runner:local}"
 RELEASE_RUNNER_PLATFORM="${SPACK_RELEASE_RUNNER_PLATFORM:-linux/amd64}"
+GORELEASER_PARALLELISM="${SPACK_GORELEASER_PARALLELISM:-1}"
+GORELEASER_TIMEOUT="${SPACK_GORELEASER_TIMEOUT:-4h}"
 GOPROXY_VALUE="${GOPROXY:-https://goproxy.cn,direct}"
 RUNTIME_PLATFORMS="${SPACK_RUNTIME_PLATFORMS:-linux/amd64,linux/arm64}"
 COMPILER_PLATFORMS="${SPACK_COMPILER_PLATFORMS:-linux/amd64}"
@@ -74,7 +76,7 @@ run_goreleaser() {
     -v "$repo_mount:/src" \
     -w /src \
     "$RELEASE_RUNNER_IMAGE" \
-    bash -c "set -euo pipefail; git config --global --add safe.directory /src; go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=docker"
+    bash -c "set -euo pipefail; git config --global --add safe.directory /src; go run github.com/goreleaser/goreleaser/v2@${GORELEASER_VERSION} release --clean --skip=docker --parallelism=${GORELEASER_PARALLELISM} --timeout=${GORELEASER_TIMEOUT}"
 }
 
 prepare_docker_context() {
