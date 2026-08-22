@@ -505,7 +505,7 @@ tasks:
       SPACK_RELEASE_TAG: '{{default "" .SPACK_RELEASE_TAG}}'
       SPACK_RUNTIME_PLATFORMS: '{{default "linux/amd64,linux/arm64" .SPACK_RUNTIME_PLATFORMS}}'
       SPACK_COMPILER_PLATFORMS: '{{default "linux/amd64" .SPACK_COMPILER_PLATFORMS}}'
-      SPACK_ALPINE_PLATFORMS: '{{default "linux/amd64" .SPACK_ALPINE_PLATFORMS}}'
+      SPACK_ALPINE_PLATFORMS: '{{default "linux/amd64,linux/arm64" .SPACK_ALPINE_PLATFORMS}}'
     cmds:
       - '{{.GOYEK}} release-local'
 

@@ -18,7 +18,7 @@ RELEASE_RUNNER_IMAGE="${SPACK_RELEASE_RUNNER_IMAGE:-spack-release-runner:local}"
 GOPROXY_VALUE="${GOPROXY:-https://goproxy.cn,direct}"
 RUNTIME_PLATFORMS="${SPACK_RUNTIME_PLATFORMS:-linux/amd64,linux/arm64}"
 COMPILER_PLATFORMS="${SPACK_COMPILER_PLATFORMS:-linux/amd64}"
-ALPINE_PLATFORMS="${SPACK_ALPINE_PLATFORMS:-linux/amd64}"
+ALPINE_PLATFORMS="${SPACK_ALPINE_PLATFORMS:-linux/amd64,linux/arm64}"
 PUSH_GHCR="${SPACK_PUSH_GHCR:-true}"
 PUSH_DOCKER_HUB="${SPACK_PUSH_DOCKER_HUB:-true}"
 SKIP_GORELEASER="${SPACK_RELEASE_SKIP_GORELEASER:-false}"
@@ -155,4 +155,3 @@ push_runtime_alpine
 verify_manifests
 
 echo "Published SPACK release $TAG"
-
