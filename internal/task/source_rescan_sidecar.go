@@ -4,6 +4,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 )
 
@@ -12,24 +13,24 @@ func (r *sourceRescanRun) reconcileSourceSidecars(
 ) error {
 	existingByID := r.indexSourceSidecarVariants()
 	var syncErr error
-	sortedMapEntries[*catalog.Variant](scannedVariants).Range(func(_ int, variant sortedMapEntry[*catalog.Variant]) bool {
-		if err := r.cat.UpsertVariant(variant.value); err != nil {
+	mapx.SortedEntries(scannedVariants).Range(func(_ int, variant mapx.Entry[string, *catalog.Variant]) bool {
+		if err := r.cat.UpsertVariant(variant.Value); err != nil {
 			syncErr = err
 			return false
 		}
-		existingByID.Delete(variant.key)
+		existingByID.Delete(variant.Key)
 		return true
 	})
 	if syncErr != nil {
 		return syncErr
 	}
 
-	sortedMapEntries[*catalog.Variant](existingByID).Range(func(_ int, variant sortedMapEntry[*catalog.Variant]) bool {
-		if !r.cat.DeleteVariantByArtifactPath(variant.value.ArtifactPath) {
+	mapx.SortedEntries(existingByID).Range(func(_ int, variant mapx.Entry[string, *catalog.Variant]) bool {
+		if !r.cat.DeleteVariantByArtifactPath(variant.Value.ArtifactPath) {
 			return true
 		}
 		r.report.RemovedVariants++
-		r.report.CacheInvalidations += invalidateAssetCache(r.bodyCache, variant.value.ArtifactPath)
+		r.report.CacheInvalidations += invalidateAssetCache(r.bodyCache, variant.Value.ArtifactPath)
 		return true
 	})
 	return nil
@@ -70,7 +71,7 @@ func (r *sourceRescanRun) removeSidecarVariants(match sourcecatalog.SidecarMatch
 		return
 	}
 
-	variants := r.cat.ListVariants(match.AssetPath).Where(func(_ int, variant *catalog.Variant) bool {
+	variants := cxlist.FilterList(r.cat.ListVariants(match.AssetPath), func(_ int, variant *catalog.Variant) bool {
 		if variant == nil {
 			return false
 		}

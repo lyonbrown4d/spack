@@ -38,7 +38,7 @@ func buildStages(registrations *cxlist.List[stageRegistration]) *cxlist.List[Sta
 		}
 	})
 
-	return cxlist.FilterMapList[stageRegistration, Stage](sorted, func(_ int, registration stageRegistration) (Stage, bool) {
+	return cxlist.FilterMapList(sorted, func(_ int, registration stageRegistration) (Stage, bool) {
 		return registration.Stage, registration.Stage != nil
 	})
 }

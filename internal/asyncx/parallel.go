@@ -81,6 +81,29 @@ func RunList[T any](
 	return err
 }
 
+type Runner struct {
+	obs      observabilityx.Observability
+	settings *Settings
+	workload string
+}
+
+func NewRunner(obs observabilityx.Observability, settings *Settings, workload string) Runner {
+	return Runner{
+		obs:      obs,
+		settings: settings,
+		workload: workload,
+	}
+}
+
+func RunListWith[T any](
+	ctx context.Context,
+	runner Runner,
+	values *cxlist.List[T],
+	run func(context.Context, T) error,
+) error {
+	return RunList(ctx, runner.obs, runner.settings, runner.workload, values, run)
+}
+
 func runListParallel[T any](
 	ctx context.Context,
 	obs observabilityx.Observability,

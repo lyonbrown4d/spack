@@ -28,7 +28,7 @@ func cloneVariant(variant *Variant) *Variant {
 }
 
 func cloneVariants(variants *cxlist.List[*Variant]) *cxlist.List[*Variant] {
-	return cxlist.MapList[*Variant, *Variant](variants, func(_ int, variant *Variant) *Variant {
+	return cxlist.MapList(variants, func(_ int, variant *Variant) *Variant {
 		return cloneVariant(variant)
 	})
 }
@@ -72,7 +72,7 @@ func defaultVariantID(variant *Variant) string {
 }
 
 func cloneVariantRecords(records *cxlist.List[*variantRecord]) *cxlist.List[*Variant] {
-	return cxlist.MapList[*variantRecord, *Variant](records, func(_ int, record *variantRecord) *Variant {
+	return cxlist.MapList(records, func(_ int, record *variantRecord) *Variant {
 		return cloneVariant(record.Variant)
 	})
 }

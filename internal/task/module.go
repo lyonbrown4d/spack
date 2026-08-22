@@ -178,7 +178,7 @@ func startScheduledTasks(
 		return nil
 	}
 
-	started, err := cxlist.ReduceErrList[taskRegistration, bool](registered, false, func(started bool, _ int, registration taskRegistration) (bool, error) {
+	started, err := cxlist.ReduceErrList(registered, false, func(started bool, _ int, registration taskRegistration) (bool, error) {
 		enabled, err := registration.Register(ctx, scheduler)
 		if err != nil {
 			return started, oops.In("task").Owner(registration.Name).Wrap(err)
@@ -186,7 +186,7 @@ func startScheduledTasks(
 		return started || enabled, nil
 	})
 	if err != nil {
-		return err
+		return oops.In("task").Owner("scheduler").Wrap(err)
 	}
 	if started {
 		scheduler.Start()

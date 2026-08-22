@@ -55,9 +55,12 @@ func (s *imageStage) planWidths(asset *catalog.Asset, request Request, formats *
 }
 
 func shouldPlanOriginalFormatVariants(formats *cxlist.List[string], sourceFormat string) bool {
-	return formats.AnyMatch(func(_ int, format string) bool {
-		return format != "" && format != sourceFormat
+	matched := false
+	formats.Range(func(_ int, format string) bool {
+		matched = format != "" && format != sourceFormat
+		return !matched
 	})
+	return matched
 }
 
 func (s *imageStage) planTasks(asset *catalog.Asset, formats *cxlist.List[string], widths *cxlist.List[int]) *cxlist.List[Task] {
@@ -83,8 +86,8 @@ func (s *imageStage) planImageVariants(
 	if formats == nil || widths == nil {
 		return cxlist.NewList[ImageVariantTask]()
 	}
-	return cxlist.FlatMapList[string, ImageVariantTask](formats, func(_ int, format string) []ImageVariantTask {
-		return cxlist.FilterMapList[int, ImageVariantTask](widths, func(_ int, width int) (ImageVariantTask, bool) {
+	return cxlist.FlatMapList(formats, func(_ int, format string) []ImageVariantTask {
+		return cxlist.FilterMapList(widths, func(_ int, width int) (ImageVariantTask, bool) {
 			if !shouldCreateImageTask(asset, s.catalog, width, format) {
 				return ImageVariantTask{}, false
 			}
@@ -221,7 +224,7 @@ func filterSupportedImageFormats(formats, supported *cxlist.List[string]) *cxlis
 	}
 
 	supportedSet := cxset.NewOrderedSet[string](supported.Values()...)
-	return normalized.Where(func(_ int, format string) bool {
+	return cxlist.FilterList(normalized, func(_ int, format string) bool {
 		return supportedSet.Contains(format)
 	})
 }

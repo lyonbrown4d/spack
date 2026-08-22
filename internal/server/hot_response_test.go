@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
@@ -43,13 +44,14 @@ func TestAssetRouteReusesHotResponseEntry(t *testing.T) {
 
 	obs := &recordingObservability{}
 	logger := slog.New(slog.DiscardHandler)
+	bodyCache := assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger)
 	app := server.NewObservedAppForTest(
 		&cfg,
 		logger,
 		obs,
 		nil,
 		cat,
-		assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, logger),
+		bodyCache,
 		resolver.NewResolverForTest(&cfg.Assets, cat, logger),
 		nil,
 	)
@@ -60,10 +62,25 @@ func TestAssetRouteReusesHotResponseEntry(t *testing.T) {
 	})
 
 	requestAssetForHotResponse(t, app, payload)
+	waitForHotResponseCacheEntry(t, bodyCache, assetPath)
 	requestAssetForHotResponse(t, app, payload)
 
 	assertDeliveryMetric(t, obs, "memory_cache_fill")
 	assertDeliveryMetric(t, obs, "hot_response_hit")
+}
+
+func waitForHotResponseCacheEntry(t *testing.T, cache *assetcache.Cache, path string) {
+	t.Helper()
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		entry, found := cache.GetCachedEntry(path)
+		if found && entry.Attachment != nil {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("expected hot response cache entry for %s", path)
 }
 
 func requestAssetForHotResponse(t *testing.T, app *fiber.App, want []byte) {

@@ -43,13 +43,13 @@ var (
 			AcceptTokens: cxlist.NewList[string]("image/avif"),
 		},
 	)
-	imageDescriptorsByName = cxmapping.AssociateList[ImageFormatDescriptor, string, ImageFormatDescriptor](
+	imageDescriptorsByName = cxmapping.AssociateList(
 		imageFormatDescriptors,
 		func(_ int, descriptor ImageFormatDescriptor) (string, ImageFormatDescriptor) {
 			return descriptor.Name, descriptor
 		},
 	)
-	imageDescriptorsByMediaType = cxmapping.AssociateList[ImageFormatDescriptor, string, ImageFormatDescriptor](
+	imageDescriptorsByMediaType = cxmapping.AssociateList(
 		imageFormatDescriptors,
 		func(_ int, descriptor ImageFormatDescriptor) (string, ImageFormatDescriptor) {
 			return descriptor.MediaType, descriptor
@@ -59,7 +59,7 @@ var (
 )
 
 func SupportedImageFormats() *cxlist.List[string] {
-	return cxlist.MapList[ImageFormatDescriptor, string](imageFormatDescriptors, func(_ int, descriptor ImageFormatDescriptor) string {
+	return cxlist.MapList(imageFormatDescriptors, func(_ int, descriptor ImageFormatDescriptor) string {
 		return descriptor.Name
 	})
 }

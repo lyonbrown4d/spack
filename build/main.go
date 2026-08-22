@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	distDir       = "dist"
-	runtimeBinary = "spack-runtime"
-	goLDFlags     = "-s -w -buildid="
+	distDir             = "dist"
+	runtimeBinary       = "spack-runtime"
+	goLDFlags           = "-s -w -buildid="
+	golangciLintPackage = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"
 )
 
 var test = goyek.Define(goyek.Task{
@@ -39,7 +40,7 @@ var lint = goyek.Define(goyek.Task{
 	Name:  "lint",
 	Usage: "run golangci-lint",
 	Action: func(a *goyek.A) {
-		run(a, command{name: "golangci-lint", args: []string{"run", "./..."}})
+		run(a, golangciLintCommand())
 	},
 })
 
@@ -138,7 +139,7 @@ var validate = goyek.Define(goyek.Task{
 	Action: func(a *goyek.A) {
 		run(a, goCommand("test", "./..."))
 		run(a, goCommand("test", "-tags=spack_libvips", "./internal/pipeline").withEnv("CGO_ENABLED=1"))
-		run(a, command{name: "golangci-lint", args: []string{"run", "./..."}})
+		run(a, golangciLintCommand())
 	},
 })
 
@@ -159,6 +160,10 @@ type command struct {
 
 func goCommand(args ...string) command {
 	return command{name: "go", args: args}
+}
+
+func golangciLintCommand() command {
+	return goCommand("run", golangciLintPackage, "run", "./...")
 }
 
 func (c command) withEnv(env ...string) command {

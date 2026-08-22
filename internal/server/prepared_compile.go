@@ -49,7 +49,7 @@ func (c preparedCompiler) Compile(ctx context.Context, cat catalog.Catalog) (*pr
 	}
 	catalogSnapshot := cat.Snapshot()
 	snapshot := newPreparedSnapshot(catalogSnapshot.Assets.Len())
-	c.compileRoutes(catalogSnapshot.Assets).Each(func(_ int, route *preparedRoute) {
+	c.compileRoutes(catalogSnapshot.Assets).Range(func(_ int, route *preparedRoute) bool {
 		snapshot.routes.Set(route.path, route)
 		if alias := preparedEntryAlias(route.path, c.cfg.Assets.Entry); alias != "" {
 			if _, exists := snapshot.routes.Get(alias); !exists {
@@ -61,12 +61,13 @@ func (c preparedCompiler) Compile(ctx context.Context, cat catalog.Catalog) (*pr
 		snapshot.variants += routeVariantCount(route)
 		snapshot.bodyEntries += bodyEntries
 		snapshot.bodyBytes += bodyBytes
+		return true
 	})
 	return snapshot, nil
 }
 
 func (c preparedCompiler) compileRoutes(entries *cxlist.List[*catalog.Entry]) *cxlist.List[*preparedRoute] {
-	return cxlist.FilterMapList[*catalog.Entry, *preparedRoute](entries, func(_ int, entry *catalog.Entry) (*preparedRoute, bool) {
+	return cxlist.FilterMapList(entries, func(_ int, entry *catalog.Entry) (*preparedRoute, bool) {
 		route := c.compileRoute(entry)
 		return route, route != nil
 	})
@@ -82,8 +83,9 @@ func (c preparedCompiler) compileRoute(entry *catalog.Entry) *preparedRoute {
 		return nil
 	}
 	route := newPreparedRoute(entry.Asset.Path, identity)
-	c.compileVariantResponses(entry.Asset, entry.Variants).Each(func(_ int, response *preparedResponse) {
+	c.compileVariantResponses(entry.Asset, entry.Variants).Range(func(_ int, response *preparedResponse) bool {
 		route.addVariant(response)
+		return true
 	})
 	route.finalize()
 	return route
@@ -96,7 +98,7 @@ func (c preparedCompiler) compileVariantResponses(
 	if variants == nil {
 		return cxlist.NewList[*preparedResponse]()
 	}
-	return cxlist.FilterMapList[*catalog.Variant, *preparedResponse](variants, func(_ int, variant *catalog.Variant) (*preparedResponse, bool) {
+	return cxlist.FilterMapList(variants, func(_ int, variant *catalog.Variant) (*preparedResponse, bool) {
 		response := c.compileVariantResponse(asset, variant)
 		return response, response != nil
 	})

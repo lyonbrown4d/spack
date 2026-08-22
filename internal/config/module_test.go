@@ -92,12 +92,15 @@ func TestLoadIntoDefaultConfigPreservesNestedDefaultsWithPartialDotenv(t *testin
 	}
 
 	cfg := config.DefaultConfigForTest()
-	if err := configx.Load(
-		&cfg,
+	raw, err := configx.LoadConfig(
 		configx.WithEnvPrefix("APP"),
 		configx.WithIgnoreDotenvError(false),
 		configx.WithDotenv(envPath),
-	); err != nil {
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.Unmarshal("", &cfg); err != nil {
 		t.Fatal(err)
 	}
 

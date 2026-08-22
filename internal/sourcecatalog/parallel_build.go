@@ -13,5 +13,6 @@ func runSourceBuildIndexes(ctx context.Context, total int, workload string, run 
 	for index := range total {
 		indexes.Add(index)
 	}
-	return oops.In("sourcecatalog").Owner(workload).Wrap(asyncx.RunList(ctx, nil, &asyncx.Settings{Size: sourceScanBuildParallelism(total)}, workload, indexes, run))
+	runner := asyncx.NewRunner(nil, &asyncx.Settings{Size: sourceScanBuildParallelism(total)}, workload)
+	return oops.In("sourcecatalog").Owner(workload).Wrap(asyncx.RunListWith(ctx, runner, indexes, run))
 }

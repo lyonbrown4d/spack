@@ -23,7 +23,7 @@ func imageVariantTaskKey(variants *cxlist.List[ImageVariantTask]) string {
 	if variants == nil || variants.IsEmpty() {
 		return ""
 	}
-	return cxlist.MapList[ImageVariantTask, string](variants, func(_ int, variant ImageVariantTask) string {
+	return cxlist.MapList(variants, func(_ int, variant ImageVariantTask) string {
 		return strings.TrimSpace(variant.Format) + ":" + strconv.Itoa(variant.Width)
 	}).Join(",")
 }

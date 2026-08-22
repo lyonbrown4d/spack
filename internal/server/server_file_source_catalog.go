@@ -10,15 +10,17 @@ import (
 
 func catalogFileSourceRoot(cat catalog.Catalog) string {
 	root := ""
-	cat.AllAssets().Each(func(_ int, asset *catalog.Asset) {
+	cat.AllAssets().Range(func(_ int, asset *catalog.Asset) bool {
 		if asset != nil {
 			root = commonCatalogFileRoot(root, asset.FullPath)
 		}
+		return true
 	})
-	cat.AllVariants().Each(func(_ int, variant *catalog.Variant) {
+	cat.AllVariants().Range(func(_ int, variant *catalog.Variant) bool {
 		if variant != nil {
 			root = commonCatalogFileRoot(root, variant.ArtifactPath)
 		}
+		return true
 	})
 	return root
 }

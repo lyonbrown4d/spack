@@ -112,7 +112,8 @@ func (s *Service) Warm(ctx context.Context) error {
 		return nil
 	}
 
-	err := asyncx.RunList[*catalog.Asset](ctx, s.obs, s.warmWorkers, "pipeline_warm", s.catalog.AllAssets(), func(ctx context.Context, asset *catalog.Asset) error {
+	runner := asyncx.NewRunner(s.obs, s.warmWorkers, "pipeline_warm")
+	err := asyncx.RunListWith(ctx, runner, s.catalog.AllAssets(), func(ctx context.Context, asset *catalog.Asset) error {
 		s.process(ctx, Request{AssetPath: asset.Path})
 		return nil
 	})

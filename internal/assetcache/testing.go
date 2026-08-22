@@ -84,11 +84,10 @@ func testCacheRootForTest() string {
 		if dir == "" {
 			continue
 		}
-		volume := filepath.VolumeName(dir)
-		if volume == "" {
-			return string(os.PathSeparator)
+		absolute, err := filepath.Abs(filepath.Clean(dir))
+		if err == nil {
+			return absolute
 		}
-		return volume + string(os.PathSeparator)
 	}
 	return string(os.PathSeparator)
 }

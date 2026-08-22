@@ -7,6 +7,7 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/samber/oops"
@@ -98,12 +99,12 @@ func (r *sourceRescanRun) processDeletedSourceSidecars(deletedSourceSidecars *cx
 
 func (r *sourceRescanRun) processChangedAssets(changedAssets *cxmapping.Map[string, source.File]) error {
 	var processErr error
-	sortedMapEntries(changedAssets).Range(func(_ int, asset sortedMapEntry[source.File]) bool {
-		if asset.value.Path == "" {
+	mapx.SortedEntries(changedAssets).Range(func(_ int, asset mapx.Entry[string, source.File]) bool {
+		if asset.Value.Path == "" {
 			return true
 		}
-		if err := r.upsertAssetAndSidecars(asset.key, asset.value); err != nil {
-			processErr = oops.In("task").Owner("source rescan").With("asset_path", asset.key).Wrap(err)
+		if err := r.upsertAssetAndSidecars(asset.Key, asset.Value); err != nil {
+			processErr = oops.In("task").Owner("source rescan").With("asset_path", asset.Key).Wrap(err)
 			return false
 		}
 		return true
@@ -189,9 +190,9 @@ func (r *sourceRescanRun) buildSidecarVariant(
 
 func (r *sourceRescanRun) processChangedSourceSidecars(changedSidecars *cxmapping.Map[string, sourceRescanSidecarChange]) error {
 	var processErr error
-	sortedMapEntries(changedSidecars).Range(func(_ int, sidecar sortedMapEntry[sourceRescanSidecarChange]) bool {
-		if err := r.upsertSidecarVariant(sidecar.value); err != nil {
-			processErr = oops.In("task").Owner("source rescan").With("asset_path", sidecar.value.match.AssetPath).Wrap(err)
+	mapx.SortedEntries(changedSidecars).Range(func(_ int, sidecar mapx.Entry[string, sourceRescanSidecarChange]) bool {
+		if err := r.upsertSidecarVariant(sidecar.Value); err != nil {
+			processErr = oops.In("task").Owner("source rescan").With("asset_path", sidecar.Value.match.AssetPath).Wrap(err)
 			return false
 		}
 		return true

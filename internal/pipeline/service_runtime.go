@@ -216,7 +216,7 @@ func stageTaskVariants(value any) *cxlist.List[*catalog.Variant] {
 	if !ok || variants == nil {
 		return cxlist.NewList[*catalog.Variant]()
 	}
-	return variants.Where(func(_ int, variant *catalog.Variant) bool {
+	return cxlist.FilterList(variants, func(_ int, variant *catalog.Variant) bool {
 		return variant != nil
 	})
 }

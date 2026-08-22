@@ -5,6 +5,7 @@ import (
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/mo"
@@ -15,7 +16,7 @@ func buildExplicitBundleVariants(
 	assets *cxmapping.Map[string, *catalog.Asset],
 ) *cxmapping.Map[string, *catalog.Variant] {
 	variants := cxmapping.NewMapWithCapacity[string, *catalog.Variant](filesByPath.Len())
-	sortedKeys[source.File](filesByPath).Range(func(_ int, filePath string) bool {
+	mapx.SortedKeys(filesByPath).Range(func(_ int, filePath string) bool {
 		file, _ := filesByPath.Get(filePath)
 		if !isExplicitBundleVariantFile(file) {
 			return true

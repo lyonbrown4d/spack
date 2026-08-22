@@ -9,6 +9,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
 	"github.com/samber/oops"
@@ -183,8 +184,8 @@ func (r *sourceRescanRun) reconcileScannedAssets(
 	existingByPath *cxmapping.Map[string, *catalog.Asset],
 ) error {
 	var syncErr error
-	sortedMapEntries[*catalog.Asset](scannedAssets).Range(func(_ int, asset sortedMapEntry[*catalog.Asset]) bool {
-		if err := r.syncScannedAsset(asset.key, asset.value, existingByPath); err != nil {
+	mapx.SortedEntries(scannedAssets).Range(func(_ int, asset mapx.Entry[string, *catalog.Asset]) bool {
+		if err := r.syncScannedAsset(asset.Key, asset.Value, existingByPath); err != nil {
 			syncErr = err
 			return false
 		}
@@ -222,9 +223,9 @@ func (r *sourceRescanRun) syncScannedAsset(
 func (r *sourceRescanRun) reconcileRemovedAssets(
 	existingByPath *cxmapping.Map[string, *catalog.Asset],
 ) {
-	sortedMapEntries[*catalog.Asset](existingByPath).Range(func(_ int, asset sortedMapEntry[*catalog.Asset]) bool {
+	mapx.SortedEntries(existingByPath).Range(func(_ int, asset mapx.Entry[string, *catalog.Asset]) bool {
 		r.report.Removed++
-		r.invalidateAssetAndVariants(asset.value.FullPath, r.cat.DeleteAsset(asset.key))
+		r.invalidateAssetAndVariants(asset.Value.FullPath, r.cat.DeleteAsset(asset.Key))
 		return true
 	})
 }

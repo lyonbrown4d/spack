@@ -133,10 +133,11 @@ func (s *PreparedService) start(ctx context.Context) error {
 	for _, subscription := range s.subscriptions().Values() {
 		unsubscribe, err := subscription.subscribe()
 		if err != nil {
-			unsubscribes.Each(func(_ int, existing func()) {
+			unsubscribes.Range(func(_ int, existing func()) bool {
 				if existing != nil {
 					existing()
 				}
+				return true
 			})
 			s.cancelLifecycle()
 			return oops.Wrapf(err, "subscribe prepared %s", subscription.name)
@@ -153,10 +154,11 @@ func (s *PreparedService) stop(ctx context.Context) error {
 		return nil
 	}
 	s.rebuildStopped.Store(true)
-	cxlist.NewList[func()](s.unsubscribes...).Each(func(_ int, unsubscribe func()) {
+	cxlist.NewList[func()](s.unsubscribes...).Range(func(_ int, unsubscribe func()) bool {
 		if unsubscribe != nil {
 			unsubscribe()
 		}
+		return true
 	})
 	s.unsubscribes = nil
 	s.cancelLifecycle()

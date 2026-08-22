@@ -10,6 +10,7 @@ import (
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/mo"
@@ -100,7 +101,7 @@ func collectSidecarVariantBuildCandidates(
 	candidates := cxlist.NewListWithCapacity[sidecarVariantBuildCandidate](sidecars.Len())
 
 	var collectErr error
-	sortedKeys[sidecarFile](sidecars).Range(func(_ int, sidecarPath string) bool {
+	mapx.SortedKeys(sidecars).Range(func(_ int, sidecarPath string) bool {
 		sidecar, _ := sidecars.Get(sidecarPath)
 		asset, ok := assets.GetOption(sidecar.assetPath).Get()
 		if !ok || asset == nil {

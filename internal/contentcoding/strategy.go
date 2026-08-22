@@ -31,7 +31,7 @@ type Registry struct {
 }
 
 func NewRegistry(opts Options, enabled *cxlist.List[string]) Registry {
-	all := cxmapping.AssociateList[Strategy, string, Strategy](newBuiltinStrategies(opts), func(_ int, strategy Strategy) (string, Strategy) {
+	all := cxmapping.AssociateList(newBuiltinStrategies(opts), func(_ int, strategy Strategy) (string, Strategy) {
 		return strategy.Name(), strategy
 	})
 

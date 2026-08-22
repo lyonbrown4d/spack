@@ -107,7 +107,7 @@ tasks:
 
   check:
     cmds:
-      - go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
+      - go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
 
   lint:
     cmds:

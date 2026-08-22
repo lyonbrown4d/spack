@@ -27,5 +27,5 @@ func RunListForTest[T any](
 	values *cxlist.List[T],
 	run func(context.Context, T) error,
 ) error {
-	return RunList(ctx, obs, settings, workload, values, run)
+	return RunListWith(ctx, NewRunner(obs, settings, workload), values, run)
 }

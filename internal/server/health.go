@@ -134,7 +134,7 @@ func runHealthChecks(
 	checks *cxlist.List[healthCheckDefinition],
 	obs observabilityx.Observability,
 ) dix.HealthReport {
-	matched := checks.Where(func(_ int, check healthCheckDefinition) bool {
+	matched := cxlist.FilterList(checks, func(_ int, check healthCheckDefinition) bool {
 		return check.Kind == kind && check.Name != "" && check.Check != nil
 	})
 	report := dix.HealthReport{

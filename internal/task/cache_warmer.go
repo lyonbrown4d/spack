@@ -191,7 +191,7 @@ func copyHotsetVariants(
 func buildCacheWarmerReport(cat catalog.Catalog, assets *cxlist.List[*catalog.Asset]) CacheWarmerReport {
 	return CacheWarmerReport{
 		Assets: assets.Len(),
-		Variants: lo.SumBy[*catalog.Asset, int](assets.Values(), func(asset *catalog.Asset) int {
+		Variants: lo.SumBy(assets.Values(), func(asset *catalog.Asset) int {
 			if asset == nil {
 				return 0
 			}

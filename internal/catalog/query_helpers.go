@@ -42,7 +42,7 @@ func (c *IndexedCatalog) invalidateAssetCache() {
 }
 
 func variantViewsFromRecords(records *cxlist.List[*variantRecord]) *cxlist.List[*Variant] {
-	return cxlist.MapList[*variantRecord, *Variant](records, func(_ int, record *variantRecord) *Variant {
+	return cxlist.MapList(records, func(_ int, record *variantRecord) *Variant {
 		return record.Variant
 	})
 }

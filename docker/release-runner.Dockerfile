@@ -2,7 +2,7 @@
 # It keeps local release reproducible on Windows hosts that cannot build Linux CGO/libvips binaries directly.
 FROM docker:29.1.3-cli AS dockercli
 
-FROM golang:1.26.5-bookworm
+FROM golang:1.27.0-bookworm
 
 COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=dockercli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
@@ -25,4 +25,3 @@ RUN curl -fsSL -o /tmp/upx.tar.xz https://github.com/upx/upx/releases/download/v
     && tar -C /tmp -xf /tmp/upx.tar.xz \
     && install /tmp/upx-5.2.0-amd64_linux/upx /usr/local/bin/upx \
     && rm -rf /tmp/upx*
-

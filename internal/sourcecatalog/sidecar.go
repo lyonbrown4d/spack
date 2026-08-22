@@ -9,6 +9,7 @@ import (
 	cxprefix "github.com/arcgolabs/collectionx/prefix"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/contentcoding"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/samber/mo"
 )
@@ -87,7 +88,7 @@ func matchSidecarWithTrie(path string, matcherTrie *cxprefix.Trie[sidecarMatcher
 func recognizeSidecars(filesByPath *cxmapping.Map[string, source.File], matchers *cxlist.List[sidecarMatcher]) *cxmapping.Map[string, sidecarFile] {
 	matcherTrie := buildSidecarMatcherTrie(matchers)
 	sidecars := cxmapping.NewMapWithCapacity[string, sidecarFile](filesByPath.Len())
-	sortedKeys[source.File](filesByPath).Range(func(_ int, path string) bool {
+	mapx.SortedKeys(filesByPath).Range(func(_ int, path string) bool {
 		file := filesByPath.GetOrDefault(path, source.File{})
 		if isExplicitBundleVariantFile(file) {
 			return true

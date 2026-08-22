@@ -148,7 +148,7 @@ func (s *imageStage) imageGenerateRequests(
 	asset *catalog.Asset,
 ) (*cxlist.List[imageVariantGenerateRequest], error) {
 	if task.ImageVariants != nil && !task.ImageVariants.IsEmpty() {
-		return cxlist.FilterMapList[ImageVariantTask, imageVariantGenerateRequest](
+		return cxlist.FilterMapList(
 			task.ImageVariants,
 			func(_ int, variant ImageVariantTask) (imageVariantGenerateRequest, bool) {
 				targetFormat, err := resolveImageVariantTargetFormat(variant, asset)

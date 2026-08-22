@@ -8,6 +8,7 @@ import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
+	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/pkg"
 	"github.com/samber/mo"
@@ -109,7 +110,7 @@ func collectAssetBuildCandidates(
 	assets := cxmapping.NewMapWithCapacity[string, *catalog.Asset](filesByPath.Len())
 	candidates := cxlist.NewListWithCapacity[assetBuildCandidate](filesByPath.Len())
 
-	sortedKeys[source.File](filesByPath).Range(func(_ int, path string) bool {
+	mapx.SortedKeys(filesByPath).Range(func(_ int, path string) bool {
 		if sidecars.GetOption(path).IsPresent() {
 			return true
 		}

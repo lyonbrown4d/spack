@@ -60,7 +60,7 @@ func (s *compressionStage) Plan(asset *catalog.Asset, request Request) *cxlist.L
 		encodings = supportedEncodings
 	}
 
-	return cxlist.FilterMapList[string, Task](encodings, func(_ int, encoding string) (Task, bool) {
+	return cxlist.FilterMapList(encodings, func(_ int, encoding string) (Task, bool) {
 		variant, ok := s.catalog.FindEncodingVariant(asset.Path, encoding)
 		if ok && hasEncodingVariant(variant, asset.SourceHash, encoding) {
 			return Task{}, false
@@ -170,7 +170,7 @@ func filterConfiguredEncodings(encodings, supported *cxlist.List[string]) *cxlis
 		return nil
 	}
 	supportedSet := cxset.NewOrderedSet[string](supported.Values()...)
-	return encodings.Where(func(_ int, encoding string) bool {
+	return cxlist.FilterList(encodings, func(_ int, encoding string) bool {
 		return supportedSet.Contains(encoding)
 	})
 }

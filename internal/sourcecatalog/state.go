@@ -1,8 +1,6 @@
 package sourcecatalog
 
 import (
-	"cmp"
-	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 )
@@ -22,7 +20,7 @@ func buildExistingScanState(cat catalog.Catalog) existingScanState {
 	}
 
 	assets := cat.AllAssets()
-	state.assets = cxmapping.AssociateList[*catalog.Asset, string, *catalog.Asset](assets, func(_ int, asset *catalog.Asset) (string, *catalog.Asset) {
+	state.assets = cxmapping.AssociateList(assets, func(_ int, asset *catalog.Asset) (string, *catalog.Asset) {
 		return asset.Path, asset
 	})
 	cat.ListVariantsByStage(SourceSidecarStage).Range(func(_ int, variant *catalog.Variant) bool {
@@ -32,17 +30,4 @@ func buildExistingScanState(cat catalog.Catalog) existingScanState {
 		return true
 	})
 	return state
-}
-
-func sortedKeys[T any](values *cxmapping.Map[string, T]) *cxlist.List[string] {
-	if values == nil {
-		return cxlist.NewList[string]()
-	}
-	keys := cxlist.NewListWithCapacity[string](values.Len())
-	values.ViewAll(func(items map[string]T) {
-		for key := range items {
-			keys.Add(key)
-		}
-	})
-	return keys.Sort(cmp.Compare[string])
 }

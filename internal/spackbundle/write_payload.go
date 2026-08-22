@@ -27,8 +27,8 @@ func prepareBundleFilePayloads(ctx context.Context, files []File) ([]bundleFileP
 	for index := range files {
 		indexes.Add(index)
 	}
-	settings := &asyncx.Settings{Size: bundleFileParallelism(len(files))}
-	if err := asyncx.RunList(ctx, nil, settings, "spack_bundle_hash", indexes, func(runCtx context.Context, fileIndex int) error {
+	runner := asyncx.NewRunner(nil, &asyncx.Settings{Size: bundleFileParallelism(len(files))}, "spack_bundle_hash")
+	if err := asyncx.RunListWith(ctx, runner, indexes, func(runCtx context.Context, fileIndex int) error {
 		payload, err := prepareBundleFilePayload(runCtx, files[fileIndex])
 		if err != nil {
 			return err
