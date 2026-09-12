@@ -548,9 +548,10 @@ tasks:
     cmds:
       - task: release:preflight
       - task: release:workflow:check
-      - cmd: '{{.GOYEK}} release-policy'
-        env:
-          SPACK_RELEASE_TAG: '{{if hasPrefix .VERSION "v"}}{{.VERSION}}{{else}}v{{.VERSION}}{{end}}'
+      - cmd: '$env:SPACK_RELEASE_TAG = "{{.TAG}}"; {{.GOYEK}} release-policy'
+        platforms: [windows]
+      - cmd: 'SPACK_RELEASE_TAG="{{.TAG}}" {{.GOYEK}} release-policy'
+        platforms: [linux, darwin]
       - task: release:tag
         vars:
           VERSION: '{{.VERSION}}'
@@ -603,4 +604,5 @@ tasks:
     internal: true
     cmds:
       - '{{.GOYEK}} refine-aot-baseline'
+
 
