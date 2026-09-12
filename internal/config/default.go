@@ -1,9 +1,13 @@
 package config
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
+
+	"github.com/KimMachineGun/automemlimit/memlimit"
 )
 
 func defaultConfig() Config {
@@ -23,17 +27,44 @@ func defaultConfig() Config {
 	}
 }
 
+const (
+	memoryCacheFallbackBytes = 64 * 1024 * 1024
+	memoryCacheMinimumBytes  = 4 * 1024 * 1024
+	memoryCacheMaximumBytes  = 256 * 1024 * 1024
+	memoryCacheBudgetDivisor = 16
+)
+
+func defaultMemoryCacheMaxBytes() int64 {
+	if limit := debug.SetMemoryLimit(-1); limit < math.MaxInt64 {
+		return memoryCacheMaxBytes(limit)
+	}
+
+	limit, err := memlimit.ApplyFallback(memlimit.FromCgroup, memlimit.FromSystem)()
+	if err != nil || limit > math.MaxInt64 {
+		return memoryCacheFallbackBytes
+	}
+
+	return memoryCacheMaxBytes(int64(limit))
+}
+
+func memoryCacheMaxBytes(memoryLimit int64) int64 {
+	if memoryLimit <= 0 {
+		return memoryCacheFallbackBytes
+	}
+
+	return min(max(memoryLimit/memoryCacheBudgetDivisor, memoryCacheMinimumBytes), memoryCacheMaximumBytes)
+}
 func defaultHTTPConfig() HTTP {
 	return HTTP{
 		Port:                80,
-		LowMemory:           true,
+		LowMemory:           false,
 		ExposeServerHeader:  false,
 		ExposeServerVersion: false,
 		MemoryCache: MemoryCache{
 			Enable:      true,
 			Warmup:      true,
 			MaxEntries:  1024,
-			MaxBytes:    64 * 1024 * 1024,
+			MaxBytes:    defaultMemoryCacheMaxBytes(),
 			MaxFileSize: 64 * 1024,
 			TTL:         "5m",
 		},

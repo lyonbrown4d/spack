@@ -15,4 +15,7 @@ func TestDefaultConfigUsesProductionSafeDiagnostics(t *testing.T) {
 	if cfg.Logger.Level != "info" {
 		t.Fatalf("expected default logger level info, got %q", cfg.Logger.Level)
 	}
+	if cfg.HTTP.LowMemory {
+		t.Fatal("expected Fiber low-memory mode to be disabled by default")
+	}
 }
