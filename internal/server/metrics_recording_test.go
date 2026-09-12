@@ -14,6 +14,7 @@ type recordedMetric struct {
 	name      string
 	labelKeys []string
 	attrs     map[string]any
+	value     any
 }
 
 type recordingObservability struct {
@@ -63,11 +64,12 @@ type recordingCounter struct {
 	metrics   *[]recordedMetric
 }
 
-func (r recordingCounter) Add(_ context.Context, _ int64, attrs ...observabilityx.Attribute) {
+func (r recordingCounter) Add(_ context.Context, value int64, attrs ...observabilityx.Attribute) {
 	*r.metrics = append(*r.metrics, recordedMetric{
 		name:      r.name,
 		labelKeys: slices.Clone(r.labelKeys),
 		attrs:     attrsToMap(attrs),
+		value:     value,
 	})
 }
 
@@ -77,11 +79,12 @@ type recordingHistogram struct {
 	metrics   *[]recordedMetric
 }
 
-func (r recordingHistogram) Record(_ context.Context, _ float64, attrs ...observabilityx.Attribute) {
+func (r recordingHistogram) Record(_ context.Context, value float64, attrs ...observabilityx.Attribute) {
 	*r.metrics = append(*r.metrics, recordedMetric{
 		name:      r.name,
 		labelKeys: slices.Clone(r.labelKeys),
 		attrs:     attrsToMap(attrs),
+		value:     value,
 	})
 }
 

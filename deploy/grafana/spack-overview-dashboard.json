@@ -5616,6 +5616,405 @@
         "x": 0,
         "y": 279
       }
+    },
+    {
+      "id": 119,
+      "type": "row",
+      "title": "Runtime SLO and Delivery Efficiency",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 287
+      },
+      "targets": []
+    },
+    {
+      "type": "stat",
+      "title": "Memory Cache Hit Ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(spack_asset_cache_hits_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(spack_asset_cache_hits_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) + sum(rate(spack_asset_cache_misses_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])), 1)) or vector(0)",
+          "legendFormat": "hit ratio",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "0",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 120,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 288
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Memory Cache Capacity Used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "(sum(spack_asset_cache_bytes_current{job=~\"$job\",instance=~\"$instance\"}) / clamp_min(sum(spack_asset_cache_max_bytes{job=~\"$job\",instance=~\"$instance\"}), 1)) or vector(0)",
+          "legendFormat": "capacity used",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "0",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 121,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 288
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Prepared Rebuild Error Ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(spack_prepared_snapshot_rebuilds_total{job=~\"$job\",instance=~\"$instance\",result=\"error\"}[$__rate_interval])) / clamp_min(sum(rate(spack_prepared_snapshot_rebuilds_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])), 1)) or vector(0)",
+          "legendFormat": "error ratio",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "0",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 122,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 288
+      }
+    },
+    {
+      "type": "stat",
+      "title": "AOT Prepared Delivery Ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(spack_http_asset_delivery_total{job=~\"$job\",instance=~\"$instance\",delivery=~\"prepared_memory|prepared_file\"}[$__rate_interval])) / clamp_min(sum(rate(spack_http_asset_delivery_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])), 1)) or vector(0)",
+          "legendFormat": "prepared ratio",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "0",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "id": 123,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 288
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Asset Delivery Throughput",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (instance, delivery) (rate(spack_http_asset_delivery_bytes_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}} {{delivery}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "noValue": "0",
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 124,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 293
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prepared Snapshot Rebuild Outcomes",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (instance, result) (rate(spack_prepared_snapshot_rebuilds_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 125,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 293
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prepared Snapshot Rebuild P95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (instance, result, le) (rate(spack_prepared_snapshot_rebuild_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) )",
+          "legendFormat": "{{instance}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "decimals": 3,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 126,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 301
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Prepared Snapshot Rebuild Pressure",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (spack_prepared_snapshot_rebuild_worker_running{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "{{instance}} worker running",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (instance) (rate(spack_prepared_snapshot_rebuild_coalesced_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}} coalesced/sec",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "id": 127,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 301
+      }
     }
   ],
   "refresh": "10s",
@@ -5706,6 +6105,6 @@
   "timezone": "browser",
   "title": "SPACK Overview",
   "uid": "spack-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

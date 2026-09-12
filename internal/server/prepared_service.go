@@ -78,11 +78,13 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 	compiler := newPreparedCompiler(s.cfg, s.resourceHints, s.logger, s.fileSources)
 	snapshot, err := compiler.Compile(ctx, s.cat)
 	if err != nil {
+		s.metrics.RecordPreparedSnapshotRebuild(time.Since(startedAt), "error")
 		return preparedCompileError(err)
 	}
 	s.snapshot.Store(snapshot)
 	duration := time.Since(startedAt)
 	s.metrics.RecordPreparedSnapshot(duration, snapshot.assets, snapshot.assets+snapshot.variants, snapshot.bodyEntries, snapshot.bodyBytes)
+	s.metrics.RecordPreparedSnapshotRebuild(duration, "success")
 	if s.logger != nil {
 		s.logger.Info("Prepared snapshot ready",
 			slog.Int("assets", snapshot.assets),
@@ -236,8 +238,10 @@ func (s *PreparedService) rebuildAsync(ctx context.Context, reason string) {
 	}
 	s.rebuildAgain.Store(true)
 	if !s.rebuildWorkerRunning.CompareAndSwap(false, true) {
+		s.metrics.IncPreparedSnapshotRebuildCoalesced()
 		return
 	}
+	s.metrics.SetPreparedSnapshotRebuildWorkerRunning(true)
 	workerCtx := s.rebuildContext(ctx)
 	s.rebuildWG.Go(func() {
 		s.runRebuildWorker(workerCtx, reason)
@@ -255,6 +259,7 @@ func (s *PreparedService) rebuildContext(ctx context.Context) context.Context {
 }
 
 func (s *PreparedService) runRebuildWorker(ctx context.Context, reason string) {
+	defer s.metrics.SetPreparedSnapshotRebuildWorkerRunning(false)
 	for {
 		if s.rebuildStopped.Load() || ctx.Err() != nil {
 			s.rebuildAgain.Store(false)

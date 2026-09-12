@@ -42,6 +42,12 @@ var (
 		observabilityx.WithDescription("Total number of asset delivery responses by delivery path."),
 		observabilityx.WithLabelKeys("method", "route", "status", "delivery"),
 	)
+	httpAssetDeliveryBytesSpec = observabilityx.NewCounterSpec(
+		"http_asset_delivery_bytes_total",
+		observabilityx.WithDescription("Total declared Content-Length bytes for asset delivery responses."),
+		observabilityx.WithUnit("By"),
+		observabilityx.WithLabelKeys("method", "route", "status", "delivery"),
+	)
 	errFiberRequestContextNil = errors.New("fiber request context is nil")
 
 	httpAssetDeliveryDurationSpec = observabilityx.NewHistogramSpec(
@@ -155,6 +161,7 @@ type httpMetricsRecorder struct {
 	requestCounter        observabilityx.Counter
 	requestDuration       observabilityx.Histogram
 	assetDeliveryCounter  observabilityx.Counter
+	assetDeliveryBytes    observabilityx.Counter
 	assetDeliveryDuration observabilityx.Histogram
 }
 
@@ -163,6 +170,7 @@ func newHTTPMetricsRecorder(obs observabilityx.Observability) httpMetricsRecorde
 		requestCounter:        obs.Counter(httpRequestsTotalSpec),
 		requestDuration:       obs.Histogram(httpRequestDurationSpec),
 		assetDeliveryCounter:  obs.Counter(httpAssetDeliveryTotalSpec),
+		assetDeliveryBytes:    obs.Counter(httpAssetDeliveryBytesSpec),
 		assetDeliveryDuration: obs.Histogram(httpAssetDeliveryDurationSpec),
 	}
 }
@@ -186,7 +194,20 @@ func (r httpMetricsRecorder) Record(c fiber.Ctx, status int, duration float64) {
 		return
 	}
 	r.assetDeliveryCounter.Add(ctx, 1, deliveryAttrs...)
+	r.assetDeliveryBytes.Add(ctx, responseContentLength(c), deliveryAttrs...)
 	r.assetDeliveryDuration.Record(ctx, duration, deliveryAttrs...)
+}
+
+func responseContentLength(c fiber.Ctx) int64 {
+	response := c.Response()
+	contentLength := response.Header.ContentLength()
+	if contentLength > 0 {
+		return int64(contentLength)
+	}
+	if response.IsBodyStream() {
+		return 0
+	}
+	return int64(len(response.Body()))
 }
 
 func fiberRequestContext(c fiber.Ctx) context.Context {

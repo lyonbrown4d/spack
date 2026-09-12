@@ -9,15 +9,19 @@ import (
 )
 
 type RuntimeMetrics struct {
-	RequestsInFlight                   prometheus.Gauge
-	PreparedSnapshotDuration           prometheus.Gauge
-	PreparedSnapshotRoutesCurrent      prometheus.Gauge
-	PreparedSnapshotResponsesCurrent   prometheus.Gauge
-	PreparedSnapshotBodyEntriesCurrent prometheus.Gauge
-	PreparedSnapshotBodyBytesCurrent   prometheus.Gauge
-	Readiness                          *prometheus.GaugeVec
-	StartupPhase                       *prometheus.GaugeVec
-	StartupDuration                    prometheus.Gauge
+	RequestsInFlight                      prometheus.Gauge
+	PreparedSnapshotDuration              prometheus.Gauge
+	PreparedSnapshotRoutesCurrent         prometheus.Gauge
+	PreparedSnapshotResponsesCurrent      prometheus.Gauge
+	PreparedSnapshotBodyEntriesCurrent    prometheus.Gauge
+	PreparedSnapshotBodyBytesCurrent      prometheus.Gauge
+	PreparedSnapshotRebuilds              *prometheus.CounterVec
+	PreparedSnapshotRebuildDuration       *prometheus.HistogramVec
+	PreparedSnapshotRebuildWorkerRunning  prometheus.Gauge
+	PreparedSnapshotRebuildCoalescedTotal prometheus.Counter
+	Readiness                             *prometheus.GaugeVec
+	StartupPhase                          *prometheus.GaugeVec
+	StartupDuration                       prometheus.Gauge
 }
 
 func NewRuntimeMetrics() *RuntimeMetrics {
@@ -45,6 +49,23 @@ func NewRuntimeMetrics() *RuntimeMetrics {
 		PreparedSnapshotBodyBytesCurrent: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "spack_prepared_snapshot_body_bytes_current",
 			Help: "Current bytes held by prepared in-memory response bodies",
+		}),
+		PreparedSnapshotRebuilds: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "spack_prepared_snapshot_rebuilds_total",
+			Help: "Total number of prepared snapshot rebuilds by result",
+		}, []string{"result"}),
+		PreparedSnapshotRebuildDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "spack_prepared_snapshot_rebuild_duration_seconds",
+			Help:    "Prepared snapshot rebuild duration in seconds by result",
+			Buckets: prometheus.DefBuckets,
+		}, []string{"result"}),
+		PreparedSnapshotRebuildWorkerRunning: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "spack_prepared_snapshot_rebuild_worker_running",
+			Help: "Whether the asynchronous prepared snapshot rebuild worker is currently running",
+		}),
+		PreparedSnapshotRebuildCoalescedTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "spack_prepared_snapshot_rebuild_coalesced_total",
+			Help: "Total number of prepared snapshot rebuild requests coalesced into an active worker",
 		}),
 		Readiness: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "spack_server_readiness_current",
@@ -75,6 +96,10 @@ func (m *RuntimeMetrics) Collectors() []prometheus.Collector {
 		m.PreparedSnapshotResponsesCurrent,
 		m.PreparedSnapshotBodyEntriesCurrent,
 		m.PreparedSnapshotBodyBytesCurrent,
+		m.PreparedSnapshotRebuilds,
+		m.PreparedSnapshotRebuildDuration,
+		m.PreparedSnapshotRebuildWorkerRunning,
+		m.PreparedSnapshotRebuildCoalescedTotal,
 		m.Readiness,
 		m.StartupPhase,
 		m.StartupDuration,
@@ -121,6 +146,42 @@ func (m *RuntimeMetrics) RecordPreparedSnapshot(duration time.Duration, routes, 
 	m.PreparedSnapshotBodyBytesCurrent.Set(float64(bodyBytes))
 }
 
+func (m *RuntimeMetrics) RecordPreparedSnapshotRebuild(duration time.Duration, result string) {
+	if m == nil {
+		return
+	}
+	if duration < 0 {
+		duration = 0
+	}
+	normalizedResult := normalizePreparedSnapshotRebuildResult(result)
+	m.PreparedSnapshotRebuilds.WithLabelValues(normalizedResult).Inc()
+	m.PreparedSnapshotRebuildDuration.WithLabelValues(normalizedResult).Observe(duration.Seconds())
+}
+
+func (m *RuntimeMetrics) SetPreparedSnapshotRebuildWorkerRunning(running bool) {
+	if m == nil || m.PreparedSnapshotRebuildWorkerRunning == nil {
+		return
+	}
+	if running {
+		m.PreparedSnapshotRebuildWorkerRunning.Set(1)
+		return
+	}
+	m.PreparedSnapshotRebuildWorkerRunning.Set(0)
+}
+
+func (m *RuntimeMetrics) IncPreparedSnapshotRebuildCoalesced() {
+	if m == nil || m.PreparedSnapshotRebuildCoalescedTotal == nil {
+		return
+	}
+	m.PreparedSnapshotRebuildCoalescedTotal.Inc()
+}
+
+func normalizePreparedSnapshotRebuildResult(result string) string {
+	if strings.EqualFold(strings.TrimSpace(result), "success") {
+		return "success"
+	}
+	return "error"
+}
 func (m *RuntimeMetrics) SetReadiness(ready bool) {
 	if m == nil || m.Readiness == nil {
 		return
