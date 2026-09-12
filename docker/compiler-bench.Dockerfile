@@ -1,5 +1,5 @@
 # Builds a local spack-compiler image for end-to-end AOT benchmark workflows.
-FROM golang:1.27.0-bookworm AS build
+FROM golang:1.27.1-bookworm AS build
 
 ARG TARGETARCH=amd64
 ARG GOPROXY=https://goproxy.cn,direct
@@ -33,3 +33,4 @@ COPY --from=build --chmod=755 /out/spack-compiler /usr/local/bin/spack-compiler
 USER 65532:65532
 
 ENTRYPOINT ["spack-compiler"]
+

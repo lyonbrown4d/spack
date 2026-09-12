@@ -1,6 +1,6 @@
 module github.com/lyonbrown4d/spack/build
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/goyek/goyek/v3 v3.0.1
