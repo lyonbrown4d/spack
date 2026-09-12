@@ -53,7 +53,7 @@ func newStages(registrations *cxlist.List[stageRegistration]) *cxlist.List[Stage
 type serviceDeps struct {
 	metrics    *Metrics
 	stages     *cxlist.List[Stage]
-	bus        eventx.BusRuntime
+	bus        *eventx.Bus
 	workers    *asyncx.Settings
 	obs        observabilityx.Observability
 	catMetrics *catalog.RuntimeMetrics
@@ -62,7 +62,7 @@ type serviceDeps struct {
 func newServiceDeps(
 	metrics *Metrics,
 	stages *cxlist.List[Stage],
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	workers *asyncx.Settings,
 	obs observabilityx.Observability,
 	catMetrics *catalog.RuntimeMetrics,

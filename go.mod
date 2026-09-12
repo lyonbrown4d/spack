@@ -17,7 +17,7 @@ require (
 	github.com/arcgolabs/configx/format/yaml v0.6.2
 	github.com/arcgolabs/dix v0.11.2
 	github.com/arcgolabs/dix/advanced v0.11.2
-	github.com/arcgolabs/eventx v0.1.2
+	github.com/arcgolabs/eventx v0.1.3
 	github.com/arcgolabs/logx v0.1.4
 	github.com/arcgolabs/mapper v0.2.2
 	github.com/arcgolabs/observabilityx v0.4.2

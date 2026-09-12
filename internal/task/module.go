@@ -83,7 +83,7 @@ type sourceRescanRuntime struct {
 	catalog    catalog.Catalog
 	catMetrics *catalog.RuntimeMetrics
 	bodyCache  *assetcache.Cache
-	bus        eventx.BusRuntime
+	bus        *eventx.Bus
 	logger     *slog.Logger
 	obs        observabilityx.Observability
 	rescanMu   sync.Mutex
@@ -106,7 +106,7 @@ func newSourceRescanRuntime(
 	cat catalog.Catalog,
 	catMetrics *catalog.RuntimeMetrics,
 	bodyCache *assetcache.Cache,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	telemetry taskTelemetry,
 ) *sourceRescanRuntime {
 	return &sourceRescanRuntime{

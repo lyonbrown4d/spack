@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/arcgolabs/eventx"
 	"github.com/lyonbrown4d/spack/internal/cachepolicy"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/samber/oops"
@@ -45,11 +44,28 @@ func (c *Cache) stop(_ context.Context) error {
 		c.cache.Close()
 		c.cache = nil
 	}
+	return c.cleanupFileSource()
+}
+
+func (c *Cache) cleanupFileSource() error {
+	if c == nil {
+		return nil
+	}
+	files := c.files
+	owned := c.filesOwned
+	c.files = nil
+	c.filesOwned = false
+	if files == nil || !owned {
+		return nil
+	}
+	if err := files.Cleanup(); err != nil {
+		return oops.Wrapf(err, "cleanup local cache file source")
+	}
 	return nil
 }
 
 func (c *Cache) subscribeVariantRemoved() (func(), error) {
-	unsubscribe, err := eventx.Subscribe(c.bus, func(_ context.Context, event appEvent.VariantRemoved) error {
+	unsubscribe, err := c.bus.Subscribe(func(_ context.Context, event appEvent.VariantRemoved) error {
 		c.Delete(event.ArtifactPath)
 		return nil
 	})
@@ -60,7 +76,7 @@ func (c *Cache) subscribeVariantRemoved() (func(), error) {
 }
 
 func (c *Cache) subscribeVariantGenerated() (func(), error) {
-	unsubscribe, err := eventx.Subscribe(c.bus, func(_ context.Context, event appEvent.VariantGenerated) error {
+	unsubscribe, err := c.bus.Subscribe(func(_ context.Context, event appEvent.VariantGenerated) error {
 		preloadErr := c.preloadPath(event.ArtifactPath, cachepolicy.MemoryRequest{
 			Path:      event.ArtifactPath,
 			AssetPath: event.AssetPath,

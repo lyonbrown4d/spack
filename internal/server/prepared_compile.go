@@ -3,7 +3,7 @@ package server
 import (
 	"cmp"
 	"context"
-	"github.com/samber/oops"
+	"io/fs"
 	"log/slog"
 	"strings"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 	"github.com/samber/lo"
+	"github.com/samber/oops"
 )
 
 type preparedCompiler struct {
@@ -140,6 +141,7 @@ func (c preparedCompiler) compileResponse(result resolver.Result, explicitFormat
 		result:             result,
 		headerPlan:         newPreparedHeaderPlan(headerPlan),
 		explicitHeaderPlan: newPreparedHeaderPlan(explicitHeaderPlan),
+		sendFile:           c.compilePreparedSendFile(result.FilePath),
 	}
 	if response.result.Variant != nil {
 		response.servedResult = &response.result
@@ -148,6 +150,26 @@ func (c preparedCompiler) compileResponse(result resolver.Result, explicitFormat
 	response.resourceHintHeader = resourceHintHeader(response.resourceHints)
 	response.body, response.bodyPrepared = c.compileBody(&result)
 	return response
+}
+
+func (c preparedCompiler) compilePreparedSendFile(fullPath string) *preparedSendFile {
+	rootFS, relativePath, trusted, err := c.fileSources.TrustedReadOnlyPath(fullPath)
+	if err != nil {
+		if c.logger != nil {
+			c.logger.Debug("Compile prepared trusted file failed",
+				slog.String("path", fullPath),
+				slog.Any("error", err),
+			)
+		}
+		return nil
+	}
+	if !trusted || rootFS == nil || !fs.ValidPath(relativePath) {
+		return nil
+	}
+	return &preparedSendFile{
+		root: rootFS,
+		path: relativePath,
+	}
 }
 
 func (c preparedCompiler) compileResourceHints(result *resolver.Result) *cxlist.List[string] {

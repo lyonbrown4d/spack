@@ -9,15 +9,14 @@ import (
 	"github.com/arcgolabs/eventx"
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/lyonbrown4d/spack/internal/resolver"
-	"github.com/samber/lo"
 )
 
 type EventPublisher struct {
-	bus    eventx.BusRuntime
+	bus    *eventx.Bus
 	logger *slog.Logger
 }
 
-func newEventPublisher(bus eventx.BusRuntime, logger *slog.Logger) *EventPublisher {
+func newEventPublisher(bus *eventx.Bus, logger *slog.Logger) *EventPublisher {
 	return &EventPublisher{
 		bus:    bus,
 		logger: logger,
@@ -27,26 +26,42 @@ func newEventPublisher(bus eventx.BusRuntime, logger *slog.Logger) *EventPublish
 func publishVariantServed(
 	ctx context.Context,
 	result *resolver.Result,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	logger *slog.Logger,
 ) {
 	if result == nil || result.Variant == nil || bus == nil {
 		return
 	}
 
-	err := bus.Publish(ctx, appEvent.VariantServed{
-		AssetPath:     lo.Ternary(result.Asset != nil, result.Asset.Path, ""),
-		ArtifactPath:  result.FilePath,
-		ServedAt:      time.Now(),
-		ContentType:   result.MediaType,
-		ContentCoding: result.ContentEncoding,
+	publishVariantServedLazy(ctx, bus, result.FilePath, logger, func() appEvent.VariantServed {
+		assetPath := ""
+		if result.Asset != nil {
+			assetPath = result.Asset.Path
+		}
+		return appEvent.VariantServed{
+			AssetPath:     assetPath,
+			ArtifactPath:  result.FilePath,
+			ServedAt:      time.Now(),
+			ContentType:   result.MediaType,
+			ContentCoding: result.ContentEncoding,
+		}
 	})
-	if shouldIgnoreVariantServedPublishError(err) {
+}
+
+func publishVariantServedLazy(
+	ctx context.Context,
+	bus *eventx.Bus,
+	path string,
+	logger *slog.Logger,
+	factory func() appEvent.VariantServed,
+) {
+	err := bus.PublishLazy(ctx, factory)
+	if shouldIgnoreVariantServedPublishError(err) || logger == nil {
 		return
 	}
 
 	logger.Debug("Publish variant served event failed",
-		slog.String("path", result.FilePath),
+		slog.String("path", path),
 		slog.Any("error", err),
 	)
 }

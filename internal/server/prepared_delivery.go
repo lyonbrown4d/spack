@@ -1,9 +1,10 @@
 package server
 
 import (
+	"errors"
 	"fmt"
-	"github.com/samber/oops"
 	"io"
+	"io/fs"
 	"log/slog"
 	"strconv"
 
@@ -11,7 +12,19 @@ import (
 	"github.com/lyonbrown4d/spack/internal/resolver"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 	"github.com/samber/lo"
+	"github.com/samber/oops"
 )
+
+var preparedManagedResponseHeaders = [...]string{
+	fiber.HeaderContentType,
+	fiber.HeaderContentLength,
+	fiber.HeaderVary,
+	fiber.HeaderETag,
+	fiber.HeaderContentEncoding,
+	fiber.HeaderLastModified,
+	fiber.HeaderCacheControl,
+	fiber.HeaderExpires,
+}
 
 func (r *assetDeliveryRuntime) sendPreparedAsset(
 	c fiber.Ctx,
@@ -67,6 +80,9 @@ func (r *assetDeliveryRuntime) sendPreparedLocalAssetFile(
 	response *preparedResponse,
 	headerPlan preparedHeaderPlan,
 ) (string, error) {
+	if !request.RangeRequested && response.sendFile != nil {
+		return r.sendPreparedTrustedAssetStream(c, request, response)
+	}
 	if r.fileSources == nil {
 		return "", oops.Errorf("local file source is required for %s", response.filePath())
 	}
@@ -87,6 +103,41 @@ func (r *assetDeliveryRuntime) sendPreparedLocalAssetFile(
 	return deliveryPreparedFile, nil
 }
 
+func (r *assetDeliveryRuntime) sendPreparedTrustedAssetStream(
+	c fiber.Ctx,
+	request resolver.Request,
+	response *preparedResponse,
+) (string, error) {
+	file, err := response.sendFile.root.Open(response.sendFile.path)
+	if err != nil {
+		return r.handlePreparedTrustedFileError(c, request, response, err, "open")
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		discardServerStream(file)
+		return r.handlePreparedTrustedFileError(c, request, response, err, "stat")
+	}
+	if err := sendServerStream(c, file, info.Size(), "send prepared trusted asset body"); err != nil {
+		return "", err
+	}
+	return deliveryPreparedFile, nil
+}
+
+func (r *assetDeliveryRuntime) handlePreparedTrustedFileError(
+	c fiber.Ctx,
+	request resolver.Request,
+	response *preparedResponse,
+	cause error,
+	action string,
+) (string, error) {
+	if errors.Is(cause, fs.ErrNotExist) {
+		if handled, retryErr := r.retryPreparedArtifactMiss(c, request, response); handled || retryErr != nil {
+			return "", retryErr
+		}
+	}
+	return "", oops.Wrapf(cause, "%s prepared trusted asset file", action)
+}
 func sendPreparedLocalRange(c fiber.Ctx, file io.ReaderAt, size int64, headerPlan preparedHeaderPlan) (string, error) {
 	byteRange, ok := parseSingleHTTPRange(c.Get(fiber.HeaderRange), size)
 	closer, hasCloser := file.(io.Closer)
@@ -135,6 +186,9 @@ func (r *assetDeliveryRuntime) retryPreparedArtifactMiss(
 	next, ok := r.prepared.Resolve(newPreparedRequest(request, request.Format)).Get()
 	if !ok || next.response == nil || next.response.filePath() == response.filePath() {
 		return false, nil
+	}
+	for _, header := range preparedManagedResponseHeaders {
+		c.Response().Header.Del(header)
 	}
 	_, _, err := r.sendPreparedAsset(c, request, next)
 	return true, err

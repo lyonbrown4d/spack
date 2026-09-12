@@ -159,7 +159,7 @@ func newErrorTestApp(t *testing.T, logger *slog.Logger) *fiber.App {
 	cfg.Assets.Path = "/assets"
 	cfg.Assets.Root = t.TempDir()
 	cat := catalog.NewInMemoryCatalog()
-	return server.NewObservedAppForTest(
+	app := server.NewObservedAppForTest(
 		&cfg,
 		logger,
 		nil,
@@ -169,6 +169,12 @@ func newErrorTestApp(t *testing.T, logger *slog.Logger) *fiber.App {
 		resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
 		nil,
 	)
+	t.Cleanup(func() {
+		if err := app.Shutdown(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	return app
 }
 
 func readResponseBody(t *testing.T, response *http.Response) string {

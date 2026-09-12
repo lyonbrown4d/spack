@@ -34,9 +34,12 @@ type Result struct {
 }
 
 type Resolver struct {
-	cfg                *config.Assets
-	supportedEncodings encodingSupport
-	catalog            catalog.Catalog
-	logger             *slog.Logger
-	obs                observabilityx.Observability
+	cfg                     *config.Assets
+	supportedEncodings      encodingSupport
+	catalog                 catalog.Catalog
+	logger                  *slog.Logger
+	obs                     observabilityx.Observability
+	resolutionsTotal        observabilityx.Counter
+	resolutionDuration      observabilityx.Histogram
+	generationRequestsTotal observabilityx.Counter
 }

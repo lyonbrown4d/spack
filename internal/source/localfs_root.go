@@ -35,7 +35,13 @@ func NewLocalDirectory(root string) (*LocalFS, bool, error) {
 	return &LocalFS{
 		root:     resolved.root,
 		rootInfo: resolved.info,
-		logger:   slog.New(slog.DiscardHandler),
+		resources: newLocalFSResources(
+			resolved.root,
+			resolved.info,
+			resolved.rootDir,
+			resolved.extracted,
+		),
+		logger: slog.New(slog.DiscardHandler),
 	}, true, nil
 }
 

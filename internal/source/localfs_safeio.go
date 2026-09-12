@@ -39,24 +39,29 @@ func (s *LocalFS) OpenFile(fullPath string) (*os.File, fs.FileInfo, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	rootDir, err := s.openValidatedRoot()
+
+	var file *os.File
+	var info fs.FileInfo
+	err = s.resources.useRoot(func(rootDir *os.Root) error {
+		if validateErr := s.validateCurrentRoot(rootDir); validateErr != nil {
+			return validateErr
+		}
+		openedFile, openedInfo, openErr := s.openStableFile(rootDir, relativePath, fullPath)
+		if openErr != nil {
+			return openErr
+		}
+		if validateErr := s.validateCurrentRoot(rootDir); validateErr != nil {
+			discardClose(openedFile)
+			return validateErr
+		}
+		file = openedFile
+		info = openedInfo
+		return nil
+	})
 	if err != nil {
 		return nil, nil, err
 	}
-	defer closeRoot(rootDir)
-	return s.openStableFile(rootDir, relativePath, fullPath)
-}
-
-func (s *LocalFS) openValidatedRoot() (*os.Root, error) {
-	rootDir, err := os.OpenRoot(s.root)
-	if err != nil {
-		return nil, oops.Wrap(err)
-	}
-	if err := s.validateCurrentRoot(rootDir); err != nil {
-		closeRoot(rootDir)
-		return nil, err
-	}
-	return rootDir, nil
+	return file, info, nil
 }
 
 func (s *LocalFS) openStableFile(rootDir *os.Root, relativePath, fullPath string) (*os.File, fs.FileInfo, error) {
@@ -77,11 +82,67 @@ func (s *LocalFS) openStableFile(rootDir *os.Root, relativePath, fullPath string
 		discardClose(file)
 		return nil, nil, oops.Owner("source").Wrap(fmt.Errorf("source path is a directory: %s", fullPath))
 	}
-	if !os.SameFile(info, openedInfo) {
+	currentInfo, err := s.lstatRegularFile(rootDir, relativePath, fullPath)
+	if err != nil {
+		discardClose(file)
+		return nil, nil, err
+	}
+	if !os.SameFile(info, openedInfo) || !os.SameFile(currentInfo, openedInfo) {
 		discardClose(file)
 		return nil, nil, oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrRootReplaced, fullPath))
 	}
 	return file, openedInfo, nil
+}
+
+// TrustedReadOnlyPath returns a root-bound read-only filesystem only for
+// immutable files extracted from a validated bundle.
+func (s *LocalFS) TrustedReadOnlyPath(fullPath string) (fs.FS, string, bool, error) {
+	if s == nil {
+		return nil, "", false, oops.Owner("source").Wrap(errors.New("local source is nil"))
+	}
+	if s.bundle == nil {
+		return nil, "", false, nil
+	}
+	relativePath, err := s.relativePath(fullPath)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if _, ok := s.bundle.entries.GetOption(relativePath).Get(); !ok {
+		return nil, "", false, nil
+	}
+	err = s.resources.useRoot(func(rootDir *os.Root) error {
+		if validateErr := s.validateCurrentRoot(rootDir); validateErr != nil {
+			return validateErr
+		}
+		if _, statErr := s.lstatRegularFile(rootDir, relativePath, fullPath); statErr != nil {
+			return statErr
+		}
+		return s.validateCurrentRoot(rootDir)
+	})
+	if err != nil {
+		return nil, "", false, err
+	}
+	return &localFSReadOnly{resources: s.resources}, relativePath, true, nil
+}
+
+type localFSReadOnly struct {
+	resources *localFSResources
+}
+
+func (f *localFSReadOnly) Open(name string) (fs.File, error) {
+	var file fs.File
+	err := f.resources.useRoot(func(rootDir *os.Root) error {
+		var openErr error
+		file, openErr = rootDir.FS().Open(name)
+		if openErr != nil {
+			return oops.Wrap(openErr)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
 }
 
 func (s *LocalFS) lstatRegularFile(rootDir *os.Root, relativePath, fullPath string) (fs.FileInfo, error) {
@@ -92,25 +153,14 @@ func (s *LocalFS) lstatRegularFile(rootDir *os.Root, relativePath, fullPath stri
 	if info.IsDir() {
 		return nil, oops.Owner("source").Wrap(fmt.Errorf("source path is a directory: %s", fullPath))
 	}
+	if !info.Mode().IsRegular() {
+		return nil, oops.Owner("source").Wrap(fmt.Errorf("source path is not a regular file: %s", fullPath))
+	}
 	return info, nil
 }
 
 func (s *LocalFS) validateCurrentRoot(rootDir *os.Root) error {
-	openedInfo, err := rootDir.Stat(".")
-	if err != nil {
-		return oops.Wrap(err)
-	}
-	currentInfo, err := os.Lstat(s.root)
-	if err != nil {
-		return oops.Wrap(err)
-	}
-	if err := validateOpenedDirectoryRoot(s.root, openedInfo, currentInfo); err != nil {
-		return err
-	}
-	if !os.SameFile(s.rootInfo, currentInfo) {
-		return oops.Owner("source").Wrap(fmt.Errorf("%w: %s", ErrRootReplaced, s.root))
-	}
-	return nil
+	return validateCurrentLocalFSRoot(rootDir, s.root, s.rootInfo)
 }
 
 func (s *LocalFS) relativePath(fullPath string) (string, error) {

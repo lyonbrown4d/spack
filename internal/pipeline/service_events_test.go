@@ -29,7 +29,7 @@ func TestUpsertStageVariantPublishesGeneratedEvent(t *testing.T) {
 
 	bus := eventx.New()
 	received := make(chan appEvent.VariantGenerated, 1)
-	unsubscribe, err := eventx.Subscribe(bus, func(_ context.Context, event appEvent.VariantGenerated) error {
+	unsubscribe, err := bus.Subscribe(func(_ context.Context, event appEvent.VariantGenerated) error {
 		select {
 		case received <- event:
 		default:

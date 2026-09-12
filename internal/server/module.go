@@ -183,7 +183,7 @@ type assetRouteRegistrationDeps struct {
 	runtime       assetRouteRuntime
 	assetResolver *resolver.Resolver
 	bodyCache     *assetcache.Cache
-	bus           eventx.BusRuntime
+	bus           *eventx.Bus
 	cat           catalog.Catalog
 }
 
@@ -192,7 +192,7 @@ func newAssetRouteRegistrationDeps(
 	runtime assetRouteRuntime,
 	assetResolver *resolver.Resolver,
 	bodyCache *assetcache.Cache,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	cat catalog.Catalog,
 ) assetRouteRegistrationDeps {
 	return assetRouteRegistrationDeps{

@@ -21,8 +21,10 @@ type recordedMetric struct {
 type metricContextKey struct{}
 
 type recordingObservability struct {
-	counters   []recordedMetric
-	histograms []recordedMetric
+	counters             []recordedMetric
+	histograms           []recordedMetric
+	counterInstruments   map[string]int
+	histogramInstruments map[string]int
 }
 
 func (r *recordingObservability) Logger() *slog.Logger {
@@ -38,6 +40,10 @@ func (r *recordingObservability) StartSpan(
 }
 
 func (r *recordingObservability) Counter(spec observabilityx.CounterSpec) observabilityx.Counter {
+	if r.counterInstruments == nil {
+		r.counterInstruments = map[string]int{}
+	}
+	r.counterInstruments[spec.Name]++
 	return recordingCounter{name: spec.Name, metrics: &r.counters}
 }
 
@@ -46,6 +52,10 @@ func (r *recordingObservability) UpDownCounter(observabilityx.UpDownCounterSpec)
 }
 
 func (r *recordingObservability) Histogram(spec observabilityx.HistogramSpec) observabilityx.Histogram {
+	if r.histogramInstruments == nil {
+		r.histogramInstruments = map[string]int{}
+	}
+	r.histogramInstruments[spec.Name]++
 	return recordingHistogram{name: spec.Name, metrics: &r.histograms}
 }
 
@@ -114,6 +124,9 @@ func TestResolverMetricsRecordFallbackResolution(t *testing.T) {
 	assertCounterMetric(t, obs.counters, "resolver_resolutions_total", "result", "fallback_asset")
 	assertHistogramMetric(t, obs.histograms, "resolver_resolution_duration_seconds", "result", "fallback_asset")
 	assertMetricContext(t, obs.counters, "resolver_resolutions_total", "resolver-request")
+	assertInstrumentCount(t, obs.counterInstruments, "resolver_resolutions_total", 1)
+	assertInstrumentCount(t, obs.counterInstruments, "resolver_generation_requests_total", 1)
+	assertInstrumentCount(t, obs.histogramInstruments, "resolver_resolution_duration_seconds", 1)
 }
 
 func TestResolverMetricsRecordGenerationRequests(t *testing.T) {
@@ -207,4 +220,12 @@ func assertMetricContext(t *testing.T, metrics []recordedMetric, name string, wa
 		}
 	}
 	t.Fatalf("expected metric %s with context value %v", name, want)
+}
+
+func assertInstrumentCount(t *testing.T, instruments map[string]int, name string, want int) {
+	t.Helper()
+
+	if got := instruments[name]; got != want {
+		t.Fatalf("expected instrument %s to be requested %d time(s), got %d", name, want, got)
+	}
 }

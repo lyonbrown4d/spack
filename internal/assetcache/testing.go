@@ -10,6 +10,7 @@ import (
 	"github.com/arcgolabs/observabilityx"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/lyonbrown4d/spack/internal/source"
 )
 
 // NewCacheForTest exposes cache construction for external tests.
@@ -22,6 +23,16 @@ func NewCacheWithRootForTest(cfg config.MemoryCache, logger *slog.Logger, root s
 	testCfg := newCacheConfigForTest(cfg)
 	testCfg.Assets.Root = root
 	cache, err := newCache(testCfg, logger, nil, nil, nil, nil)
+	if err != nil {
+		return nil
+	}
+	return cache
+}
+
+// NewCacheWithSourceForTest exposes cache construction with an injected local source.
+func NewCacheWithSourceForTest(cfg config.MemoryCache, logger *slog.Logger, src *source.LocalFS) *Cache {
+	testCfg := newCacheConfigForTest(cfg)
+	cache, err := newCache(testCfg, logger, nil, nil, nil, src)
 	if err != nil {
 		return nil
 	}
@@ -47,7 +58,7 @@ func NewCacheWithBusForTest(
 	cfg config.MemoryCache,
 	logger *slog.Logger,
 	obs observabilityx.Observability,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 ) *Cache {
 	testCfg := newCacheConfigForTest(cfg)
 	cache, err := newCache(testCfg, logger, obs, bus, nil, nil)
@@ -95,4 +106,17 @@ func testCacheRootForTest() string {
 // StartForTest exposes cache lifecycle start for external tests.
 func StartForTest(cache *Cache) error {
 	return cache.start(context.TODO())
+}
+
+// StopForTest exposes cache lifecycle stop for external tests.
+func StopForTest(cache *Cache) error {
+	return cache.stop(context.TODO())
+}
+
+// FileSourceForTest exposes the cache file source and its ownership state.
+func FileSourceForTest(cache *Cache) (*source.LocalFS, bool) {
+	if cache == nil {
+		return nil, false
+	}
+	return cache.files, cache.filesOwned
 }

@@ -18,7 +18,7 @@ func (s *Service) subscribeVariantServed() error {
 		return nil
 	}
 
-	unsubscribe, err := eventx.Subscribe(s.bus, func(_ context.Context, event appEvent.VariantServed) error {
+	unsubscribe, err := s.bus.Subscribe(func(_ context.Context, event appEvent.VariantServed) error {
 		s.markVariantHitAt(event.ArtifactPath, event.ServedAt)
 		return nil
 	})

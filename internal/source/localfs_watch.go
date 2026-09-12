@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -119,16 +120,17 @@ func (s *LocalFS) addCreatedWatchDir(watcher *fsnotify.Watcher, fullPath string)
 	if !ok || relativePath == "." {
 		return
 	}
-	rootDir, err := s.openRoot()
-	if err != nil {
-		return
-	}
-	defer closeRoot(rootDir)
-	info, err := lstatPathWithinRoot(rootDir, s.root, relativePath)
-	if err != nil || !info.IsDir() {
-		return
-	}
-	if err := watcher.Add(fullPath); err != nil && s.logger != nil {
+	err := s.resources.useRoot(func(rootDir *os.Root) error {
+		if validateErr := s.validateCurrentRoot(rootDir); validateErr != nil {
+			return validateErr
+		}
+		info, statErr := lstatPathWithinRoot(rootDir, s.root, relativePath)
+		if statErr != nil || !info.IsDir() {
+			return statErr
+		}
+		return watcher.Add(fullPath)
+	})
+	if err != nil && s.logger != nil {
 		s.logger.Warn("Add source watch directory failed",
 			slog.String("path", fullPath),
 			slog.Any("error", err),

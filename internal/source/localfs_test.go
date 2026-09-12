@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -149,10 +148,6 @@ func TestLocalFSFindFileRejectsSymlinkDirectory(t *testing.T) {
 }
 
 func TestLocalFSFindFileDetectsReplacedRoot(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows may reuse directory file IDs for immediate same-path replacement")
-	}
-
 	parent := t.TempDir()
 	root := filepath.Join(parent, "root")
 	oldRoot := filepath.Join(parent, "root-old")
@@ -210,6 +205,11 @@ func TestLocalFSWatchReportsFileChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if cleanupErr := src.Cleanup(); cleanupErr != nil {
+			t.Fatal(cleanupErr)
+		}
+	})
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -232,6 +232,10 @@ func TestLocalFSWatchReportsFileChanges(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for source watch event")
 	}
+	cancel()
+	for range changes {
+		continue
+	}
 }
 
 func newLocalFSForTest(t *testing.T, root string) *source.LocalFS {
@@ -241,6 +245,11 @@ func newLocalFSForTest(t *testing.T, root string) *source.LocalFS {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if cleanupErr := src.Cleanup(); cleanupErr != nil {
+			t.Fatal(cleanupErr)
+		}
+	})
 	return src
 }
 

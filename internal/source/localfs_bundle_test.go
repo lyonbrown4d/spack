@@ -1,7 +1,10 @@
 package source_test
 
 import (
+	"errors"
+	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -9,6 +12,24 @@ import (
 	"github.com/lyonbrown4d/spack/internal/source"
 	"github.com/lyonbrown4d/spack/internal/spackbundle"
 )
+
+func TestLocalFSBundleCleanupRemovesExtraction(t *testing.T) {
+	fixture := newLocalFSBundleFixture(t)
+	src, err := source.NewLocalFS(&config.Assets{Root: fixture.bundlePath}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	extractionRoot := src.Root()
+	if err := src.Cleanup(); err != nil {
+		t.Fatal(err)
+	}
+	if err := src.Cleanup(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(extractionRoot); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected extraction root to be removed, got %v", err)
+	}
+}
 
 func TestNewLocalFSBundleStatsRecordExtraction(t *testing.T) {
 	fixture := newLocalFSBundleFixture(t)
@@ -25,6 +46,28 @@ func TestNewLocalFSBundleStatsRecordExtraction(t *testing.T) {
 
 	assertLocalFSBundleStats(t, src.Stats(), fixture.totalBytes)
 	assertLocalFSBundleServesFromExtractedRoot(t, src, fixture.originalAppPath)
+	assertLocalFSBundleExposesTrustedReadOnlyPath(t, src)
+}
+
+func assertLocalFSBundleExposesTrustedReadOnlyPath(t *testing.T, src *source.LocalFS) {
+	t.Helper()
+	rootFS, relativePath, trusted, err := src.TrustedReadOnlyPath(filepath.Join(src.Root(), "assets", "app.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !trusted {
+		t.Fatal("expected bundle source to expose trusted read-only capability")
+	}
+	if relativePath != "assets/app.js" {
+		t.Fatalf("expected portable relative path, got %q", relativePath)
+	}
+	body, err := fs.ReadFile(rootFS, relativePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "console.log('bundle');" {
+		t.Fatalf("unexpected trusted bundle body: %q", body)
+	}
 }
 
 type localFSBundleFixture struct {

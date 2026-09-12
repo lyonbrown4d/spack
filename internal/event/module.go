@@ -19,7 +19,7 @@ var Module = dix.NewModule("event",
 		dix.ProviderErr3(newBus),
 	),
 	dix.WithModuleHooks(
-		dix.OnStop(func(ctx context.Context, bus eventx.BusRuntime) error {
+		dix.OnStop(func(ctx context.Context, bus *eventx.Bus) error {
 			return bus.Close()
 		}),
 	),
@@ -29,7 +29,7 @@ func newBus(
 	settings *asyncx.Settings,
 	logger *slog.Logger,
 	obs observabilityx.Observability,
-) (eventx.BusRuntime, error) {
+) (*eventx.Bus, error) {
 	if settings == nil || settings.Size <= 0 {
 		return nil, oops.In("event").Wrap(errors.New("invalid async worker settings"))
 	}

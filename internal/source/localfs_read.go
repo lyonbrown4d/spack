@@ -3,6 +3,7 @@ package source
 import (
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -15,25 +16,16 @@ func (s *LocalFS) ReadPrefix(assetPath string, maxBytes int64) ([]byte, bool, er
 		return nil, false, nil
 	}
 
-	rootDir, err := s.openValidatedRoot()
+	fullPath := filepath.Join(s.root, filepath.FromSlash(relativePath))
+	file, _, err := s.OpenFile(fullPath)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, false, nil
+		}
 		return nil, false, err
 	}
-	defer closeRoot(rootDir)
-
-	found, err := s.hasReadableRegularFile(rootDir, relativePath)
-	if err != nil || !found {
-		return nil, found, err
-	}
-
-	body, err := readRootFilePrefix(rootDir, relativePath, maxBytes)
-	if err != nil {
-		return nil, false, err
-	}
-	if err := s.validateRoot(); err != nil {
-		return nil, false, err
-	}
-	return body, true, nil
+	body, readErr := io.ReadAll(io.LimitReader(file, maxBytes))
+	return body, true, closeReadPrefixFile(file, readErr)
 }
 
 func readPrefixRelativePath(assetPath string, maxBytes int64) (string, bool) {
@@ -41,37 +33,6 @@ func readPrefixRelativePath(assetPath string, maxBytes int64) (string, bool) {
 		return "", false
 	}
 	return cleanRelativeAssetPath(assetPath)
-}
-
-func (s *LocalFS) hasReadableRegularFile(rootDir *os.Root, relativePath string) (bool, error) {
-	info, err := lstatPathWithinRoot(rootDir, s.root, relativePath)
-	if err != nil {
-		return false, readPrefixStatError(err)
-	}
-	return !info.IsDir(), nil
-}
-
-func readPrefixStatError(err error) error {
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return oops.Wrap(err)
-}
-
-func readRootFilePrefix(rootDir *os.Root, relativePath string, maxBytes int64) ([]byte, error) {
-	file, err := rootDir.Open(filepath.FromSlash(relativePath))
-	if err != nil {
-		return nil, readPrefixOpenError(err)
-	}
-	body, readErr := io.ReadAll(io.LimitReader(file, maxBytes))
-	return body, closeReadPrefixFile(file, readErr)
-}
-
-func readPrefixOpenError(err error) error {
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return oops.Wrap(err)
 }
 
 func closeReadPrefixFile(file *os.File, readErr error) error {

@@ -29,7 +29,7 @@ type Service struct {
 	obs        observabilityx.Observability
 	catMetrics *catalog.RuntimeMetrics
 	stages     *cxlist.List[Stage]
-	bus        eventx.BusRuntime
+	bus        *eventx.Bus
 
 	tasks          chan Request
 	lazyWorkerPool *ants.PoolWithFunc

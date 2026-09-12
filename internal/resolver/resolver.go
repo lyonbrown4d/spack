@@ -37,6 +37,40 @@ var (
 		observabilityx.WithDescription("Total number of requested generated artifact dimensions by kind."),
 		observabilityx.WithLabelKeys("kind"),
 	)
+
+	resolverResultAssetAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "asset"),
+	}
+	resolverResultFallbackAssetAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "fallback_asset"),
+	}
+	resolverResultVariantAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "variant"),
+	}
+	resolverResultEncodingVariantAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "encoding_variant"),
+	}
+	resolverResultImageVariantAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "image_variant"),
+	}
+	resolverResultEmptyAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "empty"),
+	}
+	resolverResultErrorAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "error"),
+	}
+	resolverResultNotFoundAttrs = []observabilityx.Attribute{
+		observabilityx.String("result", "not_found"),
+	}
+	resolverGenerationEncodingAttrs = []observabilityx.Attribute{
+		observabilityx.String("kind", "encoding"),
+	}
+	resolverGenerationImageWidthAttrs = []observabilityx.Attribute{
+		observabilityx.String("kind", "image_width"),
+	}
+	resolverGenerationImageFormatAttrs = []observabilityx.Attribute{
+		observabilityx.String("kind", "image_format"),
+	}
 )
 
 func newResolver(
@@ -46,16 +80,20 @@ func newResolver(
 	logger *slog.Logger,
 	obs observabilityx.Observability,
 ) *Resolver {
-	if obs != nil {
-		obs = observabilityx.Normalize(obs, logger)
-	}
-	return &Resolver{
+	resolver := &Resolver{
 		cfg:                cfg,
 		supportedEncodings: newEncodingSupportFromValues(contentcodingspec.NormalizeNames(registry.Names())),
 		catalog:            cat,
 		logger:             logger,
-		obs:                obs,
 	}
+	if obs != nil {
+		obs = observabilityx.Normalize(obs, logger)
+		resolver.obs = obs
+		resolver.resolutionsTotal = obs.Counter(resolverResolutionsTotalSpec)
+		resolver.resolutionDuration = obs.Histogram(resolverResolutionDurationSpec)
+		resolver.generationRequestsTotal = obs.Counter(resolverGenerationRequestsTotalSpec)
+	}
+	return resolver
 }
 
 func (r *Resolver) Resolve(ctx context.Context, request Request) (*Result, error) {
@@ -122,30 +160,43 @@ func (r *Resolver) recordMetrics(ctx context.Context, startedAt time.Time, resul
 		return
 	}
 
-	attrs := []observabilityx.Attribute{
-		observabilityx.String("result", resolutionResultKind(result, err)),
-	}
-	r.obs.Counter(resolverResolutionsTotalSpec).Add(ctx, 1, attrs...)
-	r.obs.Histogram(resolverResolutionDurationSpec).Record(ctx, time.Since(startedAt).Seconds(), attrs...)
+	attrs := resolutionResultAttrs(result, err)
+	r.resolutionsTotal.Add(ctx, 1, attrs...)
+	r.resolutionDuration.Record(ctx, time.Since(startedAt).Seconds(), attrs...)
 
 	if result == nil {
 		return
 	}
 
 	if count := int64(result.PreferredEncodings.Len()); count > 0 {
-		r.obs.Counter(resolverGenerationRequestsTotalSpec).Add(ctx, count,
-			observabilityx.String("kind", "encoding"),
-		)
+		r.generationRequestsTotal.Add(ctx, count, resolverGenerationEncodingAttrs...)
 	}
 	if count := int64(result.PreferredWidths.Len()); count > 0 {
-		r.obs.Counter(resolverGenerationRequestsTotalSpec).Add(ctx, count,
-			observabilityx.String("kind", "image_width"),
-		)
+		r.generationRequestsTotal.Add(ctx, count, resolverGenerationImageWidthAttrs...)
 	}
 	if count := int64(result.PreferredFormats.Len()); count > 0 {
-		r.obs.Counter(resolverGenerationRequestsTotalSpec).Add(ctx, count,
-			observabilityx.String("kind", "image_format"),
-		)
+		r.generationRequestsTotal.Add(ctx, count, resolverGenerationImageFormatAttrs...)
+	}
+}
+
+func resolutionResultAttrs(result *Result, err error) []observabilityx.Attribute {
+	switch resolutionResultKind(result, err) {
+	case "not_found":
+		return resolverResultNotFoundAttrs
+	case "error":
+		return resolverResultErrorAttrs
+	case "empty":
+		return resolverResultEmptyAttrs
+	case "image_variant":
+		return resolverResultImageVariantAttrs
+	case "encoding_variant":
+		return resolverResultEncodingVariantAttrs
+	case "variant":
+		return resolverResultVariantAttrs
+	case "fallback_asset":
+		return resolverResultFallbackAssetAttrs
+	default:
+		return resolverResultAssetAttrs
 	}
 }
 

@@ -60,10 +60,10 @@ func (c *Cache) getEntryWithRequest(path string, request cachepolicy.MemoryReque
 	}
 
 	if entry, found := c.cache.Get(path); found && entry != nil {
-		c.addCounter(metricAssetCacheHits, 1)
+		c.addCounter(c.metrics.hits, 1)
 		return c.ensureAttachment(path, request, *entry, options), true, nil
 	}
-	c.addCounter(metricAssetCacheMisses, 1)
+	c.addCounter(c.metrics.misses, 1)
 
 	result, err := c.loadEntry(path, request, options)
 	if err != nil {
@@ -123,12 +123,12 @@ func (c *Cache) loadEntryOnce(path string, request cachepolicy.MemoryRequest, op
 
 	entry, cached, err := c.readAndCachePath(path, request, options.attachment, options.wait)
 	if err != nil {
-		c.addCounter(metricAssetCacheLoadErrors, 1)
+		c.addCounter(c.metrics.loadErrors, 1)
 		return cacheLoadResult{}, err
 	}
 	if cached {
-		c.addCounter(metricAssetCacheFills, 1)
-		c.addCounter(metricAssetCacheFillBytes, int64(len(entry.Body)))
+		c.addCounter(c.metrics.fills, 1)
+		c.addCounter(c.metrics.fillBytes, int64(len(entry.Body)))
 	}
 	return cacheLoadResult{entry: entry, found: false}, nil
 }

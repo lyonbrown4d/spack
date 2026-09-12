@@ -13,6 +13,7 @@ import (
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/config"
+	appEvent "github.com/lyonbrown4d/spack/internal/event"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
@@ -67,10 +68,21 @@ func SetAssetDeliveryForTest(c fiber.Ctx, delivery string) {
 func PublishVariantServedForTest(
 	ctx context.Context,
 	result *resolver.Result,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	logger *slog.Logger,
 ) {
 	publishVariantServed(ctx, result, bus, logger)
+}
+
+// PublishVariantServedLazyForTest exposes typed lazy event publishing for external tests.
+func PublishVariantServedLazyForTest(
+	ctx context.Context,
+	bus *eventx.Bus,
+	path string,
+	logger *slog.Logger,
+	factory func() appEvent.VariantServed,
+) {
+	publishVariantServedLazy(ctx, bus, path, logger, factory)
 }
 
 func NewResourceHintServiceForTest(
@@ -105,7 +117,7 @@ func NewAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 ) *fiber.App {
 	return NewObservedAppForTest(cfg, logger, nil, nil, cat, bodyCache, assetResolver, bus)
 }
@@ -119,7 +131,7 @@ func NewObservedAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 ) *fiber.App {
 	return newObservedAppForTest(cfg, logger, obs, runtimeMetrics, cat, bodyCache, assetResolver, bus, nil)
 }
@@ -130,7 +142,7 @@ func NewPreparedAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 ) (*fiber.App, error) {
 	prepared := NewPreparedServiceForTest(cfg, logger, cat)
 	if err := prepared.Rebuild(context.TODO()); err != nil {
@@ -147,7 +159,7 @@ func newObservedAppForTest(
 	cat catalog.Catalog,
 	bodyCache *assetcache.Cache,
 	assetResolver *resolver.Resolver,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	prepared *PreparedService,
 ) *fiber.App {
 	healthChecks := newHealthCheckDefinitions(cfg, cat)
@@ -169,7 +181,7 @@ func newObservedAppForTest(
 			}),
 			newAssetRouteRegistration(assetRouteRegistrationDeps{
 				cfg:           cfg,
-				runtime:       newAssetRouteRuntime(logger, obs, newResourceHintService(cfg, logger, nil), prepared, nil),
+				runtime:       newAssetRouteRuntime(logger, obs, nil, prepared, nil),
 				assetResolver: assetResolver,
 				bodyCache:     bodyCache,
 				bus:           bus,
@@ -185,6 +197,11 @@ func NewPreparedServiceForTest(
 	cat catalog.Catalog,
 ) *PreparedService {
 	return newPreparedService(cfg, cat, logger, nil, nil, nil)
+}
+
+// StopPreparedServiceForTest releases resources owned by a prepared test service.
+func StopPreparedServiceForTest(ctx context.Context, svc *PreparedService) error {
+	return svc.stop(ctx)
 }
 
 func NewPreparedServiceWithRuntimeMetricsForTest(

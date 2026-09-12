@@ -22,7 +22,7 @@ type PreparedService struct {
 	cat                  catalog.Catalog
 	logger               *slog.Logger
 	resourceHints        *resourceHintService
-	bus                  eventx.BusRuntime
+	bus                  *eventx.Bus
 	metrics              *RuntimeMetrics
 	snapshot             atomic.Pointer[preparedSnapshot]
 	rebuildMu            sync.Mutex
@@ -45,18 +45,23 @@ func newPreparedService(
 	cfg *config.Config,
 	cat catalog.Catalog,
 	logger *slog.Logger,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	metrics *RuntimeMetrics,
 	src *source.LocalFS,
 ) *PreparedService {
+	fileSources := newServerFileSources(cfg, src, cat, logger)
+	resourceHintSource := src
+	if resourceHintSource == nil {
+		resourceHintSource = fileSources.first()
+	}
 	return &PreparedService{
 		cfg:           cfg,
 		cat:           cat,
 		logger:        logger,
-		resourceHints: newResourceHintService(cfg, logger, src),
+		resourceHints: newResourceHintService(cfg, logger, resourceHintSource),
 		bus:           bus,
 		metrics:       metrics,
-		fileSources:   newServerFileSources(cfg, src, cat, logger),
+		fileSources:   fileSources,
 	}
 }
 
@@ -69,7 +74,7 @@ func (s *PreparedService) Rebuild(ctx context.Context) error {
 	defer s.rebuildMu.Unlock()
 
 	startedAt := time.Now()
-	s.fileSources = mergeServerFileSources(s.fileSources, newServerFileSources(s.cfg, nil, s.cat, s.logger))
+	s.fileSources = refreshServerFileSources(s.fileSources, s.cfg, s.cat, s.logger)
 	compiler := newPreparedCompiler(s.cfg, s.resourceHints, s.logger, s.fileSources)
 	snapshot, err := compiler.Compile(ctx, s.cat)
 	if err != nil {
@@ -167,6 +172,9 @@ func (s *PreparedService) stop(ctx context.Context) error {
 	}
 	s.lifecycleCtx = nil
 	s.lifecycleCancel = nil
+	if err := s.fileSources.Cleanup(); err != nil {
+		return oops.Wrapf(err, "cleanup prepared file sources")
+	}
 	return nil
 }
 
@@ -195,7 +203,7 @@ func (s *PreparedService) subscriptions() *cxlist.List[preparedSubscription] {
 		preparedSubscription{
 			name: "variant generated",
 			subscribe: func() (func(), error) {
-				return eventx.Subscribe(s.bus, func(ctx context.Context, _ appEvent.VariantGenerated) error {
+				return s.bus.Subscribe(func(ctx context.Context, _ appEvent.VariantGenerated) error {
 					s.rebuildAsync(ctx, "variant generated")
 					return nil
 				})
@@ -204,7 +212,7 @@ func (s *PreparedService) subscriptions() *cxlist.List[preparedSubscription] {
 		preparedSubscription{
 			name: "variant removed",
 			subscribe: func() (func(), error) {
-				return eventx.Subscribe(s.bus, func(ctx context.Context, _ appEvent.VariantRemoved) error {
+				return s.bus.Subscribe(func(ctx context.Context, _ appEvent.VariantRemoved) error {
 					s.rebuildAsync(ctx, "variant removed")
 					return nil
 				})
@@ -213,7 +221,7 @@ func (s *PreparedService) subscriptions() *cxlist.List[preparedSubscription] {
 		preparedSubscription{
 			name: "catalog changed",
 			subscribe: func() (func(), error) {
-				return eventx.Subscribe(s.bus, func(ctx context.Context, _ appEvent.CatalogChanged) error {
+				return s.bus.Subscribe(func(ctx context.Context, _ appEvent.CatalogChanged) error {
 					s.rebuildAsync(ctx, "catalog changed")
 					return nil
 				})

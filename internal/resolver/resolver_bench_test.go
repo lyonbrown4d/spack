@@ -6,14 +6,25 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/arcgolabs/observabilityx"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/resolver"
 )
 
 func BenchmarkResolverResolveAsset(b *testing.B) {
+	benchmarkResolverResolveAsset(b, nil)
+}
+
+func BenchmarkResolverResolveAssetObserved(b *testing.B) {
+	benchmarkResolverResolveAsset(b, observabilityx.Nop())
+}
+
+func benchmarkResolverResolveAsset(b *testing.B, obs observabilityx.Observability) {
+	b.Helper()
+
 	const payload = "console.log('app');"
 
-	assetResolver := newResolverBenchmarkFixture(b, func(root string, cat catalog.Catalog) {
+	assetResolver := newResolverBenchmarkFixture(b, obs, func(root string, cat catalog.Catalog) {
 		upsertBenchmarkAsset(b, cat, "app.js", filepath.Join(root, "app.js"), "application/javascript", []byte(payload))
 	})
 
@@ -37,7 +48,7 @@ func BenchmarkResolverResolveEncodingVariant(b *testing.B) {
 	const payload = "console.log('compressed');"
 	const variantPayload = "br"
 
-	assetResolver := newResolverBenchmarkFixture(b, func(root string, cat catalog.Catalog) {
+	assetResolver := newResolverBenchmarkFixture(b, nil, func(root string, cat catalog.Catalog) {
 		assetPath := filepath.Join(root, "app.js")
 		variantPath := filepath.Join(root, "app.js.br")
 		upsertBenchmarkAsset(b, cat, "app.js", assetPath, "application/javascript", []byte(payload))
@@ -76,7 +87,7 @@ func BenchmarkResolverResolveImageVariant(b *testing.B) {
 	const payload = "png"
 	const variantPayload = "jpeg"
 
-	assetResolver := newResolverBenchmarkFixture(b, func(root string, cat catalog.Catalog) {
+	assetResolver := newResolverBenchmarkFixture(b, nil, func(root string, cat catalog.Catalog) {
 		assetPath := filepath.Join(root, "hero.png")
 		variantPath := filepath.Join(root, "hero.w640.fjpeg.jpg")
 		upsertBenchmarkAsset(b, cat, "hero.png", assetPath, "image/png", []byte(payload))
@@ -115,6 +126,7 @@ func BenchmarkResolverResolveImageVariant(b *testing.B) {
 
 func newResolverBenchmarkFixture(
 	b *testing.B,
+	obs observabilityx.Observability,
 	setup func(root string, cat catalog.Catalog),
 ) *resolver.Resolver {
 	b.Helper()
@@ -122,7 +134,12 @@ func newResolverBenchmarkFixture(
 	root := b.TempDir()
 	cat := catalog.NewInMemoryCatalog()
 	setup(root, cat)
-	return resolver.NewResolverForTest(baseAssetsConfig(), cat, slog.New(slog.DiscardHandler))
+	return resolver.NewResolverWithObservabilityForTest(
+		baseAssetsConfig(),
+		cat,
+		slog.New(slog.DiscardHandler),
+		obs,
+	)
 }
 
 func upsertBenchmarkAsset(

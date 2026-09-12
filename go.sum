@@ -32,6 +32,8 @@ github.com/arcgolabs/dix/advanced v0.11.2 h1:eq4thPWYII4EvFLd7I6LkOYF5qx5hFtLpus
 github.com/arcgolabs/dix/advanced v0.11.2/go.mod h1:duXeXt2LwwB/xA5RG1/hzhafpxAt6gEVY3L0ZY+teKo=
 github.com/arcgolabs/eventx v0.1.2 h1:ikt4Cw+GW9Q1NsJVmmen74rQkNZBCdpqlwIfryYrGuk=
 github.com/arcgolabs/eventx v0.1.2/go.mod h1:8pvEz7hCLMyC8Y1VdX8+s7RjnY0haFLau4aiRmrkJkw=
+github.com/arcgolabs/eventx v0.1.3 h1:BWzmefBHA8fvAC909qFqCk9AuEAiXityCJl/VvSATeI=
+github.com/arcgolabs/eventx v0.1.3/go.mod h1:cxXr88INo2r76xDPEzfuWQjnqj6rEPfoD8DXpxJW4sE=
 github.com/arcgolabs/logx v0.1.4 h1:o2IK66B/CuUA7j0KLrkajbb18psapJfqXq+RwcmXx1A=
 github.com/arcgolabs/logx v0.1.4/go.mod h1:sMy21JJJAjTACEKANrROrdTpl/PYUwNZx33t1rzwdWg=
 github.com/arcgolabs/mapper v0.2.2 h1:XQtyq5l0CIdk3wg1LT6LCwEoq04ljC0wZ2AO/UzrocM=

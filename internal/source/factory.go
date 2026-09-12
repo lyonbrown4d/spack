@@ -48,11 +48,16 @@ func (f *SourceFactory) LocalFSContext(ctx context.Context, cfg *config.Assets) 
 	}
 	logSourceConfigured(f.logger, cfg.Root, resolved)
 	return &LocalFS{
-		root:                     resolved.root,
-		rootInfo:                 resolved.info,
+		root:     resolved.root,
+		rootInfo: resolved.info,
+		resources: newLocalFSResources(
+			resolved.root,
+			resolved.info,
+			resolved.rootDir,
+			resolved.extracted,
+		),
 		logger:                   f.logger,
 		bundle:                   resolved.bundle,
-		cleanupRoot:              resolved.cleanupRoot,
 		bundleExtractionDuration: resolved.bundleExtractionDuration,
 	}, nil
 }

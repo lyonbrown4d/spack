@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ func TestPreparedServiceResolvesEncodingVariantWithoutResolver(t *testing.T) {
 		Encoding:     "br",
 	})
 
-	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	svc := newPreparedTestService(t, &cfg, cat)
 	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestPreparedServiceResolvesSimpleEncodingByServerPriority(t *testing.T) {
 		Encoding:     "gzip",
 	})
 
-	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	svc := newPreparedTestService(t, &cfg, cat)
 	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ func TestPreparedServiceFallsBackToEntryRoute(t *testing.T) {
 		ETag:       "\"hash-index\"",
 	})
 
-	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	svc := newPreparedTestService(t, &cfg, cat)
 	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +170,7 @@ func TestPreparedServiceResolvesDirectoryEntryAlias(t *testing.T) {
 		ETag:       "\"hash-docs\"",
 	})
 
-	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	svc := newPreparedTestService(t, &cfg, cat)
 	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +215,7 @@ func TestPreparedServiceWidthRequestFallsBackToZeroWidthImageVariant(t *testing.
 		Format:       "webp",
 	})
 
-	svc := server.NewPreparedServiceForTest(&cfg, slog.New(slog.DiscardHandler), cat)
+	svc := newPreparedTestService(t, &cfg, cat)
 	if err := svc.Rebuild(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -229,6 +230,22 @@ func TestPreparedServiceWidthRequestFallsBackToZeroWidthImageVariant(t *testing.
 	if selection.FilePath != variantPath {
 		t.Fatalf("expected zero-width webp fallback %q, got %q", variantPath, selection.FilePath)
 	}
+}
+
+func newPreparedTestService(
+	t *testing.T,
+	cfg *config.Config,
+	cat catalog.Catalog,
+) *server.PreparedService {
+	t.Helper()
+
+	svc := server.NewPreparedServiceForTest(cfg, slog.New(slog.DiscardHandler), cat)
+	t.Cleanup(func() {
+		if err := server.StopPreparedServiceForTest(context.Background(), svc); err != nil {
+			t.Fatal(err)
+		}
+	})
+	return svc
 }
 
 func writePreparedTestFile(t *testing.T, path string, body []byte) {

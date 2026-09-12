@@ -10,19 +10,36 @@ import (
 	"github.com/samber/oops"
 )
 
+type pipelineLocalDirectoryFactory func(string) (*source.LocalFS, bool, error)
+
 func readPipelineSourceFile(src *source.LocalFS, fullPath string) ([]byte, error) {
+	return readPipelineSourceFileWithFactory(src, fullPath, source.NewLocalDirectory)
+}
+
+func readPipelineSourceFileWithFactory(
+	src *source.LocalFS,
+	fullPath string,
+	newLocalDirectory pipelineLocalDirectoryFactory,
+) (body []byte, err error) {
 	if spackbundle.IsReference(fullPath) {
-		body, err := spackbundle.ReadReference(fullPath)
+		body, err = spackbundle.ReadReference(fullPath)
 		if err != nil {
 			return nil, oops.Wrapf(err, "read bundle source asset")
 		}
 		return body, nil
 	}
-	files, err := pipelineFileSource(src, fullPath)
+	files, owned, err := pipelineFileSource(src, fullPath, newLocalDirectory)
 	if err != nil {
 		return nil, err
 	}
-	body, err := files.ReadFile(fullPath)
+	defer func() {
+		if !owned {
+			return
+		}
+		err = joinPipelineSourceCleanupError(err, files.Cleanup())
+	}()
+
+	body, err = files.ReadFile(fullPath)
 	if err != nil {
 		return nil, oops.Wrapf(err, "read pipeline source")
 	}
@@ -30,17 +47,33 @@ func readPipelineSourceFile(src *source.LocalFS, fullPath string) ([]byte, error
 }
 
 func validatePipelineSourceFile(src *source.LocalFS, fullPath string) (int64, error) {
+	return validatePipelineSourceFileWithFactory(src, fullPath, source.NewLocalDirectory)
+}
+
+func validatePipelineSourceFileWithFactory(
+	src *source.LocalFS,
+	fullPath string,
+	newLocalDirectory pipelineLocalDirectoryFactory,
+) (size int64, err error) {
 	if spackbundle.IsReference(fullPath) {
-		body, err := spackbundle.ReadReference(fullPath)
+		var body []byte
+		body, err = spackbundle.ReadReference(fullPath)
 		if err != nil {
 			return 0, oops.Wrapf(err, "read bundle source asset")
 		}
 		return int64(len(body)), nil
 	}
-	files, err := pipelineFileSource(src, fullPath)
+	files, owned, err := pipelineFileSource(src, fullPath, newLocalDirectory)
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		if !owned {
+			return
+		}
+		err = joinPipelineSourceCleanupError(err, files.Cleanup())
+	}()
+
 	file, info, err := files.OpenFile(fullPath)
 	if err != nil {
 		return 0, oops.Wrapf(err, "open pipeline source")
@@ -54,17 +87,32 @@ func validatePipelineSourceFile(src *source.LocalFS, fullPath string) (int64, er
 	return info.Size(), nil
 }
 
-func pipelineFileSource(src *source.LocalFS, fullPath string) (*source.LocalFS, error) {
-	if src != nil && src.Root() != "" {
-		return src, nil
+func pipelineFileSource(
+	src *source.LocalFS,
+	fullPath string,
+	newLocalDirectory pipelineLocalDirectoryFactory,
+) (*source.LocalFS, bool, error) {
+	if src != nil {
+		return src, false, nil
 	}
 	root := filepath.Dir(strings.TrimSpace(fullPath))
-	files, ok, err := source.NewLocalDirectory(root)
+	files, ok, err := newLocalDirectory(root)
 	if err != nil {
-		return nil, oops.Wrapf(err, "create fallback pipeline source")
+		return nil, false, oops.Wrapf(err, "create fallback pipeline source")
 	}
 	if !ok || files == nil {
-		return nil, oops.In("pipeline").Owner("source").Wrap(errors.New("local file source is required"))
+		return nil, false, oops.In("pipeline").Owner("source").Wrap(errors.New("local file source is required"))
 	}
-	return files, nil
+	return files, true, nil
+}
+
+func joinPipelineSourceCleanupError(operationErr, cleanupErr error) error {
+	if cleanupErr == nil {
+		return operationErr
+	}
+	wrappedCleanupErr := oops.Wrapf(cleanupErr, "cleanup fallback pipeline source")
+	if operationErr == nil {
+		return wrappedCleanupErr
+	}
+	return errors.Join(operationErr, wrappedCleanupErr)
 }

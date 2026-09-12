@@ -66,7 +66,7 @@ func NewServiceWithBusForTest(
 	cfg *config.Compression,
 	logger *slog.Logger,
 	cat catalog.Catalog,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	queueSize int,
 ) *Service {
 	return newServiceState(cfg, logger, cat, serviceDeps{

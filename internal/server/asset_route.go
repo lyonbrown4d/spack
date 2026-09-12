@@ -16,27 +16,38 @@ import (
 	"github.com/lyonbrown4d/spack/internal/media"
 	"github.com/lyonbrown4d/spack/internal/requestpath"
 	"github.com/lyonbrown4d/spack/internal/resolver"
+	"github.com/samber/oops"
 )
 
 const maxVariantFallbackAttempts = 3
 
 type assetDeliveryRuntime struct {
-	mountPath          string
-	responsePolicy     cachepolicy.ResponsePolicy
-	logger             *slog.Logger
-	assetResolver      *resolver.Resolver
-	bodyCache          *assetcache.Cache
-	bus                eventx.BusRuntime
-	prepared           *PreparedService
-	trackDelivery      bool
-	resourceHints      *resourceHintService
-	fileSources        *serverFileSources
-	staleAssetRecovery config.StaleAssetRecovery
+	mountPath           string
+	responsePolicy      cachepolicy.ResponsePolicy
+	logger              *slog.Logger
+	assetResolver       *resolver.Resolver
+	bodyCache           *assetcache.Cache
+	bus                 *eventx.Bus
+	prepared            *PreparedService
+	trackDelivery       bool
+	resourceHints       *resourceHintService
+	fileSources         *serverFileSources
+	fallbackFileSources *serverFileSources
+	staleAssetRecovery  config.StaleAssetRecovery
 }
 
 func registerAssetRoute(app *fiber.App, runtime *assetDeliveryRuntime) {
 	if runtime == nil {
 		return
+	}
+	if runtime.fallbackFileSources != nil {
+		app.Hooks().OnPostShutdown(func(shutdownErr error) error {
+			cleanupErr := runtime.fallbackFileSources.Cleanup()
+			if cleanupErr == nil {
+				return shutdownErr
+			}
+			return errors.Join(shutdownErr, oops.Wrapf(cleanupErr, "cleanup asset delivery file sources"))
+		})
 	}
 	for _, pattern := range requestpath.MountPatterns(runtime.mountPath) {
 		app.Use(pattern, runtime.handle)
@@ -48,26 +59,47 @@ func newAssetDeliveryRuntime(
 	routeRuntime assetRouteRuntime,
 	assetResolver *resolver.Resolver,
 	bodyCache *assetcache.Cache,
-	bus eventx.BusRuntime,
+	bus *eventx.Bus,
 	cat catalog.Catalog,
 ) *assetDeliveryRuntime {
-	fileSources := mergeServerFileSources(
-		routeRuntime.fileSources,
-		newServerFileSources(cfg, nil, cat, routeRuntime.logger),
+	fileSources, fallbackFileSources := selectAssetDeliveryFileSources(
+		cfg,
+		routeRuntime,
+		cat,
 	)
-	return &assetDeliveryRuntime{
-		mountPath:          cfg.Assets.Path,
-		responsePolicy:     cachepolicy.NewResponsePolicyFromConfig(cfg),
-		logger:             routeRuntime.logger,
-		assetResolver:      assetResolver,
-		bodyCache:          bodyCache,
-		bus:                bus,
-		prepared:           routeRuntime.prepared,
-		trackDelivery:      routeRuntime.trackDelivery,
-		resourceHints:      routeRuntime.resourceHints,
-		fileSources:        fileSources,
-		staleAssetRecovery: cfg.Frontend.StaleAssetRecovery,
+	resourceHints := routeRuntime.resourceHints
+	if resourceHints == nil {
+		resourceHints = newResourceHintService(cfg, routeRuntime.logger, fileSources.first())
 	}
+	return &assetDeliveryRuntime{
+		mountPath:           cfg.Assets.Path,
+		responsePolicy:      cachepolicy.NewResponsePolicyFromConfig(cfg),
+		logger:              routeRuntime.logger,
+		assetResolver:       assetResolver,
+		bodyCache:           bodyCache,
+		bus:                 bus,
+		prepared:            routeRuntime.prepared,
+		trackDelivery:       routeRuntime.trackDelivery,
+		resourceHints:       resourceHints,
+		fileSources:         fileSources,
+		fallbackFileSources: fallbackFileSources,
+		staleAssetRecovery:  cfg.Frontend.StaleAssetRecovery,
+	}
+}
+
+func selectAssetDeliveryFileSources(
+	cfg *config.Config,
+	routeRuntime assetRouteRuntime,
+	cat catalog.Catalog,
+) (*serverFileSources, *serverFileSources) {
+	if routeRuntime.prepared != nil {
+		return routeRuntime.prepared.fileSources, nil
+	}
+	if routeRuntime.fileSources != nil {
+		return routeRuntime.fileSources, nil
+	}
+	fallback := newServerFileSources(cfg, nil, cat, routeRuntime.logger)
+	return fallback, fallback
 }
 
 func (r *assetDeliveryRuntime) handle(c fiber.Ctx) error {

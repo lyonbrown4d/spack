@@ -9,7 +9,7 @@ import (
 	appEvent "github.com/lyonbrown4d/spack/internal/event"
 )
 
-func publishCatalogChanged(ctx context.Context, bus eventx.BusRuntime, reason string, logger *slog.Logger) {
+func publishCatalogChanged(ctx context.Context, bus *eventx.Bus, reason string, logger *slog.Logger) {
 	if bus == nil {
 		return
 	}

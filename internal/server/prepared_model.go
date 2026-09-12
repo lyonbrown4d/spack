@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io/fs"
 	"sort"
 	"time"
 
@@ -48,6 +49,12 @@ type preparedResponse struct {
 	body               []byte
 	bodyPrepared       bool
 	servedResult       *resolver.Result
+	sendFile           *preparedSendFile
+}
+
+type preparedSendFile struct {
+	root fs.FS
+	path string
 }
 
 func newPreparedSnapshot(capacity int) *preparedSnapshot {
