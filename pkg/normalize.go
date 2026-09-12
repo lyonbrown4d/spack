@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
-	cxset "github.com/arcgolabs/collectionx/set"
 )
 
 type StringListOrder uint8
@@ -51,22 +50,20 @@ func NormalizeStringList(
 		return nil
 	}
 
-	seen := cxset.NewOrderedSetWithCapacity[string](values.Len())
-	out := cxlist.NewListWithCapacity[string](values.Len())
-	values.Range(func(_ int, raw string) bool {
-		value := normalize(raw)
-		if value == "" || seen.Contains(value) {
-			return true
-		}
-		seen.Add(value)
-		out.Add(value)
-		return true
-	})
-
-	if order == SortStrings && !out.IsEmpty() {
-		out.Sort(strings.Compare)
+	normalized := values.Stream().
+		Map(func(raw string) string {
+			return normalize(raw)
+		}).
+		Filter(func(value string) bool {
+			return value != ""
+		}).
+		DistinctBy(func(value string) string {
+			return value
+		})
+	if order == SortStrings {
+		normalized = normalized.Sorted(strings.Compare)
 	}
-	return out
+	return cxlist.NewList(normalized.ToSlice()...)
 }
 
 func NormalizeCSVStrings(
@@ -94,17 +91,15 @@ func NormalizePositiveIntList(values *cxlist.List[int]) *cxlist.List[int] {
 		return nil
 	}
 
-	seen := cxset.NewOrderedSetWithCapacity[int](values.Len())
-	values.Range(func(_ int, value int) bool {
-		if value > 0 {
-			seen.Add(value)
-		}
-		return true
-	})
-	if seen.IsEmpty() {
-		return cxlist.NewList[int]()
-	}
-	return cxlist.NewList[int](seen.Values()...).Sort(cmp.Compare[int])
+	normalized := values.Stream().
+		Filter(func(value int) bool {
+			return value > 0
+		}).
+		DistinctBy(func(value int) int {
+			return value
+		}).
+		Sorted(cmp.Compare[int])
+	return cxlist.NewList(normalized.ToSlice()...)
 }
 
 func ParsePositiveIntCSV(raw string) *cxlist.List[int] {

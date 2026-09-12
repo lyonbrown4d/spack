@@ -2,12 +2,40 @@ package pkg_test
 
 import (
 	"encoding/base64"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/lyonbrown4d/spack/internal/constant"
 	"github.com/lyonbrown4d/spack/pkg"
 )
 
+func TestDetectMIMEBoundaries(t *testing.T) {
+	png := decodeBase64ForMimeTest(t, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/atX+9kAAAAASUVORK5CYII=")
+	cases := []struct {
+		name     string
+		fileName string
+		body     []byte
+		want     constant.MimeType
+	}{
+		{name: "extension takes precedence", fileName: "app.js", body: png, want: constant.ApplicationJavascript},
+		{name: "content detects extensionless binary", fileName: "image", body: png, want: constant.Png},
+		{name: "empty content falls back", fileName: "empty", body: nil, want: constant.OctetStream},
+	}
+
+	tempDir := t.TempDir()
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath := filepath.Join(tempDir, tt.fileName)
+			if err := os.WriteFile(filePath, tt.body, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if got := pkg.DetectMIME(filePath); got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
 func TestHasMatchingMagicBoundaries(t *testing.T) {
 	png := decodeBase64ForMimeTest(t, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/atX+9kAAAAASUVORK5CYII=")
 	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00}

@@ -6,6 +6,7 @@ import (
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
+	cxstream "github.com/arcgolabs/collectionx/stream"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/lyonbrown4d/spack/internal/assetcache"
 	"github.com/lyonbrown4d/spack/internal/catalog"
@@ -184,7 +185,7 @@ func (r *sourceRescanRun) reconcileScannedAssets(
 	existingByPath *cxmapping.Map[string, *catalog.Asset],
 ) error {
 	var syncErr error
-	mapx.SortedEntries(scannedAssets).Range(func(_ int, asset mapx.Entry[string, *catalog.Asset]) bool {
+	mapx.SortedEntries(scannedAssets).Range(func(_ int, asset cxstream.Entry[string, *catalog.Asset]) bool {
 		if err := r.syncScannedAsset(asset.Key, asset.Value, existingByPath); err != nil {
 			syncErr = err
 			return false
@@ -223,7 +224,7 @@ func (r *sourceRescanRun) syncScannedAsset(
 func (r *sourceRescanRun) reconcileRemovedAssets(
 	existingByPath *cxmapping.Map[string, *catalog.Asset],
 ) {
-	mapx.SortedEntries(existingByPath).Range(func(_ int, asset mapx.Entry[string, *catalog.Asset]) bool {
+	mapx.SortedEntries(existingByPath).Range(func(_ int, asset cxstream.Entry[string, *catalog.Asset]) bool {
 		r.report.Removed++
 		r.invalidateAssetAndVariants(asset.Value.FullPath, r.cat.DeleteAsset(asset.Key))
 		return true

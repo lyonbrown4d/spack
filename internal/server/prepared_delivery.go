@@ -139,22 +139,33 @@ func (r *assetDeliveryRuntime) handlePreparedTrustedFileError(
 	return "", oops.Wrapf(cause, "%s prepared trusted asset file", action)
 }
 func sendPreparedLocalRange(c fiber.Ctx, file io.ReaderAt, size int64, headerPlan preparedHeaderPlan) (string, error) {
-	byteRange, ok := parseSingleHTTPRange(c.Get(fiber.HeaderRange), size)
+	byteRange, disposition := resolveSingleByteRange(c, size)
 	closer, hasCloser := file.(io.Closer)
-	if !ok {
+	if disposition == singleByteRangeUnsupported {
+		headerPlan.ApplySendFileOverrides(c, false)
+		stream := sectionReadCloser{
+			SectionReader: io.NewSectionReader(file, 0, size),
+			closer:        closer,
+		}
+		if err := sendServerStream(c, stream, size, "send prepared asset file"); err != nil {
+			return "", err
+		}
+		return deliveryPreparedFile, nil
+	}
+	if disposition != singleByteRangeSatisfiable {
 		sendUnsatisfiedRange(c, size, headerPlan)
 		if hasCloser {
 			closePreparedReader(closer)
 		}
 		return deliverySendFileRange, nil
 	}
-	length := byteRange.end - byteRange.start + 1
+	length := byteRange.End - byteRange.Start + 1
 	c.Status(fiber.StatusPartialContent)
-	c.Set(fiber.HeaderContentRange, fmt.Sprintf("bytes %d-%d/%d", byteRange.start, byteRange.end, size))
+	c.Set(fiber.HeaderContentRange, fmt.Sprintf("bytes %d-%d/%d", byteRange.Start, byteRange.End, size))
 	c.Set(fiber.HeaderContentLength, strconv.FormatInt(length, 10))
 	headerPlan.ApplySendFileOverrides(c, true)
 	stream := sectionReadCloser{
-		SectionReader: io.NewSectionReader(file, byteRange.start, length),
+		SectionReader: io.NewSectionReader(file, byteRange.Start, length),
 		closer:        closer,
 	}
 	if err := sendServerStream(c, stream, length, "send prepared ranged asset body"); err != nil {

@@ -135,6 +135,14 @@ func (f *imageOnlyLifecycleFixture) start(t *testing.T) {
 	}
 }
 
+func (f *imageOnlyLifecycleFixture) stopBackgroundCleanup(t *testing.T) {
+	t.Helper()
+	stopCtx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if err := f.svc.stopCleanup(stopCtx); err != nil {
+		t.Fatalf("stop background cleanup: %v", err)
+	}
+}
 func (f *imageOnlyLifecycleFixture) requirePartialWarmFailure(t *testing.T) {
 	t.Helper()
 	if err := f.svc.Warm(t.Context()); !errors.Is(err, f.writeErr) {
@@ -170,6 +178,7 @@ func (f *imageOnlyLifecycleFixture) requireOrphanCleanup(t *testing.T) {
 func TestImageOnlyLifecycleCleansOrphanedPartialBatchArtifact(t *testing.T) {
 	fixture := newImageOnlyLifecycleFixture(t)
 	fixture.start(t)
+	fixture.stopBackgroundCleanup(t)
 	fixture.requirePartialWarmFailure(t)
 	fixture.ageOrphan(t)
 	fixture.requireOrphanCleanup(t)

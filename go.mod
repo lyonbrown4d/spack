@@ -10,6 +10,7 @@ require (
 	github.com/arcgolabs/collectionx/mapping v1.0.0
 	github.com/arcgolabs/collectionx/prefix v1.0.0
 	github.com/arcgolabs/collectionx/set v1.0.0
+	github.com/arcgolabs/collectionx/stream v1.0.0
 	github.com/arcgolabs/configx v0.6.2
 	github.com/arcgolabs/configx/format/hcl v0.6.2
 	github.com/arcgolabs/configx/format/json v0.6.2
@@ -45,12 +46,13 @@ require (
 	github.com/spf13/pflag v1.0.10
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/net v0.59.0
+	golang.org/x/perf v0.0.0-20260908200009-22c9c6c9d4da
 	golang.org/x/sync v0.23.0
 )
 
 require (
+	github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794 // indirect
 	github.com/arcgolabs/collectionx/graph v1.0.0 // indirect
-	github.com/arcgolabs/collectionx/stream v1.0.0 // indirect
 	github.com/arcgolabs/pkg/option v0.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

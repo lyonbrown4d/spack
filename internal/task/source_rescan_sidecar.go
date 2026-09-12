@@ -3,6 +3,7 @@ package task
 import (
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
+	cxstream "github.com/arcgolabs/collectionx/stream"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/sourcecatalog"
@@ -13,7 +14,7 @@ func (r *sourceRescanRun) reconcileSourceSidecars(
 ) error {
 	existingByID := r.indexSourceSidecarVariants()
 	var syncErr error
-	mapx.SortedEntries(scannedVariants).Range(func(_ int, variant mapx.Entry[string, *catalog.Variant]) bool {
+	mapx.SortedEntries(scannedVariants).Range(func(_ int, variant cxstream.Entry[string, *catalog.Variant]) bool {
 		if err := r.cat.UpsertVariant(variant.Value); err != nil {
 			syncErr = err
 			return false
@@ -25,7 +26,7 @@ func (r *sourceRescanRun) reconcileSourceSidecars(
 		return syncErr
 	}
 
-	mapx.SortedEntries(existingByID).Range(func(_ int, variant mapx.Entry[string, *catalog.Variant]) bool {
+	mapx.SortedEntries(existingByID).Range(func(_ int, variant cxstream.Entry[string, *catalog.Variant]) bool {
 		if !r.cat.DeleteVariantByArtifactPath(variant.Value.ArtifactPath) {
 			return true
 		}

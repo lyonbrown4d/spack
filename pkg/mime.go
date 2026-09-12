@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"mime"
-	"os"
 	"path"
 	"strings"
 
@@ -100,18 +99,7 @@ func detectMIMEByExtension(filePath string) (constant.MimeType, bool) {
 }
 
 func detectMIMEByContent(filePath string) (constant.MimeType, bool) {
-	// #nosec G304 -- MIME detection is performed on local asset files only.
-	f, err := os.Open(filePath)
-	if err != nil {
-		return "", false
-	}
-	defer func() {
-		if closeErr := f.Close(); closeErr != nil {
-			return
-		}
-	}()
-
-	mtype, err := mimetype.DetectReader(f)
+	mtype, err := mimetype.DetectFile(filePath)
 	if err != nil || mtype == nil {
 		return "", false
 	}
@@ -138,10 +126,13 @@ func expectedMagicMIME(filePath string) (constant.MimeType, bool) {
 }
 
 func mimeCompatible(expected, detected constant.MimeType) bool {
-	if expected == detected {
+	if mimetype.EqualsAny(string(expected), string(detected)) {
 		return true
 	}
-	return (expected == constant.Jpeg || expected == constant.Jpg) && (detected == constant.Jpeg || detected == constant.Jpg)
+
+	expectedIsJPEG := mimetype.EqualsAny(string(expected), string(constant.Jpeg), string(constant.Jpg))
+	detectedIsJPEG := mimetype.EqualsAny(string(detected), string(constant.Jpeg), string(constant.Jpg))
+	return expectedIsJPEG && detectedIsJPEG
 }
 
 func normalizeMIME(raw string) string {

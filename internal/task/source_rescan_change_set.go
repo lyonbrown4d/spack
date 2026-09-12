@@ -6,6 +6,7 @@ import (
 
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
+	cxstream "github.com/arcgolabs/collectionx/stream"
 	"github.com/lyonbrown4d/spack/internal/catalog"
 	"github.com/lyonbrown4d/spack/internal/mapx"
 	"github.com/lyonbrown4d/spack/internal/source"
@@ -99,7 +100,7 @@ func (r *sourceRescanRun) processDeletedSourceSidecars(deletedSourceSidecars *cx
 
 func (r *sourceRescanRun) processChangedAssets(changedAssets *cxmapping.Map[string, source.File]) error {
 	var processErr error
-	mapx.SortedEntries(changedAssets).Range(func(_ int, asset mapx.Entry[string, source.File]) bool {
+	mapx.SortedEntries(changedAssets).Range(func(_ int, asset cxstream.Entry[string, source.File]) bool {
 		if asset.Value.Path == "" {
 			return true
 		}
@@ -190,7 +191,7 @@ func (r *sourceRescanRun) buildSidecarVariant(
 
 func (r *sourceRescanRun) processChangedSourceSidecars(changedSidecars *cxmapping.Map[string, sourceRescanSidecarChange]) error {
 	var processErr error
-	mapx.SortedEntries(changedSidecars).Range(func(_ int, sidecar mapx.Entry[string, sourceRescanSidecarChange]) bool {
+	mapx.SortedEntries(changedSidecars).Range(func(_ int, sidecar cxstream.Entry[string, sourceRescanSidecarChange]) bool {
 		if err := r.upsertSidecarVariant(sidecar.Value); err != nil {
 			processErr = oops.In("task").Owner("source rescan").With("asset_path", sidecar.Value.match.AssetPath).Wrap(err)
 			return false

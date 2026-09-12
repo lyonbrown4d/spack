@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"maps"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/samber/lo"
+	"golang.org/x/perf/benchfmt"
 )
 
 func optionalBenchResult(path string) (benchResult, bool) {
@@ -20,7 +19,11 @@ func optionalBenchResult(path string) (benchResult, bool) {
 }
 
 func readBenchResult(path string) benchResult {
-	samples := scanBenchSamples(readRepoFile(path))
+	return parseBenchResult(readRepoFile(path))
+}
+
+func parseBenchResult(body []byte) benchResult {
+	samples := scanBenchSamples(body)
 	out := benchResult{}
 	for name, sample := range samples {
 		out[name] = averageSample(sample)
@@ -30,14 +33,18 @@ func readBenchResult(path string) benchResult {
 
 func scanBenchSamples(body []byte) map[string]*benchSample {
 	samples := map[string]*benchSample{}
-	scanner := bufio.NewScanner(bytes.NewReader(body))
-	for scanner.Scan() {
-		name, metrics, ok := parseBenchmarkLine(scanner.Text())
-		if ok {
-			addBenchSample(samples, name, metrics)
+	reader := benchfmt.NewReader(bytes.NewReader(body), "<benchmark>")
+	for reader.Scan() {
+		result, ok := reader.Result().(*benchfmt.Result)
+		if !ok {
+			continue
+		}
+		metrics := benchmarkMetrics(result.Values)
+		if len(metrics) > 0 {
+			addBenchSample(samples, benchmarkName(result.Name), metrics)
 		}
 	}
-	if err := scanner.Err(); err != nil {
+	if err := reader.Err(); err != nil {
 		fatalf("scan benchmark output: %v", err)
 	}
 	return samples
@@ -63,50 +70,49 @@ func averageSample(sample *benchSample) map[string]float64 {
 	return out
 }
 
-func parseBenchmarkLine(line string) (string, map[string]float64, bool) {
-	fields := strings.Fields(line)
-	if len(fields) < 4 || !strings.HasPrefix(fields[0], "Benchmark") {
-		return "", nil, false
+func benchmarkName(name benchfmt.Name) string {
+	base, parts := name.Parts()
+	out := make([]byte, 0, len("Benchmark")+len(name))
+	out = append(out, "Benchmark"...)
+	out = append(out, base...)
+	for _, part := range parts {
+		if part[0] != '-' {
+			out = append(out, part...)
+		}
 	}
-	metrics := parseBenchmarkMetrics(fields[2:])
-	return stripBenchmarkSuffix(fields[0]), metrics, len(metrics) > 0
+	return string(out)
 }
 
-func parseBenchmarkMetrics(fields []string) map[string]float64 {
+func benchmarkMetrics(values []benchfmt.Value) map[string]float64 {
 	metrics := map[string]float64{}
-	for index := 0; index+1 < len(fields); index += 2 {
-		value, err := strconv.ParseFloat(fields[index], 64)
-		if err != nil {
-			continue
-		}
-		if metric, ok := metricName(fields[index+1]); ok {
-			metrics[metric] = value
+	for _, value := range values {
+		metric, metricValue, ok := benchmarkMetric(value)
+		if ok {
+			metrics[metric] = metricValue
 		}
 	}
 	return metrics
 }
 
-func stripBenchmarkSuffix(name string) string {
-	index := strings.LastIndexByte(name, '-')
-	if index <= 0 {
-		return name
-	}
-	if _, err := strconv.Atoi(name[index+1:]); err != nil {
-		return name
-	}
-	return name[:index]
-}
-
-func metricName(unit string) (string, bool) {
-	switch unit {
+func benchmarkMetric(value benchfmt.Value) (string, float64, bool) {
+	switch value.OrigUnit {
 	case "ns/op":
-		return "ns_per_op", true
+		return "ns_per_op", value.OrigValue, true
 	case "B/op":
-		return "b_per_op", true
+		return "b_per_op", value.OrigValue, true
 	case "allocs/op":
-		return "allocs_per_op", true
+		return "allocs_per_op", value.OrigValue, true
+	}
+
+	switch value.Unit {
+	case "sec/op":
+		return "ns_per_op", value.Value * 1e9, true
+	case "B/op":
+		return "b_per_op", value.Value, true
+	case "allocs/op":
+		return "allocs_per_op", value.Value, true
 	default:
-		return "", false
+		return "", 0, false
 	}
 }
 
