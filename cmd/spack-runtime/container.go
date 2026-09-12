@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/arcgolabs/dix"
 	"github.com/lyonbrown4d/spack/internal/appmeta"
@@ -44,7 +48,7 @@ func bindRuntimeRoot(command *cobra.Command) {
 		if container == nil {
 			return oops.In("command").Owner("runtime root").Wrap(errors.New("runtime container was not initialized"))
 		}
-		if err := container.Run(); err != nil {
+		if err := runRuntimeContainer(container); err != nil {
 			return oops.Wrapf(err, "run runtime container")
 		}
 		return nil
@@ -57,6 +61,65 @@ func bindRuntimeRoot(command *cobra.Command) {
 			cmd.PrintErrln(err)
 		}
 	}
+}
+
+func runRuntimeContainer(app *dix.App) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runRuntimeContainerContext(ctx, app)
+}
+
+func runRuntimeContainerContext(ctx context.Context, app *dix.App) error {
+	dixRuntime, err := app.Start(ctx)
+	if err != nil {
+		return oops.In("command").Owner("runtime runner").Wrap(err)
+	}
+
+	fatalSignal, resolveErr := dix.ResolveAs[*runtime.FatalSignal](dixRuntime.Container())
+	if resolveErr != nil {
+		stopErr := stopRuntimeContainer(ctx, app, dixRuntime)
+		return oops.In("command").Owner("runtime runner").Wrap(errors.Join(resolveErr, stopErr))
+	}
+
+	runErr := waitForRuntimeExit(ctx, fatalSignal)
+	stopErr := stopRuntimeContainer(ctx, app, dixRuntime)
+	if fatalErr := fatalSignal.Err(); fatalErr != nil && !errors.Is(runErr, fatalErr) {
+		runErr = errors.Join(runErr, fatalErr)
+	}
+	if err := errors.Join(runErr, stopErr); err != nil {
+		return oops.In("command").Owner("runtime runner").Wrap(err)
+	}
+	return nil
+}
+
+func waitForRuntimeExit(ctx context.Context, fatalSignal *runtime.FatalSignal) error {
+	select {
+	case <-ctx.Done():
+	case <-fatalSignal.Done():
+	}
+
+	select {
+	case <-fatalSignal.Done():
+		if err := fatalSignal.Err(); err != nil {
+			return oops.In("command").Owner("runtime runner").Wrap(err)
+		}
+		return errors.New("runtime fatal signal closed without an error")
+	default:
+		return nil
+	}
+}
+
+func stopRuntimeContainer(ctx context.Context, app *dix.App, dixRuntime *dix.Runtime) error {
+	stopCtx := context.WithoutCancel(ctx)
+	cancel := func() {}
+	if timeout := app.RunStopTimeout(); timeout > 0 {
+		stopCtx, cancel = context.WithTimeout(stopCtx, timeout)
+	}
+	defer cancel()
+	if err := dixRuntime.Stop(stopCtx); err != nil {
+		return oops.In("command").Owner("runtime runner").Wrap(err)
+	}
+	return nil
 }
 
 func createRuntimeContainer(loadOptions config.LoadOptions) (*dix.App, error) {

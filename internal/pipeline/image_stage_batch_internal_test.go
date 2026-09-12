@@ -63,8 +63,8 @@ func TestImageStageExecuteBatchWritesMultipleVariantsWithOneEngineBatch(t *testi
 
 	engine := &recordingImageEngine{
 		results: cxlist.NewList(
-			imageBatchResultForTest(640, "jpeg", []byte("jpeg")),
-			imageBatchResultForTest(320, "jpeg", []byte("small-jpeg")),
+			imageBatchResultForTest(640, []byte("jpeg")),
+			imageBatchResultForTest(320, []byte("small-jpeg")),
 		),
 	}
 	stage := newImageStage(&config.Image{
@@ -159,7 +159,7 @@ func imageBatchAssetForTest(t *testing.T, root string, size int64) *catalog.Asse
 	}
 }
 
-func imageBatchResultForTest(width int, format string, payload []byte) imageGenerateResult {
+func imageBatchResultForTest(width int, payload []byte) imageGenerateResult {
 	return imageGenerateResult{
 		Payload:      payload,
 		Width:        width,
@@ -167,14 +167,14 @@ func imageBatchResultForTest(width int, format string, payload []byte) imageGene
 		SourceWidth:  1280,
 		SourceHeight: 640,
 		SourceBytes:  10_000,
-		TargetFormat: format,
+		TargetFormat: "jpeg",
 		MediaType:    "image/jpeg",
 		Extension:    ".jpg",
 	}
 }
 
 func lowBenefitImageBatchResultForTest() imageGenerateResult {
-	result := imageBatchResultForTest(640, "jpeg", make([]byte, 95))
+	result := imageBatchResultForTest(640, make([]byte, 95))
 	result.SourceBytes = 100
 	return result
 }

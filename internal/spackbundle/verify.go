@@ -20,6 +20,10 @@ func Verify(ctx context.Context, bundlePath string) error {
 }
 
 func verifyBundle(ctx context.Context, bundlePath string) (Index, error) {
+	return verifyBundleWithLimits(ctx, bundlePath, productionBundleLimits)
+}
+
+func verifyBundleWithLimits(ctx context.Context, bundlePath string, limits bundleLimits) (Index, error) {
 	stream, err := openBundleStream(bundlePath)
 	if err != nil {
 		return Index{}, err
@@ -27,24 +31,33 @@ func verifyBundle(ctx context.Context, bundlePath string) (Index, error) {
 	defer func() {
 		discardError(stream.Close())
 	}()
-	index, expected, err := readBundleIndex(stream.tarReader)
+	index, expected, err := readBundleIndex(stream.tarReader, limits)
 	if err != nil {
 		return Index{}, err
 	}
-	if err := verifyBundleEntries(ctx, stream.tarReader, expected); err != nil {
+	if err := verifyBundleEntries(ctx, stream.tarReader, expected, limits); err != nil {
 		return Index{}, err
 	}
 	return index, nil
 }
 
-func verifyBundleEntries(ctx context.Context, reader *tar.Reader, expected map[string]IndexFile) error {
+func verifyBundleEntries(
+	ctx context.Context,
+	reader *tar.Reader,
+	expected map[string]IndexFile,
+	limits bundleLimits,
+) error {
 	seen := make(map[string]struct{}, len(expected))
+	budget := bundleBudget{limits: limits}
 	for {
 		header, err := nextPayloadHeader(ctx, reader, "verify")
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
+			return err
+		}
+		if err := budget.add(header.Size); err != nil {
 			return err
 		}
 		if err := verifyPayloadEntry(reader, header, expected, seen); err != nil {

@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxmapping "github.com/arcgolabs/collectionx/mapping"
 	cxset "github.com/arcgolabs/collectionx/set"
@@ -87,7 +88,7 @@ func (s *Service) initializeMetrics(queueSize int) {
 	s.metrics.QueueLength.Set(0)
 }
 func (s *Service) start(ctx context.Context, workers, queueSize int) error {
-	if !s.cfg.PipelineEnabled() {
+	if !s.generationPipelineEnabled() {
 		s.logger.Info("Pipeline disabled")
 		return nil
 	}
@@ -100,7 +101,7 @@ func (s *Service) start(ctx context.Context, workers, queueSize int) error {
 	if err := os.MkdirAll(s.cfg.CacheDir, 0o750); err != nil {
 		return oops.Wrapf(err, "create pipeline cache directory")
 	}
-	if s.cfg.NormalizedMode() == config.CompressionModeLazy {
+	if s.cfg.PipelineEnabled() && s.cfg.NormalizedMode() == config.CompressionModeLazy {
 		if err := s.startWorkers(ctx, workers); err != nil {
 			return err
 		}
@@ -170,13 +171,26 @@ func (s *Service) stopCleanup(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) executeStageTask(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) *catalog.Variant {
-	variants := s.executeStageTaskBatch(ctx, stage, asset, task)
+func (s *Service) executeStageTask(
+	ctx context.Context,
+	stage Stage,
+	asset *catalog.Asset,
+	task Task,
+) (*catalog.Variant, error) {
+	variants, err := s.executeStageTaskBatch(ctx, stage, asset, task)
+	if err != nil {
+		return nil, err
+	}
 	variant, _ := variants.Get(0)
-	return variant
+	return variant, nil
 }
 
-func (s *Service) executeStageTaskBatch(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) *cxlist.List[*catalog.Variant] {
+func (s *Service) executeStageTaskBatch(
+	ctx context.Context,
+	stage Stage,
+	asset *catalog.Asset,
+	task Task,
+) (*cxlist.List[*catalog.Variant], error) {
 	startedAt := time.Now()
 	key := buildStageTaskKey(stage, asset, task)
 	variantValue, err, _ := s.sf.Do(key, func() (any, error) {
@@ -184,16 +198,19 @@ func (s *Service) executeStageTaskBatch(ctx context.Context, stage Stage, asset 
 	})
 	if err != nil {
 		s.recordStageTaskError(ctx, stage, asset, startedAt, err)
-		return cxlist.NewList[*catalog.Variant]()
+		if IsVariantSkipped(err) {
+			return cxlist.NewList[*catalog.Variant](), nil
+		}
+		return nil, oops.Wrapf(err, "execute deduplicated stage task")
 	}
 
 	variants := stageTaskVariants(variantValue)
 	if variants.IsEmpty() {
 		s.recordStageRunMetrics(ctx, stage.Name(), "empty", startedAt)
-		return cxlist.NewList[*catalog.Variant]()
+		return cxlist.NewList[*catalog.Variant](), nil
 	}
 	s.recordStageRunMetrics(ctx, stage.Name(), "ok", startedAt)
-	return variants
+	return variants, nil
 }
 
 func executeStageTaskValue(ctx context.Context, stage Stage, asset *catalog.Asset, task Task) (any, error) {
@@ -228,12 +245,28 @@ func (s *Service) recordStageTaskError(
 	startedAt time.Time,
 	err error,
 ) {
+	if isPipelineWorkerCancellation(ctx, err) {
+		s.recordStageRunMetrics(ctx, stage.Name(), "canceled", startedAt)
+		s.logger.Debug("Pipeline stage canceled",
+			slog.String("stage", stage.Name()),
+			slog.String("asset", asset.Path),
+		)
+		return
+	}
 	if IsVariantSkipped(err) {
 		s.recordStageRunMetrics(ctx, stage.Name(), "skipped", startedAt)
 		return
 	}
 	s.recordStageRunMetrics(ctx, stage.Name(), "error", startedAt)
 	s.logStageFailure(stage, asset, err)
+}
+
+func isPipelineWorkerCancellation(ctx context.Context, err error) bool {
+	if ctx == nil || ctx.Err() == nil || err == nil {
+		return false
+	}
+	return errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded)
 }
 
 func (s *Service) logStageFailure(stage Stage, asset *catalog.Asset, err error) {
@@ -244,16 +277,19 @@ func (s *Service) logStageFailure(stage Stage, asset *catalog.Asset, err error) 
 	)
 }
 
-func (s *Service) upsertStageVariant(ctx context.Context, stage Stage, asset *catalog.Asset, variant *catalog.Variant) {
+func (s *Service) upsertStageVariant(
+	ctx context.Context,
+	stage Stage,
+	asset *catalog.Asset,
+	variant *catalog.Variant,
+) error {
 	if err := s.catalog.UpsertVariant(variant); err != nil {
-		s.logger.Error("Catalog variant upsert failed",
-			slog.String("stage", stage.Name()),
-			slog.String("asset", asset.Path),
-			slog.Any("error", err),
-		)
-		return
+		return oops.In("pipeline").Owner("catalog variant upsert").
+			With("stage", stage.Name()).
+			With("asset_path", asset.Path).
+			Wrap(err)
 	}
 	s.recordGeneratedVariantMetrics(ctx, stage.Name(), variant)
-	go s.catMetrics.SyncCatalog(s.catalog)
 	s.publishVariantGenerated(ctx, stage.Name(), variant)
+	return nil
 }

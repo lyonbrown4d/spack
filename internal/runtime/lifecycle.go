@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -14,7 +15,18 @@ import (
 	"github.com/samber/oops"
 )
 
-const httpRuntimeStartupProbeDelay = 150 * time.Millisecond
+type mainHTTPListenerFactory func(context.Context, string, string) (net.Listener, error)
+
+const defaultMainHTTPStartCleanupTimeout = 5 * time.Second
+
+type mainHTTPRuntimeState struct {
+	listen              mainHTTPListenerFactory
+	beforeServe         func() error
+	startCleanupTimeout time.Duration
+	listener            net.Listener
+	done                chan struct{}
+	serveErr            error
+}
 
 type collectorRegistration struct {
 	enabled   bool
@@ -23,39 +35,124 @@ type collectorRegistration struct {
 }
 
 func startMainHTTPRuntime(ctx context.Context, runtime mainHTTPRuntime) error {
-	address := "127.0.0.1:" + runtime.cfg.HTTP.GetPort()
+	address := ":" + runtime.cfg.HTTP.GetPort()
+	listener, err := runtime.state.listen(ctx, "tcp4", address)
+	if err != nil {
+		return oops.In("runtime").Owner("http runtime").Wrap(err)
+	}
+
+	done := make(chan struct{})
+	runtime.state.listener = listener
+	runtime.state.done = done
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		closeErr := closeMainHTTPListener(runtime.state)
+		close(done)
+		return wrapMainHTTPRuntimeError(errors.Join(ctxErr, closeErr))
+	}
+
+	started := serveMainHTTPRuntime(runtime, listener, done)
+	return waitForMainHTTPRuntimeStart(ctx, runtime, listener, started, done)
+}
+
+func serveMainHTTPRuntime(
+	runtime mainHTTPRuntime,
+	listener net.Listener,
+	done chan<- struct{},
+) <-chan struct{} {
+	started := make(chan struct{})
 	listenConfig := newMainHTTPListenConfig()
+	listenConfig.BeforeServeFunc = func(*fiber.App) error {
+		if runtime.state.beforeServe != nil {
+			if err := runtime.state.beforeServe(); err != nil {
+				return oops.In("runtime").Owner("http runtime").Wrap(err)
+			}
+		}
+		close(started)
+		return nil
+	}
+
+	go func() {
+		err := runtime.app.Listener(listener, listenConfig)
+		if errors.Is(err, net.ErrClosed) {
+			err = nil
+		}
+		runtime.state.serveErr = err
+		if err != nil {
+			runtime.fatal.Report(err)
+			runtime.logger.Error("HTTP runtime stopped", slog.Any("error", err))
+		}
+		close(done)
+	}()
+	return started
+}
+
+func waitForMainHTTPRuntimeStart(
+	ctx context.Context,
+	runtime mainHTTPRuntime,
+	listener net.Listener,
+	started <-chan struct{},
+	done <-chan struct{},
+) error {
+	select {
+	case <-started:
+		logMainHTTPRuntimeStarted(runtime, listener)
+		return nil
+	case <-done:
+		return mainHTTPRuntimeStoppedBeforeStart(runtime)
+	case <-ctx.Done():
+		closeErr := closeMainHTTPListener(runtime.state)
+		waitErr := waitForMainHTTPRuntimeStartCleanup(ctx, runtime)
+		return wrapMainHTTPRuntimeError(errors.Join(ctx.Err(), closeErr, waitErr))
+	}
+}
+
+func waitForMainHTTPRuntimeStartCleanup(
+	ctx context.Context,
+	runtime mainHTTPRuntime,
+) error {
+	timeout := runtime.state.startCleanupTimeout
+	if timeout <= 0 {
+		timeout = defaultMainHTTPStartCleanupTimeout
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+	defer cancel()
+	return runtime.waitStopped(cleanupCtx)
+}
+
+func logMainHTTPRuntimeStarted(runtime mainHTTPRuntime, listener net.Listener) {
 	runtime.logger.Info("HTTP runtime listening",
-		slog.String("address", "http://"+address),
+		slog.String("address", "http://"+listener.Addr().String()),
 		slog.String("mount_path", runtime.cfg.Assets.Path),
 		slog.Int("assets", runtime.cat.AssetCount()),
 		slog.Int("variants", runtime.cat.VariantCount()),
 	)
+}
 
-	done := make(chan error, 1)
-	if runtime.state != nil {
-		runtime.state.done = done
+func mainHTTPRuntimeStoppedBeforeStart(runtime mainHTTPRuntime) error {
+	closeErr := closeMainHTTPListener(runtime.state)
+	if runtime.state.serveErr != nil {
+		return wrapMainHTTPRuntimeError(errors.Join(runtime.state.serveErr, closeErr))
 	}
-	go func() {
-		err := runtime.app.Listen(":"+runtime.cfg.HTTP.GetPort(), listenConfig)
-		if err != nil {
-			runtime.logger.Error("HTTP runtime stopped", slog.Any("error", err))
-		}
-		done <- err
-		close(done)
-	}()
+	if closeErr != nil {
+		return wrapMainHTTPRuntimeError(closeErr)
+	}
+	return wrapMainHTTPRuntimeError(errors.New("HTTP runtime stopped before serving"))
+}
 
-	select {
-	case err := <-done:
-		if err != nil {
-			return oops.In("runtime").Owner("http runtime").Wrap(err)
-		}
-		return nil
-	case <-time.After(httpRuntimeStartupProbeDelay):
-		return nil
-	case <-ctx.Done():
-		return oops.In("runtime").Owner("http runtime").Wrap(ctx.Err())
+func wrapMainHTTPRuntimeError(err error) error {
+	return oops.In("runtime").Owner("http runtime").Wrap(err)
+}
+func defaultMainHTTPListener(
+	ctx context.Context,
+	network string,
+	address string,
+) (net.Listener, error) {
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(ctx, network, address)
+	if err != nil {
+		return nil, oops.In("runtime").Owner("http listener").Wrap(err)
 	}
+	return listener, nil
 }
 
 func newMainHTTPListenConfig() fiber.ListenConfig {
@@ -67,10 +164,31 @@ func newMainHTTPListenConfig() fiber.ListenConfig {
 
 func stopMainHTTPRuntime(ctx context.Context, runtime mainHTTPRuntime) error {
 	runtime.logger.Info("Stop main HTTP runtime")
-	if err := runtime.app.ShutdownWithContext(ctx); err != nil {
+
+	shutdownErr := runtime.app.ShutdownWithContext(ctx)
+	closeErr := closeMainHTTPListener(runtime.state)
+	waitErr := runtime.waitStopped(ctx)
+	if waitErr != nil &&
+		runtime.state != nil &&
+		runtime.state.serveErr != nil &&
+		errors.Is(runtime.fatal.Err(), runtime.state.serveErr) &&
+		errors.Is(waitErr, runtime.state.serveErr) {
+		waitErr = nil
+	}
+	if err := errors.Join(shutdownErr, closeErr, waitErr); err != nil {
 		return oops.In("runtime").Owner("http runtime").Wrap(err)
 	}
-	return runtime.waitStopped(ctx)
+	return nil
+}
+
+func closeMainHTTPListener(state *mainHTTPRuntimeState) error {
+	if state == nil || state.listener == nil {
+		return nil
+	}
+	if err := state.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+		return oops.In("runtime").Owner("http listener").Wrap(err)
+	}
+	return nil
 }
 
 func (r mainHTTPRuntime) waitStopped(ctx context.Context) error {
@@ -78,9 +196,9 @@ func (r mainHTTPRuntime) waitStopped(ctx context.Context) error {
 		return nil
 	}
 	select {
-	case err, ok := <-r.state.done:
-		if ok && err != nil {
-			return oops.In("runtime").Owner("http runtime").Wrap(err)
+	case <-r.state.done:
+		if r.state.serveErr != nil {
+			return oops.In("runtime").Owner("http runtime").Wrap(r.state.serveErr)
 		}
 		return nil
 	case <-ctx.Done():

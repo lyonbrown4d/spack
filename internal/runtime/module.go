@@ -19,7 +19,8 @@ import (
 
 var Module = dix.NewModule("runtime",
 	dix.WithModuleProviders(
-		dix.Provider4(newMainHTTPRuntime),
+		dix.Provider(NewFatalSignal),
+		dix.Provider5(newMainHTTPRuntime),
 		dix.Provider6(newCollectorRegistration),
 	),
 	dix.Setups(
@@ -71,20 +72,27 @@ type mainHTTPRuntime struct {
 	cfg    *config.Config
 	cat    catalog.Catalog
 	logger *slog.Logger
+	fatal  *FatalSignal
 	state  *mainHTTPRuntimeState
 }
 
-type mainHTTPRuntimeState struct {
-	done chan error
-}
-
-func newMainHTTPRuntime(app *fiber.App, cfg *config.Config, cat catalog.Catalog, logger *slog.Logger) mainHTTPRuntime {
+func newMainHTTPRuntime(
+	app *fiber.App,
+	cfg *config.Config,
+	cat catalog.Catalog,
+	logger *slog.Logger,
+	fatal *FatalSignal,
+) mainHTTPRuntime {
 	return mainHTTPRuntime{
 		app:    app,
 		cfg:    cfg,
 		cat:    cat,
 		logger: logger,
-		state:  &mainHTTPRuntimeState{},
+		fatal:  fatal,
+		state: &mainHTTPRuntimeState{
+			listen:              defaultMainHTTPListener,
+			startCleanupTimeout: defaultMainHTTPStartCleanupTimeout,
+		},
 	}
 }
 

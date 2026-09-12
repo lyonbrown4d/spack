@@ -20,17 +20,17 @@ import (
 	"github.com/samber/oops"
 )
 
-func resolveCompilerRuntimeWithDix(loadOptions config.LoadOptions, assetsRoot string) (compiler.Runtime, error) {
+func resolveCompilerRuntimeWithDix(runner *cmdruntime.UtilityRunner, loadOptions config.LoadOptions, assetsRoot string) (compiler.Runtime, error) {
 	compileOptions, err := compileLoadOptions(assetsRoot, loadOptions)
 	if err != nil {
 		return compiler.Runtime{}, oops.Wrapf(err, "resolve compile load options")
 	}
-	cfg, err := cmdruntime.ResolveConfigWithDix(compileOptions)
+	cfg, err := runner.ResolveConfigWithDix(compileOptions)
 	if err != nil {
 		return compiler.Runtime{}, oops.Wrapf(err, "resolve compile config")
 	}
 	compilerCfg := compilerConfigForGeneration(cfg)
-	rt, err := cmdruntime.BuildUtilityRuntime(
+	rt, err := runner.Start(
 		"spack-compiler",
 		cmdruntime.InspectConfigModule(compilerCfg),
 		metrics.Module,
@@ -45,7 +45,7 @@ func resolveCompilerRuntimeWithDix(loadOptions config.LoadOptions, assetsRoot st
 		pipeline.Module,
 	)
 	if err != nil {
-		return compiler.Runtime{}, oops.Wrapf(err, "build compiler utility runtime")
+		return compiler.Runtime{}, oops.Wrapf(err, "start compiler utility runtime")
 	}
 	scanner, err := dix.ResolveAs[sourcecatalog.Scanner](rt.Container())
 	if err != nil {

@@ -181,7 +181,7 @@ func (r httpMetricsRecorder) Record(c fiber.Ctx, status int, duration float64) {
 	r.requestCounter.Add(ctx, 1, requestAttrs...)
 	r.requestDuration.Record(ctx, duration, requestAttrs...)
 
-	deliveryAttrs := assetDeliveryMetricsAttrs(c)
+	deliveryAttrs := assetDeliveryMetricsAttrs(c, status)
 	if len(deliveryAttrs) == 0 {
 		return
 	}
@@ -219,18 +219,15 @@ func finalHTTPStatus(c fiber.Ctx, err error) int {
 		}
 		return status
 	}
-	if fiberErr, ok := errors.AsType[*fiber.Error](err); ok {
-		return fiberErr.Code
-	}
-	return fiber.StatusInternalServerError
+	return safeHTTPErrorStatus(err)
 }
 
-func assetDeliveryMetricsAttrs(c fiber.Ctx) []observabilityx.Attribute {
+func assetDeliveryMetricsAttrs(c fiber.Ctx, status int) []observabilityx.Attribute {
 	delivery := getAssetDelivery(c)
 	if delivery == "" {
 		return nil
 	}
-	return lo.Concat(requestMetricsAttrs(c, c.Response().StatusCode()), []observabilityx.Attribute{observabilityx.String("delivery", delivery)})
+	return lo.Concat(requestMetricsAttrs(c, status), []observabilityx.Attribute{observabilityx.String("delivery", delivery)})
 }
 
 func requestRoute(c fiber.Ctx) string {

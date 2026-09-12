@@ -63,7 +63,19 @@ func (s *Service) processQueuedRequest(ctx context.Context, request Request) {
 	key := requestKey(request)
 	s.updateQueueLengthMetric()
 	defer s.finishRequest(key)
-	s.process(ctx, request)
+	if err := s.process(ctx, request); err != nil {
+		if isPipelineWorkerCancellation(ctx, err) {
+			s.logger.Debug("Pipeline queued request canceled",
+				slog.String("asset", request.AssetPath),
+			)
+		} else {
+			s.logger.Error("Pipeline queued request failed",
+				slog.String("asset", request.AssetPath),
+				slog.Any("error", err),
+			)
+		}
+	}
+	s.syncCatalogMetrics()
 }
 
 func (s *Service) stopWorkers(ctx context.Context) error {

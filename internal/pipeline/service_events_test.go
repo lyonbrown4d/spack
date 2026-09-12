@@ -42,7 +42,7 @@ func TestUpsertStageVariantPublishesGeneratedEvent(t *testing.T) {
 	defer unsubscribe()
 
 	svc := pipeline.NewServiceWithBusForTest(&config.Compression{}, slog.New(slog.DiscardHandler), cat, bus, 1)
-	pipeline.UpsertStageVariantForTest(svc, "compression", asset, &catalog.Variant{
+	mustUpsertStageVariantForTest(t, svc, "compression", asset, &catalog.Variant{
 		ID:           "bundle.js|encoding=br",
 		AssetPath:    "bundle.js",
 		ArtifactPath: "/tmp/bundle.js.br",
@@ -67,5 +67,18 @@ func TestUpsertStageVariantPublishesGeneratedEvent(t *testing.T) {
 	}
 	if event.Size != 128 {
 		t.Fatalf("expected generated event size 128, got %d", event.Size)
+	}
+}
+
+func mustUpsertStageVariantForTest(
+	t *testing.T,
+	svc *pipeline.Service,
+	stageName string,
+	asset *catalog.Asset,
+	variant *catalog.Variant,
+) {
+	t.Helper()
+	if err := pipeline.UpsertStageVariantForTest(svc, stageName, asset, variant); err != nil {
+		t.Fatal(err)
 	}
 }

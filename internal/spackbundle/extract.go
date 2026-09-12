@@ -81,6 +81,15 @@ func (e Extracted) Cleanup() error {
 }
 
 func extractTo(ctx context.Context, bundlePath, outputDir string) (Index, error) {
+	return extractToWithLimits(ctx, bundlePath, outputDir, productionBundleLimits)
+}
+
+func extractToWithLimits(
+	ctx context.Context,
+	bundlePath string,
+	outputDir string,
+	limits bundleLimits,
+) (Index, error) {
 	root, err := normalizeExtractOutputDir(outputDir)
 	if err != nil {
 		return Index{}, err
@@ -92,11 +101,16 @@ func extractTo(ctx context.Context, bundlePath, outputDir string) (Index, error)
 	defer func() {
 		discardError(stream.Close())
 	}()
-	return extractBundleStream(ctx, stream.tarReader, root)
+	return extractBundleStream(ctx, stream.tarReader, root, limits)
 }
 
-func extractBundleStream(ctx context.Context, reader *tar.Reader, root string) (Index, error) {
-	index, expected, err := readBundleIndex(reader)
+func extractBundleStream(
+	ctx context.Context,
+	reader *tar.Reader,
+	root string,
+	limits bundleLimits,
+) (Index, error) {
+	index, expected, err := readBundleIndex(reader, limits)
 	if err != nil {
 		return Index{}, err
 	}
@@ -107,7 +121,7 @@ func extractBundleStream(ctx context.Context, reader *tar.Reader, root string) (
 	defer func() {
 		discardError(rootHandle.Close())
 	}()
-	if err := extractBundleEntries(ctx, reader, root, rootHandle, expected); err != nil {
+	if err := extractBundleEntries(ctx, reader, root, rootHandle, expected, limits); err != nil {
 		return Index{}, err
 	}
 	return index, nil
@@ -119,14 +133,19 @@ func extractBundleEntries(
 	root string,
 	rootHandle *os.Root,
 	expected map[string]IndexFile,
+	limits bundleLimits,
 ) error {
 	seen := make(map[string]struct{}, len(expected))
+	budget := bundleBudget{limits: limits}
 	for {
 		header, err := nextPayloadHeader(ctx, reader, "extract")
 		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
+			return err
+		}
+		if err := budget.add(header.Size); err != nil {
 			return err
 		}
 		if err := extractPayloadEntry(root, rootHandle, reader, header, expected, seen); err != nil {

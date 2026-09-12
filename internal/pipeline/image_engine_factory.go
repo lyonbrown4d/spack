@@ -31,6 +31,10 @@ func stopImageEngine(context.Context, imageEngine) error {
 	return nil
 }
 
+func validateImageEngineForWarmup(*config.Image) error {
+	return nil
+}
+
 func warnUnsupportedConfiguredImageFormats(logger *slog.Logger, cfg *config.Image, engine imageEngine) {
 	if cfg == nil || engine == nil {
 		return

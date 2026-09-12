@@ -5,16 +5,26 @@ on:
     tags:
       - "v*"
 
+concurrency:
+  group: spack-release
+  queue: max
+  cancel-in-progress: false
+
 permissions:
-  contents: write
-  packages: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
-  release:
-    name: Release Binaries and Images
+  gate:
+    name: Pre-publish Gate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      runtime-debian-digest: ${{ steps.candidates.outputs.runtime-debian-digest }}
+      runtime-alpine-digest: ${{ steps.candidates.outputs.runtime-alpine-digest }}
+      compiler-debian-digest: ${{ steps.candidates.outputs.compiler-debian-digest }}
+      release-prerelease: ${{ steps.release-policy.outputs.prerelease }}
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -31,29 +41,66 @@ jobs:
             build/go.sum
             go.work.sum
 
-      - name: Install libvips dependencies
+      - name: Validate release version policy
+        id: release-policy
+        env:
+          SPACK_RELEASE_TAG: ${{ github.ref_name }}
+        run: go -C build run . -- release-policy
+
+      - name: Install release dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libvips-dev libheif-plugin-aomenc upx-ucl
-          echo "CGO_ENABLED=1" >> "$GITHUB_ENV"
+          go install github.com/go-task/task/v3/cmd/task@v3.53.1
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
 
-      - name: Run race tests
-        run: go test -race ./...
+      - name: Check workspace modules
+        run: task release:preflight
+
+      - name: Run lint and static analysis
+        run: |
+          task lint
+          task check
+
+      - name: Run tests
+        run: |
+          task test
+          task test:race
 
       - name: Run libvips image tests
-        run: go test -tags=spack_libvips ./internal/pipeline
+        env:
+          CGO_ENABLED: "1"
+        run: task test:libvips
 
       - name: Run govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.4.0 -scan=package ./...
+        run: task security:govulncheck
 
-      - name: Install task runner
-        run: go install github.com/go-task/task/v3/cmd/task@v3.45.4
+      - name: Prepare release archives
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: task release:goreleaser:prepare
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
+      - name: Preserve core release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-core
+          if-no-files-found: error
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/*.rpm
+            dist/*.apk
 
-      - name: Run release preflight
-        run: task release:preflight
+      - name: Run direct container black-box test
+        run: task integration:container:smoke
+
+      - name: Run direct and AOT black-box test
+        env:
+          SPACK_IMAGE_ENABLE: "true"
+          SPACK_IMAGE_WIDTHS: "320,640"
+          SPACK_IMAGE_FORMATS: "webp"
+        run: task integration:aot:refine:smoke
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4
@@ -74,93 +121,160 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
-        with:
-          version: v2.15.4
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Alpine release image
+      - name: Prepare immutable image context
         run: |
-          docker buildx build \
-            --platform linux/amd64 \
+          set -euo pipefail
+          context_dir="dist/image-context"
+          mkdir -p "$context_dir/linux/amd64" "$context_dir/linux/arm64"
+
+          copy_one() {
+            local pattern="$1"
+            local destination="$2"
+            mapfile -t matches < <(find dist -type f -path "$pattern" -print)
+            if [[ "${#matches[@]}" -ne 1 ]]; then
+              printf 'expected one release binary for %s, found %d\n' "$pattern" "${#matches[@]}" >&2
+              exit 1
+            fi
+            install -m 0755 "${matches[0]}" "$destination"
+          }
+
+          copy_one '*/spack-runtime-linux_linux_amd64*/spack-runtime' "$context_dir/linux/amd64/spack-runtime"
+          copy_one '*/spack-runtime-linux_linux_arm64*/spack-runtime' "$context_dir/linux/arm64/spack-runtime"
+          copy_one '*/spack-compiler-linux_linux_amd64*/spack-compiler' "$context_dir/linux/amd64/spack-compiler"
+
+      - name: Build immutable candidate images once
+        id: candidates
+        env:
+          GHCR_RUNTIME_DEBIAN: ghcr.io/lyonbrown4d/spack:candidate-${{ github.sha }}-debian
+          DOCKER_RUNTIME_DEBIAN: lyonbrown4d/spack:candidate-${{ github.sha }}-debian
+          GHCR_RUNTIME_ALPINE: ghcr.io/lyonbrown4d/spack:candidate-${{ github.sha }}-alpine
+          DOCKER_RUNTIME_ALPINE: lyonbrown4d/spack:candidate-${{ github.sha }}-alpine
+          GHCR_COMPILER_DEBIAN: ghcr.io/lyonbrown4d/spack-compiler:candidate-${{ github.sha }}-debian
+          DOCKER_COMPILER_DEBIAN: lyonbrown4d/spack-compiler:candidate-${{ github.sha }}-debian
+        run: |
+          set -euo pipefail
+          mkdir -p dist/image-metadata
+
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --file docker/debian.Dockerfile \
+            --tag "$GHCR_RUNTIME_DEBIAN" \
+            --tag "$DOCKER_RUNTIME_DEBIAN" \
+            --metadata-file dist/image-metadata/runtime-debian.json \
+            --push dist/image-context
+
+          docker buildx build --platform linux/amd64,linux/arm64 \
             --file docker/alpine.Dockerfile \
-            --tag ghcr.io/lyonbrown4d/spack:alpine-${GITHUB_REF_NAME} \
-            --tag ghcr.io/lyonbrown4d/spack:alpine \
-            --tag lyonbrown4d/spack:alpine-${GITHUB_REF_NAME} \
-            --tag lyonbrown4d/spack:alpine \
-            --push \
-            .
+            --tag "$GHCR_RUNTIME_ALPINE" \
+            --tag "$DOCKER_RUNTIME_ALPINE" \
+            --metadata-file dist/image-metadata/runtime-alpine.json \
+            --push .
 
-      - name: Scan release image with Trivy
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ghcr.io/lyonbrown4d/spack:${{ github.ref_name }}
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+          docker buildx build --platform linux/amd64 \
+            --file docker/compiler-debian.Dockerfile \
+            --tag "$GHCR_COMPILER_DEBIAN" \
+            --tag "$DOCKER_COMPILER_DEBIAN" \
+            --metadata-file dist/image-metadata/compiler-debian.json \
+            --push dist/image-context
 
-      - name: Scan Alpine release image with Trivy
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ghcr.io/lyonbrown4d/spack:alpine-${{ github.ref_name }}
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+          runtime_debian_digest="$(jq -er '."containerimage.digest"' dist/image-metadata/runtime-debian.json)"
+          runtime_alpine_digest="$(jq -er '."containerimage.digest"' dist/image-metadata/runtime-alpine.json)"
+          compiler_debian_digest="$(jq -er '."containerimage.digest"' dist/image-metadata/compiler-debian.json)"
 
-      - name: Generate CycloneDX image SBOM
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ghcr.io/lyonbrown4d/spack:${{ github.ref_name }}
-          format: cyclonedx
-          output: spack-${{ github.ref_name }}.cyclonedx.json
+          assert_digest_format() {
+            local name="$1"
+            local digest="$2"
+            if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              printf 'invalid %s digest: %s\n' "$name" "$digest" >&2
+              exit 1
+            fi
+          }
 
-      - name: Generate CycloneDX Alpine image SBOM
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ghcr.io/lyonbrown4d/spack:alpine-${{ github.ref_name }}
-          format: cyclonedx
-          output: spack-${{ github.ref_name }}-alpine.cyclonedx.json
+          assert_digest_format runtime-debian "$runtime_debian_digest"
+          assert_digest_format runtime-alpine "$runtime_alpine_digest"
+          assert_digest_format compiler-debian "$compiler_debian_digest"
 
-      - name: Upload SBOM to release
+          assert_registry_digest() {
+            local reference="$1"
+            local expected="$2"
+            local actual
+            actual="$(docker buildx imagetools inspect "$reference" --format '{{.Manifest.Digest}}')"
+            if [[ "$actual" != "$expected" ]]; then
+              printf 'digest mismatch for %s: got %s, want %s\n' "$reference" "$actual" "$expected" >&2
+              exit 1
+            fi
+          }
+
+          assert_registry_digest "$GHCR_RUNTIME_DEBIAN" "$runtime_debian_digest"
+          assert_registry_digest "$DOCKER_RUNTIME_DEBIAN" "$runtime_debian_digest"
+          assert_registry_digest "$GHCR_RUNTIME_ALPINE" "$runtime_alpine_digest"
+          assert_registry_digest "$DOCKER_RUNTIME_ALPINE" "$runtime_alpine_digest"
+          assert_registry_digest "$GHCR_COMPILER_DEBIAN" "$compiler_debian_digest"
+          assert_registry_digest "$DOCKER_COMPILER_DEBIAN" "$compiler_debian_digest"
+
+          {
+            echo "runtime-debian-digest=$runtime_debian_digest"
+            echo "runtime-alpine-digest=$runtime_alpine_digest"
+            echo "compiler-debian-digest=$compiler_debian_digest"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact candidate images
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" "spack-${GITHUB_REF_NAME}.cyclonedx.json" "spack-${GITHUB_REF_NAME}-alpine.cyclonedx.json" --clobber
+          SPACK_RELEASE_TAG: ${{ github.ref_name }}
+          SPACK_VERIFY_RUNTIME_IMAGE: ghcr.io/lyonbrown4d/spack@${{ steps.candidates.outputs.runtime-debian-digest }}
+          SPACK_VERIFY_ALPINE_IMAGE: ghcr.io/lyonbrown4d/spack@${{ steps.candidates.outputs.runtime-alpine-digest }}
+          SPACK_VERIFY_COMPILER_IMAGE: ghcr.io/lyonbrown4d/spack-compiler@${{ steps.candidates.outputs.compiler-debian-digest }}
+          SPACK_IMAGE_ENABLE: "true"
+          SPACK_IMAGE_WIDTHS: "320,640"
+          SPACK_IMAGE_FORMATS: "webp"
+        run: task release:verify
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
-
-      - name: Sign release images
-        run: |
-          cosign sign --yes \
-            ghcr.io/lyonbrown4d/spack:${GITHUB_REF_NAME} \
-            ghcr.io/lyonbrown4d/spack:alpine-${GITHUB_REF_NAME} \
-            ghcr.io/lyonbrown4d/spack:debian-${GITHUB_REF_NAME} \
-            lyonbrown4d/spack:${GITHUB_REF_NAME} \
-            lyonbrown4d/spack:alpine-${GITHUB_REF_NAME} \
-            lyonbrown4d/spack:debian-${GITHUB_REF_NAME}
-
-      - name: Attest release artifacts
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+      - name: Scan Debian runtime candidate digest with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          subject-path: dist/*
+          image-ref: ghcr.io/lyonbrown4d/spack@${{ steps.candidates.outputs.runtime-debian-digest }}
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          cache: false
+
+      - name: Scan Alpine runtime candidate digest with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/lyonbrown4d/spack@${{ steps.candidates.outputs.runtime-alpine-digest }}
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          cache: false
+
+      - name: Scan compiler candidate digest with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/lyonbrown4d/spack-compiler@${{ steps.candidates.outputs.compiler-debian-digest }}
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          cache: false
 
       - name: Run release performance contract
         run: task perf:contract:release
 
-      - name: Upload performance report to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" tmp/perf/results/* tmp/k6/results/*.json --clobber
+      - name: Preserve performance gate outputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-gate-results
+          if-no-files-found: error
+          path: |
+            tmp/perf/results/*
+            tmp/k6/results/*.json
 
   compiler:
     name: Compiler ${{ matrix.target }}
-    needs: release
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -169,25 +283,25 @@ jobs:
             os: ubuntu-24.04-arm
             goos: linux
             goarch: arm64
-            suffix: linux_arm64
+            archive_suffix: Linux_arm64
             archive_ext: tar.gz
           - target: darwin-amd64
             os: macos-15-intel
             goos: darwin
             goarch: amd64
-            suffix: darwin_amd64
+            archive_suffix: Darwin_x86_64
             archive_ext: tar.gz
           - target: darwin-arm64
             os: macos-15
             goos: darwin
             goarch: arm64
-            suffix: darwin_arm64
+            archive_suffix: Darwin_arm64
             archive_ext: tar.gz
           - target: windows-amd64
             os: windows-2025
             goos: windows
             goarch: amd64
-            suffix: windows_amd64
+            archive_suffix: Windows_x86_64
             archive_ext: zip
     steps:
       - name: Checkout code
@@ -230,11 +344,13 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           set -euo pipefail
-          out_dir="dist/spack-compiler_${GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          release_version="${GITHUB_REF_NAME#v}"
+          archive_base="spack-compiler_${release_version}_${{ matrix.archive_suffix }}"
+          out_dir="dist/${archive_base}"
           mkdir -p "$out_dir"
           go build -tags=spack_libvips -trimpath -ldflags="-s -w -buildid=" -o "$out_dir/spack-compiler" ./cmd/spack-compiler
           upx --best --lzma --brute "$out_dir/spack-compiler"
-          tar -C "$out_dir" -czf "dist/spack-compiler_${GITHUB_REF_NAME}_${{ matrix.suffix }}.${{ matrix.archive_ext }}" .
+          tar -C "$out_dir" -czf "dist/${archive_base}.${{ matrix.archive_ext }}" .
 
       - name: Build and archive compiler
         if: runner.os == 'Windows'
@@ -244,19 +360,393 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          $outDir = "dist/spack-compiler_${env:GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          $releaseVersion = $env:GITHUB_REF_NAME -replace '^v', ''
+          $archiveBase = "spack-compiler_${releaseVersion}_${{ matrix.archive_suffix }}"
+          $outDir = "dist/$archiveBase"
           New-Item -ItemType Directory -Force -Path $outDir | Out-Null
           go build -tags=spack_libvips -trimpath -ldflags="-s -w -buildid=" -o "$outDir/spack-compiler.exe" ./cmd/spack-compiler
           upx --best --lzma --brute "$outDir/spack-compiler.exe"
-          Compress-Archive -Path "$outDir/*" -DestinationPath "dist/spack-compiler_${env:GITHUB_REF_NAME}_${{ matrix.suffix }}.${{ matrix.archive_ext }}" -Force
+          Compress-Archive -Path "$outDir/*" -DestinationPath "dist/$archiveBase.${{ matrix.archive_ext }}" -Force
 
-      - name: Upload compiler artifact to release
+      - name: Preserve compiler artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compiler-${{ matrix.target }}
+          if-no-files-found: error
+          path: dist/spack-compiler_*_${{ matrix.archive_suffix }}.${{ matrix.archive_ext }}
+  publish:
+    name: Publish Prepared Artifacts
+    needs:
+      - gate
+      - compiler
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      attestations: write
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+        with:
+          version: v0.70.0
+          cache: false
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+
+      - name: Download prepared artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: gh release upload "${GITHUB_REF_NAME}" "dist/spack-compiler_${GITHUB_REF_NAME}_${{ matrix.suffix }}.${{ matrix.archive_ext }}" --clobber
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --name release-core --dir dist/release-core
+          gh run download "$GITHUB_RUN_ID" --pattern "compiler-*" --dir dist/compiler-matrix
+          gh run download "$GITHUB_RUN_ID" --name release-gate-results --dir release-gate-results
 
-      - name: Attest compiler artifact
+      - name: Assemble release artifacts and unified checksums
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+
+          copy_artifacts() {
+            local root="$1"
+            while IFS= read -r -d '' artifact; do
+              local destination="release-artifacts/$(basename "$artifact")"
+              if [[ -e "$destination" ]]; then
+                printf 'duplicate release artifact: %s\n' "$destination" >&2
+                exit 1
+              fi
+              cp "$artifact" "$destination"
+            done < <(find "$root" -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' -o -name '*.apk' \) -print0)
+          }
+
+          copy_artifacts dist/release-core
+          copy_artifacts dist/compiler-matrix
+
+          compiler_count="$(find release-artifacts -maxdepth 1 -type f -name 'spack-compiler_*' | wc -l)"
+          if [[ "$compiler_count" -ne 5 ]]; then
+            printf 'expected 5 compiler archives, found %s\n' "$compiler_count" >&2
+            exit 1
+          fi
+
+          while IFS= read -r -d '' report; do
+            destination="release-artifacts/$(basename "$report")"
+            if [[ -e "$destination" ]]; then
+              printf 'duplicate performance artifact: %s\n' "$destination" >&2
+              exit 1
+            fi
+            cp "$report" "$destination"
+          done < <(find release-gate-results -type f -print0)
+
+          (
+            cd release-artifacts
+            find . -maxdepth 1 -type f \
+              \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' -o -name '*.apk' \) \
+              -printf '%f\0' |
+              sort -z |
+              xargs -0 sha256sum > checksums.txt
+          )
+
+      - name: Generate compiler archive SBOMs
+        run: |
+          set -euo pipefail
+          work_dir="$RUNNER_TEMP/compiler-sbom"
+          mkdir -p "$work_dir"
+
+          while IFS= read -r -d '' archive; do
+            name="$(basename "$archive")"
+            unpack_dir="$work_dir/${name//[^a-zA-Z0-9._-]/_}"
+            mkdir -p "$unpack_dir"
+            case "$archive" in
+              *.tar.gz) tar -xzf "$archive" -C "$unpack_dir" ;;
+              *.zip) unzip -q "$archive" -d "$unpack_dir" ;;
+              *) printf 'unsupported compiler archive: %s\n' "$archive" >&2; exit 1 ;;
+            esac
+            trivy fs --format cyclonedx \
+              --output "release-artifacts/${name}.cyclonedx.json" \
+              "$unpack_dir"
+          done < <(find release-artifacts -maxdepth 1 -type f -name 'spack-compiler_*' -print0)
+
+      - name: Generate immutable image SBOMs
+        env:
+          RUNTIME_DEBIAN_DIGEST: ${{ needs.gate.outputs.runtime-debian-digest }}
+          RUNTIME_ALPINE_DIGEST: ${{ needs.gate.outputs.runtime-alpine-digest }}
+          COMPILER_DEBIAN_DIGEST: ${{ needs.gate.outputs.compiler-debian-digest }}
+        run: |
+          set -euo pipefail
+          trivy image --format cyclonedx \
+            --output "release-artifacts/spack-${GITHUB_REF_NAME}.cyclonedx.json" \
+            "ghcr.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}"
+          trivy image --format cyclonedx \
+            --output "release-artifacts/spack-${GITHUB_REF_NAME}-alpine.cyclonedx.json" \
+            "ghcr.io/lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}"
+          trivy image --format cyclonedx \
+            --output "release-artifacts/spack-compiler-${GITHUB_REF_NAME}.cyclonedx.json" \
+            "ghcr.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}"
+
+      - name: Sign every release file
+        run: |
+          set -euo pipefail
+          mapfile -d '' artifacts < <(find release-artifacts -maxdepth 1 -type f -print0)
+          for artifact in "${artifacts[@]}"; do
+            cosign sign-blob --yes --bundle "${artifact}.sigstore.json" "$artifact"
+          done
+
+      - name: Attest every release file
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
-          subject-path: dist/spack-compiler_${{ github.ref_name }}_${{ matrix.suffix }}.${{ matrix.archive_ext }}
+          subject-path: release-artifacts/*
+
+      - name: Sign immutable image digests
+        env:
+          RUNTIME_DEBIAN_DIGEST: ${{ needs.gate.outputs.runtime-debian-digest }}
+          RUNTIME_ALPINE_DIGEST: ${{ needs.gate.outputs.runtime-alpine-digest }}
+          COMPILER_DEBIAN_DIGEST: ${{ needs.gate.outputs.compiler-debian-digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes \
+            "ghcr.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}" \
+            "lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}" \
+            "ghcr.io/lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}" \
+            "lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}" \
+            "ghcr.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}" \
+            "lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}"
+
+      - name: Attest GHCR Debian runtime image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ghcr.io/lyonbrown4d/spack
+          subject-digest: ${{ needs.gate.outputs.runtime-debian-digest }}
+          push-to-registry: true
+
+      - name: Attest Docker Hub Debian runtime image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: index.docker.io/lyonbrown4d/spack
+          subject-digest: ${{ needs.gate.outputs.runtime-debian-digest }}
+          push-to-registry: true
+
+      - name: Attest GHCR Alpine runtime image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ghcr.io/lyonbrown4d/spack
+          subject-digest: ${{ needs.gate.outputs.runtime-alpine-digest }}
+          push-to-registry: true
+
+      - name: Attest Docker Hub Alpine runtime image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: index.docker.io/lyonbrown4d/spack
+          subject-digest: ${{ needs.gate.outputs.runtime-alpine-digest }}
+          push-to-registry: true
+
+      - name: Attest GHCR compiler image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ghcr.io/lyonbrown4d/spack-compiler
+          subject-digest: ${{ needs.gate.outputs.compiler-debian-digest }}
+          push-to-registry: true
+
+      - name: Attest Docker Hub compiler image
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: index.docker.io/lyonbrown4d/spack-compiler
+          subject-digest: ${{ needs.gate.outputs.compiler-debian-digest }}
+          push-to-registry: true
+
+      - name: Create or reuse deterministic draft GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PRERELEASE: ${{ needs.gate.outputs.release-prerelease }}
+        run: |
+          set -euo pipefail
+          prerelease="$RELEASE_PRERELEASE"
+
+          tag_sha="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          if [[ "$tag_sha" != "$GITHUB_SHA" ]]; then
+            printf 'tag %s resolves to %s, expected workflow SHA %s\n' "$GITHUB_REF_NAME" "$tag_sha" "$GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" \
+            -f target_commitish="$GITHUB_SHA" \
+            --jq '.body' > "$notes_file"
+          {
+            printf '\n\n<!-- spack-release-marker\n'
+            printf 'sha: %s\n' "$GITHUB_SHA"
+            printf 'run: %s/%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            printf '%s\n' '-->'
+          } >> "$notes_file"
+
+          if release_json="$(gh release view "$GITHUB_REF_NAME" --json isDraft,body 2>/dev/null)"; then
+            if [[ "$(jq -r '.isDraft' <<<"$release_json")" != "true" ]]; then
+              printf 'release %s already exists and is public; refusing to mutate it\n' "$GITHUB_REF_NAME" >&2
+              exit 1
+            fi
+
+            existing_marker_sha="$(
+              jq -r '.body // ""' <<<"$release_json" |
+                awk '
+                  $0 == "<!-- spack-release-marker" { in_marker = 1; next }
+                  in_marker && $0 == "-->" { exit }
+                  in_marker && /^sha: / { print substr($0, 6); exit }
+                '
+            )"
+            if [[ -z "$existing_marker_sha" || "$existing_marker_sha" != "$GITHUB_SHA" ]]; then
+              printf 'draft release %s is not owned by workflow SHA %s; refusing to mutate it\n' \
+                "$GITHUB_REF_NAME" "$GITHUB_SHA" >&2
+              exit 1
+            fi
+
+            gh release edit "$GITHUB_REF_NAME" \
+              --draft=true \
+              --prerelease="$prerelease" \
+              --title "spack ${GITHUB_REF_NAME}" \
+              --notes-file "$notes_file"
+          else
+            args=(
+              "$GITHUB_REF_NAME"
+              --draft
+              --verify-tag
+              --target "$GITHUB_SHA"
+              --title "spack ${GITHUB_REF_NAME}"
+              --notes-file "$notes_file"
+            )
+            if [[ "$prerelease" == "true" ]]; then args+=(--prerelease); fi
+            gh release create "${args[@]}"
+          fi
+      - name: Reconcile and upload the complete draft asset manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" != "true" ]]; then
+            printf 'release %s is not a draft; refusing to reconcile assets\n' "$GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+          expected="$RUNNER_TEMP/release-assets.expected"
+          current="$RUNNER_TEMP/release-assets.current"
+          actual="$RUNNER_TEMP/release-assets.actual"
+          find release-artifacts -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort > "$expected"
+          if [[ "$(wc -l < "$expected")" -ne "$(sort -u "$expected" | wc -l)" ]]; then
+            printf 'release artifact manifest contains duplicate names\n' >&2
+            exit 1
+          fi
+
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' |
+            LC_ALL=C sort -u > "$current"
+          while IFS= read -r stale_asset; do
+            [[ -n "$stale_asset" ]] || continue
+            gh release delete-asset "$GITHUB_REF_NAME" "$stale_asset" --yes
+          done < <(comm -23 "$current" "$expected")
+
+          gh release upload "$GITHUB_REF_NAME" release-artifacts/* --clobber
+
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' |
+            LC_ALL=C sort > "$actual"
+          if ! diff -u "$expected" "$actual"; then
+            printf 'draft release asset manifest does not match the prepared artifact set\n' >&2
+            exit 1
+          fi
+      - name: Set up Go for release policy
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Recompute release version policy before promotion
+        id: release-policy
+        env:
+          SPACK_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          go -C build run . -- release-policy
+
+      # Candidate tags are intentionally retained for registry-side audit and recovery.
+      # Configure registry retention policies for candidate-* tags; do not delete them here.
+      # Cross-registry promotion is not transactional. Every operation is digest-pinned,
+      # idempotent, serialized across releases, and safe to resume by rerunning this job.
+      - name: Commit and verify release image tags from one manifest
+        env:
+          RUNTIME_DEBIAN_DIGEST: ${{ needs.gate.outputs.runtime-debian-digest }}
+          RUNTIME_ALPINE_DIGEST: ${{ needs.gate.outputs.runtime-alpine-digest }}
+          COMPILER_DEBIAN_DIGEST: ${{ needs.gate.outputs.compiler-debian-digest }}
+          PUBLISH_FLOATING: ${{ steps.release-policy.outputs.publish-floating }}
+        run: |
+          set -euo pipefail
+
+          publish_floating="$PUBLISH_FLOATING"
+
+          release_manifest() {
+            cat <<EOF
+          ghcr.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack:${GITHUB_REF_NAME}|${RUNTIME_DEBIAN_DIGEST}|fixed
+          ghcr.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack:debian-${GITHUB_REF_NAME}|${RUNTIME_DEBIAN_DIGEST}|fixed
+          ghcr.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack:latest|${RUNTIME_DEBIAN_DIGEST}|floating
+          ghcr.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack:debian|${RUNTIME_DEBIAN_DIGEST}|floating
+          docker.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack:${GITHUB_REF_NAME}|${RUNTIME_DEBIAN_DIGEST}|fixed
+          docker.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack:debian-${GITHUB_REF_NAME}|${RUNTIME_DEBIAN_DIGEST}|fixed
+          docker.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack:latest|${RUNTIME_DEBIAN_DIGEST}|floating
+          docker.io/lyonbrown4d/spack@${RUNTIME_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack:debian|${RUNTIME_DEBIAN_DIGEST}|floating
+          ghcr.io/lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}|ghcr.io/lyonbrown4d/spack:alpine-${GITHUB_REF_NAME}|${RUNTIME_ALPINE_DIGEST}|fixed
+          ghcr.io/lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}|ghcr.io/lyonbrown4d/spack:alpine|${RUNTIME_ALPINE_DIGEST}|floating
+          docker.io/lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}|docker.io/lyonbrown4d/spack:alpine-${GITHUB_REF_NAME}|${RUNTIME_ALPINE_DIGEST}|fixed
+          docker.io/lyonbrown4d/spack@${RUNTIME_ALPINE_DIGEST}|docker.io/lyonbrown4d/spack:alpine|${RUNTIME_ALPINE_DIGEST}|floating
+          ghcr.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack-compiler:${GITHUB_REF_NAME}|${COMPILER_DEBIAN_DIGEST}|fixed
+          ghcr.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack-compiler:debian-${GITHUB_REF_NAME}|${COMPILER_DEBIAN_DIGEST}|fixed
+          ghcr.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack-compiler:latest|${COMPILER_DEBIAN_DIGEST}|floating
+          ghcr.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|ghcr.io/lyonbrown4d/spack-compiler:debian|${COMPILER_DEBIAN_DIGEST}|floating
+          docker.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack-compiler:${GITHUB_REF_NAME}|${COMPILER_DEBIAN_DIGEST}|fixed
+          docker.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack-compiler:debian-${GITHUB_REF_NAME}|${COMPILER_DEBIAN_DIGEST}|fixed
+          docker.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack-compiler:latest|${COMPILER_DEBIAN_DIGEST}|floating
+          docker.io/lyonbrown4d/spack-compiler@${COMPILER_DEBIAN_DIGEST}|docker.io/lyonbrown4d/spack-compiler:debian|${COMPILER_DEBIAN_DIGEST}|floating
+          EOF
+          }
+
+          should_process() {
+            local kind="$1"
+            [[ "$kind" == "fixed" || "$publish_floating" == "true" ]]
+          }
+
+          while IFS='|' read -r source target expected kind; do
+            should_process "$kind" || continue
+            docker buildx imagetools create --prefer-index=false --tag "$target" "$source"
+          done < <(release_manifest)
+
+          while IFS='|' read -r source target expected kind; do
+            should_process "$kind" || continue
+            actual="$(docker buildx imagetools inspect "$target" --format '{{.Manifest.Digest}}')"
+            if [[ "$actual" != "$expected" ]]; then
+              printf 'promoted digest mismatch for %s: got %s, want %s\n' "$target" "$actual" "$expected" >&2
+              exit 1
+            fi
+          done < <(release_manifest)
+      - name: Publish complete GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false

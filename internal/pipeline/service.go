@@ -107,41 +107,110 @@ func (s *Service) markVariantHitAt(path string, hitAt time.Time) {
 	s.variantHits.Set(path, hitAt)
 }
 
+type warmupValidator interface {
+	ValidateWarmup() error
+}
+
+type warmupActivation interface {
+	WarmupEnabled() bool
+}
+
 func (s *Service) Warm(ctx context.Context) error {
-	if !s.cfg.PipelineEnabled() || s.cfg.NormalizedMode() != config.CompressionModeWarmup {
+	if !s.warmupEnabled() {
 		return nil
+	}
+	if err := s.validateWarmup(); err != nil {
+		return oops.Wrapf(err, "validate warm pipeline")
 	}
 
 	runner := asyncx.NewRunner(s.obs, s.warmWorkers, "pipeline_warm")
-	err := asyncx.RunListWith(ctx, runner, s.catalog.AllAssets(), func(ctx context.Context, asset *catalog.Asset) error {
-		s.process(ctx, Request{AssetPath: asset.Path})
-		return nil
+	err := asyncx.RunListCollectErrorsWith(ctx, runner, s.catalog.AllAssets(), func(ctx context.Context, asset *catalog.Asset) error {
+		return s.process(ctx, Request{AssetPath: asset.Path})
 	})
+	s.syncCatalogMetrics()
 	if err != nil {
 		return oops.Wrapf(err, "warm pipeline")
 	}
 	return nil
 }
 
-func (s *Service) process(ctx context.Context, request Request) {
-	asset, ok := s.catalog.FindAsset(request.AssetPath)
-	if !ok {
-		return
-	}
-	if ctx.Err() != nil {
-		return
-	}
-
+func (s *Service) warmupEnabled() bool {
+	enabled := false
 	s.stages.Range(func(_ int, stage Stage) bool {
-		stage.Plan(asset, request).Range(func(_ int, task Task) bool {
-			s.executeStageTaskBatch(ctx, stage, asset, task).Range(func(_ int, variant *catalog.Variant) bool {
-				s.upsertStageVariant(ctx, stage, asset, variant)
-				return true
-			})
+		enabled = warmupStageEnabled(stage)
+		return !enabled
+	})
+	return enabled
+}
+
+func (s *Service) generationPipelineEnabled() bool {
+	return s.cfg.PipelineEnabled() || s.warmupEnabled()
+}
+
+func warmupStageEnabled(stage Stage) bool {
+	activation, ok := stage.(warmupActivation)
+	return !ok || activation.WarmupEnabled()
+}
+
+func (s *Service) validateWarmup() error {
+	var validationErr error
+	s.stages.Range(func(_ int, stage Stage) bool {
+		if !warmupStageEnabled(stage) {
 			return true
-		})
+		}
+		validator, ok := stage.(warmupValidator)
+		if !ok {
+			return true
+		}
+		if err := validator.ValidateWarmup(); err != nil {
+			validationErr = oops.In("pipeline").Owner("warmup").
+				With("stage", stage.Name()).
+				Wrap(err)
+			return false
+		}
 		return true
 	})
+	return validationErr
+}
+
+func (s *Service) process(ctx context.Context, request Request) error {
+	asset, ok := s.catalog.FindAsset(request.AssetPath)
+	if !ok {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return oops.In("pipeline").Owner("service").
+			With("asset_path", request.AssetPath).
+			Wrap(err)
+	}
+
+	var processErr error
+	s.stages.Range(func(_ int, stage Stage) bool {
+		stage.Plan(asset, request).Range(func(_ int, task Task) bool {
+			variants, err := s.executeStageTaskBatch(ctx, stage, asset, task)
+			if err != nil {
+				processErr = oops.In("pipeline").Owner("service").
+					With("stage", stage.Name()).
+					With("asset_path", asset.Path).
+					Wrap(err)
+				return false
+			}
+			variants.Range(func(_ int, variant *catalog.Variant) bool {
+				if err := s.upsertStageVariant(ctx, stage, asset, variant); err != nil {
+					processErr = err
+					return false
+				}
+				return true
+			})
+			return processErr == nil
+		})
+		return processErr == nil
+	})
+	return processErr
+}
+
+func (s *Service) syncCatalogMetrics() {
+	s.catMetrics.SyncCatalog(s.catalog)
 }
 
 func (s *Service) finishRequest(key string) {

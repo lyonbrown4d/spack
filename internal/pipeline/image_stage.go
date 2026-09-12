@@ -44,6 +44,14 @@ func (s *imageStage) Name() string {
 	return "image"
 }
 
+func (s *imageStage) WarmupEnabled() bool {
+	return s.cfg != nil && s.cfg.Enable
+}
+
+func (s *imageStage) ValidateWarmup() error {
+	return validateImageEngineForWarmup(s.cfg)
+}
+
 func (s *imageStage) Plan(asset *catalog.Asset, request Request) *cxlist.List[Task] {
 	if !s.cfg.Enable || !isResizableImage(s.engine, asset) {
 		return nil
@@ -135,6 +143,9 @@ func (s *imageStage) writeImageVariants(
 		return true
 	})
 	if writeErr != nil {
+		// Writes completed earlier in this batch intentionally remain outside the
+		// catalog. The artifact cleanup pass reclaims these orphaned files; Store
+		// has no transactional delete contract, so rollback does not belong here.
 		return nil, writeErr
 	}
 	if variants.IsEmpty() {

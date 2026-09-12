@@ -17,7 +17,7 @@ const (
 	distDir             = "dist"
 	runtimeBinary       = "spack-runtime"
 	goLDFlags           = "-s -w -buildid="
-	golangciLintPackage = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"
+	golangciLintPackage = "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
 )
 
 var test = goyek.Define(goyek.Task{

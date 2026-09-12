@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -44,35 +45,41 @@ func TestHealthRoutesReturnHealthyReports(t *testing.T) {
 	assertHealthResponse(t, app, "/readyz", http.StatusOK, "readiness", "assets_root", "")
 }
 
-func TestCatalogRouteRequiresDebugEnabled(t *testing.T) {
+func TestDebugRoutesRequireDebugEnabled(t *testing.T) {
 	root := t.TempDir()
 	cat := catalog.NewInMemoryCatalog()
+	routes := []struct {
+		name string
+		path string
+	}{
+		{name: "catalog", path: "/catalog"},
+		{name: "pprof", path: "/debug/pprof/"},
+		{name: "statsviz", path: "/debug/statsviz/"},
+	}
 
-	disabledCfg := config.DefaultConfigForTest()
-	disabledCfg.Debug.Enable = false
-	disabledCfg.Assets.Root = root
-	disabledApp := newHTTPTestApp(
-		t,
-		&disabledCfg,
-		slog.New(slog.DiscardHandler),
-		cat,
-		assetcache.NewCacheForTest(disabledCfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
-		resolver.NewResolverForTest(&disabledCfg.Assets, cat, slog.New(slog.DiscardHandler)),
-	)
-	assertCatalogRouteStatus(t, disabledApp, http.StatusNotFound)
+	for _, enabled := range []bool{false, true} {
+		cfg := config.DefaultConfigForTest()
+		cfg.Debug.Enable = enabled
+		cfg.Assets.Root = root
+		app := newHTTPTestApp(
+			t,
+			&cfg,
+			slog.New(slog.DiscardHandler),
+			cat,
+			assetcache.NewCacheForTest(cfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
+			resolver.NewResolverForTest(&cfg.Assets, cat, slog.New(slog.DiscardHandler)),
+		)
 
-	enabledCfg := config.DefaultConfigForTest()
-	enabledCfg.Debug.Enable = true
-	enabledCfg.Assets.Root = root
-	enabledApp := newHTTPTestApp(
-		t,
-		&enabledCfg,
-		slog.New(slog.DiscardHandler),
-		cat,
-		assetcache.NewCacheForTest(enabledCfg.HTTP.MemoryCache, slog.New(slog.DiscardHandler)),
-		resolver.NewResolverForTest(&enabledCfg.Assets, cat, slog.New(slog.DiscardHandler)),
-	)
-	assertCatalogRouteStatus(t, enabledApp, http.StatusOK)
+		for _, route := range routes {
+			t.Run(fmt.Sprintf("%s/debug=%t", route.name, enabled), func(t *testing.T) {
+				wantStatus := http.StatusNotFound
+				if enabled {
+					wantStatus = http.StatusOK
+				}
+				assertRouteStatus(t, app, route.path, wantStatus)
+			})
+		}
+	}
 }
 
 func TestReadinessRouteReturnsUnavailableWhenAssetsRootIsMissing(t *testing.T) {
@@ -147,10 +154,10 @@ func TestHealthRoutesRecordRuntimeMetrics(t *testing.T) {
 	})
 }
 
-func assertCatalogRouteStatus(t *testing.T, app *fiber.App, status int) {
+func assertRouteStatus(t *testing.T, app *fiber.App, path string, status int) {
 	t.Helper()
 
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/catalog", http.NoBody)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
 	response, err := app.Test(request)
 	if err != nil {
 		t.Fatal(err)
@@ -158,15 +165,7 @@ func assertCatalogRouteStatus(t *testing.T, app *fiber.App, status int) {
 	defer closeHTTPBody(t, response)
 
 	if response.StatusCode != status {
-		t.Fatalf("expected /catalog to return %d, got %d", status, response.StatusCode)
-	}
-	if status != http.StatusOK {
-		return
-	}
-
-	var payload map[string]any
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		t.Fatal(err)
+		t.Fatalf("expected %s to return %d, got %d", path, status, response.StatusCode)
 	}
 }
 

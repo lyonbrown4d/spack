@@ -7,5 +7,9 @@ import (
 )
 
 func newInspectCommand() *cobra.Command {
-	return inspectcmd.NewCommand(inspectcmd.Dependencies{ResolveConfig: cmdruntime.ResolveConfigWithDix, ResolveScanner: cmdruntime.ResolveScannerWithDix})
+	runner := cmdruntime.NewUtilityRunner()
+	return runner.WrapCommand(inspectcmd.NewCommand(inspectcmd.Dependencies{
+		ResolveConfig:  runner.ResolveConfigWithDix,
+		ResolveScanner: runner.ResolveScannerWithDix,
+	}))
 }

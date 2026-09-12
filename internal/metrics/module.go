@@ -2,7 +2,6 @@
 package metrics
 
 import (
-	"errors"
 	"log/slog"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
@@ -10,7 +9,6 @@ import (
 	"github.com/arcgolabs/observabilityx"
 	obsprom "github.com/arcgolabs/observabilityx/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/samber/oops"
 )
 
 var Module = dix.NewModule("metrics",
@@ -26,25 +24,13 @@ var Module = dix.NewModule("metrics",
 )
 
 func NewAdapter(logger *slog.Logger) *obsprom.Adapter {
+	return newAdapter(logger, prometheus.DefaultRegisterer)
+}
+
+func newAdapter(logger *slog.Logger, registerer prometheus.Registerer) *obsprom.Adapter {
 	return obsprom.New(
 		obsprom.WithNamespace("spack"),
 		obsprom.WithLogger(logger),
-		obsprom.WithRegisterer(prometheusAlreadyRegisteredCompat{Registerer: prometheus.DefaultRegisterer}),
+		obsprom.WithRegisterer(registerer),
 	)
-}
-
-type prometheusAlreadyRegisteredCompat struct {
-	prometheus.Registerer
-}
-
-func (r prometheusAlreadyRegisteredCompat) Register(collector prometheus.Collector) error {
-	err := r.Registerer.Register(collector)
-	if err == nil {
-		return nil
-	}
-
-	if alreadyRegistered, ok := errors.AsType[prometheus.AlreadyRegisteredError](err); ok {
-		return &alreadyRegistered
-	}
-	return oops.In("metrics").Owner("prometheus registerer").Wrap(err)
 }

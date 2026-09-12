@@ -135,11 +135,11 @@ func SubscribeVariantServedForTest(s *Service) error {
 }
 
 // UpsertStageVariantForTest exposes catalog upsert and side effects for external tests.
-func UpsertStageVariantForTest(s *Service, stageName string, asset *catalog.Asset, variant *catalog.Variant) {
-	s.upsertStageVariant(context.TODO(), testStage{name: stageName}, asset, variant)
+func UpsertStageVariantForTest(s *Service, stageName string, asset *catalog.Asset, variant *catalog.Variant) error {
+	return s.upsertStageVariant(context.TODO(), testStage{name: stageName}, asset, variant)
 }
 
 // ExecuteStageTaskForTest exposes stage execution for external tests.
-func ExecuteStageTaskForTest(s *Service, stage Stage, asset *catalog.Asset, task Task) *catalog.Variant {
+func ExecuteStageTaskForTest(s *Service, stage Stage, asset *catalog.Asset, task Task) (*catalog.Variant, error) {
 	return s.executeStageTask(context.TODO(), stage, asset, task)
 }

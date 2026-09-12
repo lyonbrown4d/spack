@@ -7,8 +7,6 @@ import (
 	"github.com/samber/oops"
 )
 
-const maxExtractedFileBytes = 2 << 30
-
 // Extracted describes an extracted SPACK bundle.
 type Extracted struct {
 	BundlePath  string

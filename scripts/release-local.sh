@@ -13,7 +13,7 @@ case "$TAG" in
   *) TAG="v$TAG" ;;
 esac
 
-GORELEASER_VERSION="${GORELEASER_VERSION:-v2.15.4}"
+GORELEASER_VERSION="${GORELEASER_VERSION:-v2.18.1}"
 RELEASE_RUNNER_IMAGE="${SPACK_RELEASE_RUNNER_IMAGE:-spack-release-runner:local}"
 RELEASE_RUNNER_PLATFORM="${SPACK_RELEASE_RUNNER_PLATFORM:-linux/amd64}"
 GORELEASER_PARALLELISM="${SPACK_GORELEASER_PARALLELISM:-1}"
@@ -46,6 +46,7 @@ require_command() {
 require_command docker
 require_command git
 require_command gh
+require_command go
 
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   GITHUB_TOKEN="$(gh auth token)"
@@ -55,6 +56,29 @@ if [[ -z "$GITHUB_TOKEN" ]]; then
   echo "GITHUB_TOKEN is required" >&2
   exit 1
 fi
+
+evaluate_release_policy() {
+  local policy_output
+  git fetch --force --tags origin
+  policy_output="$(SPACK_RELEASE_TAG="$TAG" go -C build run . -- release-policy)"
+  PUBLISH_FLOATING="$(printf '%s\n' "$policy_output" | sed -n 's/^publish-floating=//p')"
+  if [[ "$PUBLISH_FLOATING" != "true" && "$PUBLISH_FLOATING" != "false" ]]; then
+    echo "release policy did not return a valid publish-floating decision" >&2
+    exit 1
+  fi
+  export PUBLISH_FLOATING
+  printf '%s\n' "$policy_output"
+}
+
+release_suffixes() {
+  local fixed="$1"
+  local floating="$2"
+  if [[ "$PUBLISH_FLOATING" == "true" ]]; then
+    printf '%s,%s\n' "$fixed" "$floating"
+    return
+  fi
+  printf '%s\n' "$fixed"
+}
 
 build_release_runner() {
   docker build --platform "$RELEASE_RUNNER_PLATFORM" -t "$RELEASE_RUNNER_IMAGE" -f docker/release-runner.Dockerfile .
@@ -125,19 +149,19 @@ run_buildx() {
 
 push_runtime_debian() {
   local tags=()
-  while IFS= read -r -d '' item; do tags+=("$item"); done < <(build_tags "ghcr.io/lyonbrown4d/spack" "lyonbrown4d/spack" "$TAG,latest,debian,debian-$TAG")
+  while IFS= read -r -d '' item; do tags+=("$item"); done < <(build_tags "ghcr.io/lyonbrown4d/spack" "lyonbrown4d/spack" "$(release_suffixes "$TAG,debian-$TAG" "latest,debian")")
   run_buildx "$RUNTIME_PLATFORMS" dist/Dockerfile.debian dist "${tags[@]}"
 }
 
 push_compiler_debian() {
   local tags=()
-  while IFS= read -r -d '' item; do tags+=("$item"); done < <(build_tags "ghcr.io/lyonbrown4d/spack-compiler" "lyonbrown4d/spack-compiler" "$TAG,latest,debian,debian-$TAG")
+  while IFS= read -r -d '' item; do tags+=("$item"); done < <(build_tags "ghcr.io/lyonbrown4d/spack-compiler" "lyonbrown4d/spack-compiler" "$(release_suffixes "$TAG,debian-$TAG" "latest,debian")")
   run_buildx "$COMPILER_PLATFORMS" dist/Dockerfile.compiler-debian dist "${tags[@]}"
 }
 
 push_runtime_alpine() {
   local tags=()
-  while IFS= read -r -d '' item; do tags+=("$item"); done < <(build_tags "ghcr.io/lyonbrown4d/spack" "lyonbrown4d/spack" "alpine,alpine-$TAG")
+  while IFS= read -r -d '' item; do tags+=("$item"); done < <(build_tags "ghcr.io/lyonbrown4d/spack" "lyonbrown4d/spack" "$(release_suffixes "alpine-$TAG" "alpine")")
   run_buildx "$ALPINE_PLATFORMS" docker/alpine.Dockerfile . "${tags[@]}"
 }
 
@@ -150,6 +174,7 @@ verify_manifests() {
   gh api /user/packages/container/spack-compiler --jq '{name: .name, visibility: .visibility}'
 }
 
+evaluate_release_policy
 build_release_runner
 run_goreleaser
 prepare_docker_context

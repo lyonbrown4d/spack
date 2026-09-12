@@ -42,12 +42,17 @@ type IndexFile struct {
 	Width      int    `json:"width,omitempty"`
 }
 
-func marshalIndex(index Index) ([]byte, error) {
+func marshalIndex(index Index, limits bundleLimits) ([]byte, error) {
 	index.APIVersion = FormatVersion
 	index.Kind = "BundleIndex"
 	payload, err := json.Marshal(index)
 	if err != nil {
 		return nil, oops.Wrapf(err, "marshal bundle index")
+	}
+	indexOverhead := int64(len(indexMagic)) + 4
+	if limits.indexBytes < indexOverhead ||
+		int64(len(payload)) > limits.indexBytes-indexOverhead {
+		return nil, oops.Errorf("bundle index exceeds max bytes: %d", limits.indexBytes)
 	}
 	size, err := checkedUint32(len(payload))
 	if err != nil {
@@ -60,14 +65,21 @@ func marshalIndex(index Index) ([]byte, error) {
 	return body, nil
 }
 
-func unmarshalIndex(body []byte) (Index, error) {
+func unmarshalIndex(body []byte, limits bundleLimits) (Index, error) {
 	if !bytes.HasPrefix(body, indexMagic) {
 		return Index{}, oops.In("spackbundle").Owner("index").Wrap(errors.New("bundle index magic mismatch"))
 	}
 	if len(body) < len(indexMagic)+4 {
 		return Index{}, oops.In("spackbundle").Owner("index").Wrap(errors.New("bundle index is truncated"))
 	}
+	if int64(len(body)) > limits.indexBytes {
+		return Index{}, oops.Errorf("bundle index exceeds max bytes: %d", limits.indexBytes)
+	}
 	size := binary.BigEndian.Uint32(body[len(indexMagic) : len(indexMagic)+4])
+	maxPayloadBytes := limits.indexBytes - int64(len(indexMagic)) - 4
+	if int64(size) > maxPayloadBytes {
+		return Index{}, oops.Errorf("bundle index exceeds max bytes: %d", limits.indexBytes)
+	}
 	payload := body[len(indexMagic)+4:]
 	if uint64(len(payload)) != uint64(size) {
 		return Index{}, oops.In("spackbundle").Owner("index").Wrap(errors.New("bundle index size mismatch"))

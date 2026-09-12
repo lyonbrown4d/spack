@@ -49,6 +49,11 @@ func (s *compressionStage) Name() string {
 	return "compression"
 }
 
+func (s *compressionStage) WarmupEnabled() bool {
+	return s.cfg != nil && s.cfg.PipelineEnabled() &&
+		s.cfg.NormalizedMode() == config.CompressionModeWarmup
+}
+
 func (s *compressionStage) Plan(asset *catalog.Asset, request Request) *cxlist.List[Task] {
 	if !s.cfg.PipelineEnabled() || !isCompressible(asset) {
 		return nil

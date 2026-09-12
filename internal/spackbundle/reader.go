@@ -12,6 +12,7 @@ import (
 // Reader is a closeable handle for reading files from one SPACK bundle.
 type Reader struct {
 	path        string
+	limits      bundleLimits
 	index       Index
 	indexLoaded bool
 }
@@ -24,6 +25,10 @@ type FileStat struct {
 
 // OpenReader opens a SPACK bundle handle.
 func OpenReader(bundlePath string) (*Reader, error) {
+	return openReaderWithLimits(bundlePath, productionBundleLimits)
+}
+
+func openReaderWithLimits(bundlePath string, limits bundleLimits) (*Reader, error) {
 	absolute, err := normalizedBundlePath(bundlePath)
 	if err != nil {
 		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", bundlePath).Wrap(err)
@@ -31,7 +36,7 @@ func OpenReader(bundlePath string) (*Reader, error) {
 	if err := checkBundleMagic(absolute); err != nil {
 		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", absolute).Wrap(err)
 	}
-	return &Reader{path: absolute}, nil
+	return &Reader{path: absolute, limits: limits}, nil
 }
 
 // Path returns the normalized absolute bundle path.
@@ -55,18 +60,18 @@ func (r *Reader) Index() (Index, error) {
 	if r.indexLoaded {
 		return r.index, nil
 	}
-	body, err := readBundleEntry(r.path, IndexPath)
+	body, err := readBundleEntry(r.path, IndexPath, r.limits)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(os.ErrNotExist)
 		}
 		return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(err)
 	}
-	index, err := unmarshalIndex(body)
+	index, err := unmarshalIndex(body, r.limits)
 	if err != nil {
 		return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(err)
 	}
-	if err := validateIndex(index); err != nil {
+	if err := validateIndex(index, r.limits); err != nil {
 		return Index{}, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).Wrap(err)
 	}
 	r.index = index
@@ -80,7 +85,7 @@ func (r *Reader) ReadFile(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, err := readBundleEntry(r.path, cleanPath)
+	body, err := readBundleEntry(r.path, cleanPath, r.limits)
 	if err != nil {
 		return nil, oops.In("spackbundle").Owner("reader").With("bundle_path", r.path).With("file_path", cleanPath).Wrap(err)
 	}
@@ -130,7 +135,7 @@ func (r *Reader) lookupIndexFile(filePath string) (string, IndexFile, error) {
 	return cleanPath, file, nil
 }
 
-func readBundleEntry(bundlePath, filePath string) ([]byte, error) {
+func readBundleEntry(bundlePath, filePath string, limits bundleLimits) ([]byte, error) {
 	stream, err := openBundleStream(bundlePath)
 	if err != nil {
 		return nil, err
@@ -154,6 +159,11 @@ func readBundleEntry(bundlePath, filePath string) ([]byte, error) {
 		if path != filePath {
 			continue
 		}
-		return readTarEntryBody(stream.tarReader, header, path)
+		return readTarEntryBody(
+			stream.tarReader,
+			header,
+			path,
+			maxBundleEntryBytes(path, limits),
+		)
 	}
 }

@@ -1,16 +1,12 @@
 package server_test
 
 import (
-	"context"
-	"log/slog"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	"github.com/arcgolabs/observabilityx"
 	"github.com/gofiber/fiber/v3"
 	"github.com/lyonbrown4d/spack/internal/server"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
 func TestMetricsMiddlewareRecordsAssetDeliveryMetrics(t *testing.T) {
@@ -34,14 +30,76 @@ func TestMetricsMiddlewareRecordsAssetDeliveryMetrics(t *testing.T) {
 	assertMetricCount(t, obs.counters, "http_asset_delivery_total", 1)
 	assertMetricCount(t, obs.histograms, "http_asset_delivery_duration_seconds", 1)
 
-	requestCounter := findMetric(t, obs.counters, "http_requests_total")
-	assertAttrAbsent(t, requestCounter.attrs, "delivery")
-	assertAttrValue(t, requestCounter.attrs, "route", "/")
+	requestAttrs := map[string]any{
+		"method": http.MethodGet,
+		"route":  "/",
+		"status": "204",
+	}
+	deliveryAttrs := map[string]any{
+		"method":   http.MethodGet,
+		"route":    "/",
+		"status":   "204",
+		"delivery": "memory_cache_hit",
+	}
+	assertMetricContract(t, findMetric(t, obs.counters, "http_requests_total"), requestAttrs)
+	assertMetricContract(t, findMetric(t, obs.histograms, "http_request_duration_seconds"), requestAttrs)
+	assertMetricContract(t, findMetric(t, obs.counters, "http_asset_delivery_total"), deliveryAttrs)
+	assertMetricContract(t, findMetric(t, obs.histograms, "http_asset_delivery_duration_seconds"), deliveryAttrs)
+}
 
+func TestMetricsMiddlewareUsesFinalErrorStatusForAssetDelivery(t *testing.T) {
+	obs := &recordingObservability{}
+	app := fiber.New()
+	app.Use(server.MetricsMiddlewareForTest(obs))
+	app.Get("/asset", func(c fiber.Ctx) error {
+		server.SetAssetDeliveryForTest(c, "source")
+		return fiber.NewError(fiber.StatusRequestedRangeNotSatisfiable, "sensitive range detail")
+	})
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/asset", http.NoBody)
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeBody(t, response)
+
+	requestCounter := findMetric(t, obs.counters, "http_requests_total")
+	assertAttrValue(t, requestCounter.attrs, "status", "416")
 	deliveryCounter := findMetric(t, obs.counters, "http_asset_delivery_total")
-	assertAttrValue(t, deliveryCounter.attrs, "delivery", "memory_cache_hit")
-	assertAttrValue(t, deliveryCounter.attrs, "route", "/")
-	assertAttrValue(t, deliveryCounter.attrs, "status", "204")
+	assertAttrValue(t, deliveryCounter.attrs, "status", "416")
+}
+
+func TestMetricsMiddlewareMapsUnsafeFiberStatusToInternalError(t *testing.T) {
+	obs := &recordingObservability{}
+	app := fiber.New()
+	app.Use(server.MetricsMiddlewareForTest(obs))
+	app.Get("/unauthorized", func(c fiber.Ctx) error {
+		server.SetAssetDeliveryForTest(c, "source")
+		return fiber.NewError(fiber.StatusUnauthorized, "sensitive auth detail")
+	})
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/unauthorized", http.NoBody)
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeBody(t, response)
+
+	requestAttrs := map[string]any{
+		"method": http.MethodGet,
+		"route":  "/unauthorized",
+		"status": "500",
+	}
+	deliveryAttrs := map[string]any{
+		"method":   http.MethodGet,
+		"route":    "/unauthorized",
+		"status":   "500",
+		"delivery": "source",
+	}
+	assertMetricContract(t, findMetric(t, obs.counters, "http_requests_total"), requestAttrs)
+	assertMetricContract(t, findMetric(t, obs.histograms, "http_request_duration_seconds"), requestAttrs)
+	assertMetricContract(t, findMetric(t, obs.counters, "http_asset_delivery_total"), deliveryAttrs)
+	assertMetricContract(t, findMetric(t, obs.histograms, "http_asset_delivery_duration_seconds"), deliveryAttrs)
 }
 
 func TestMetricsMiddlewareSkipsAssetDeliveryMetricsWithoutDelivery(t *testing.T) {
@@ -89,145 +147,5 @@ func TestMetricsMiddlewareTracksInFlightRequests(t *testing.T) {
 
 	if got := testutil.ToFloat64(runtimeMetrics.RequestsInFlight); got != 0 {
 		t.Fatalf("expected in-flight gauge to return to 0, got %v", got)
-	}
-}
-
-type recordedMetric struct {
-	name  string
-	attrs map[string]any
-}
-
-type recordingObservability struct {
-	counters   []recordedMetric
-	histograms []recordedMetric
-}
-
-func (r *recordingObservability) Logger() *slog.Logger {
-	return slog.Default()
-}
-
-func (r *recordingObservability) StartSpan(
-	ctx context.Context,
-	_ string,
-	_ ...observabilityx.Attribute,
-) (context.Context, observabilityx.Span) {
-	return ctx, recordingSpan{}
-}
-
-func (r *recordingObservability) Counter(spec observabilityx.CounterSpec) observabilityx.Counter {
-	return recordingCounter{name: spec.Name, metrics: &r.counters}
-}
-
-func (r *recordingObservability) UpDownCounter(observabilityx.UpDownCounterSpec) observabilityx.UpDownCounter {
-	return noopUpDownCounter{}
-}
-
-func (r *recordingObservability) Histogram(spec observabilityx.HistogramSpec) observabilityx.Histogram {
-	return recordingHistogram{name: spec.Name, metrics: &r.histograms}
-}
-
-func (r *recordingObservability) Gauge(observabilityx.GaugeSpec) observabilityx.Gauge {
-	return noopGauge{}
-}
-
-type recordingCounter struct {
-	name    string
-	metrics *[]recordedMetric
-}
-
-func (r recordingCounter) Add(_ context.Context, _ int64, attrs ...observabilityx.Attribute) {
-	*r.metrics = append(*r.metrics, recordedMetric{
-		name:  r.name,
-		attrs: attrsToMap(attrs),
-	})
-}
-
-type recordingHistogram struct {
-	name    string
-	metrics *[]recordedMetric
-}
-
-func (r recordingHistogram) Record(_ context.Context, _ float64, attrs ...observabilityx.Attribute) {
-	*r.metrics = append(*r.metrics, recordedMetric{
-		name:  r.name,
-		attrs: attrsToMap(attrs),
-	})
-}
-
-type noopUpDownCounter struct{}
-
-func (noopUpDownCounter) Add(context.Context, int64, ...observabilityx.Attribute) {}
-
-type noopGauge struct{}
-
-func (noopGauge) Set(context.Context, float64, ...observabilityx.Attribute) {}
-
-type recordingSpan struct{}
-
-func (recordingSpan) End() {}
-
-func (recordingSpan) RecordError(error) {}
-
-func (recordingSpan) SetAttributes(...observabilityx.Attribute) {}
-
-func attrsToMap(attrs []observabilityx.Attribute) map[string]any {
-	values := make(map[string]any, len(attrs))
-	for _, attr := range attrs {
-		values[attr.Key] = attr.Value
-	}
-	return values
-}
-
-func assertMetricCount(t *testing.T, metrics []recordedMetric, name string, want int) {
-	t.Helper()
-
-	count := 0
-	for _, metric := range metrics {
-		if metric.name == name {
-			count++
-		}
-	}
-	if count != want {
-		t.Fatalf("expected %d %s metrics, got %d", want, name, count)
-	}
-}
-
-func findMetric(t *testing.T, metrics []recordedMetric, name string) recordedMetric {
-	t.Helper()
-
-	for _, metric := range metrics {
-		if metric.name == name {
-			return metric
-		}
-	}
-	t.Fatalf("metric %s not found", name)
-	return recordedMetric{}
-}
-
-func assertAttrValue(t *testing.T, attrs map[string]any, key string, want any) {
-	t.Helper()
-
-	got, ok := attrs[key]
-	if !ok {
-		t.Fatalf("expected attr %s to be present", key)
-	}
-	if got != want {
-		t.Fatalf("expected attr %s=%v, got %v", key, want, got)
-	}
-}
-
-func assertAttrAbsent(t *testing.T, attrs map[string]any, key string) {
-	t.Helper()
-
-	if _, ok := attrs[key]; ok {
-		t.Fatalf("expected attr %s to be absent", key)
-	}
-}
-
-func closeBody(t *testing.T, response *http.Response) {
-	t.Helper()
-
-	if err := response.Body.Close(); err != nil {
-		t.Fatal(err)
 	}
 }

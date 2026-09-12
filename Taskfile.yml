@@ -8,7 +8,7 @@ vars:
   DIST_DIR: dist
   GO_LDFLAGS: -s -w -buildid=
   GOYEK: go -C build run . --
-  GORELEASER_VERSION: v2.15.4
+  GORELEASER_VERSION: v2.18.1
   PERF_RESULTS_DIR: tmp/perf/results
   PERF_BENCH_COUNT: 5
   K6_HTML_PATHS: /,/index.html
@@ -29,7 +29,7 @@ tasks:
     desc: development
     cmds:
       - cd test && pnpm build
-      - go run github.com/air-verse/air@v1.62.0 .
+      - go run github.com/air-verse/air@v1.67.4 .
 
   test:
     cmds:
@@ -485,6 +485,18 @@ tasks:
     cmds:
       - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} check
 
+  release:policy:
+    desc: "Validate the release tag and decide whether stable floating tags may advance"
+    cmds:
+      - '{{.GOYEK}} release-policy'
+
+  release:workflow:check:
+    desc: "Validate release workflow and GoReleaser configuration"
+    cmds:
+      # Temporary queue:max compatibility fork; switch back after rhysd/actionlint publishes support.
+      - go -C build tool actionlint ../.github/workflows/release.yml
+      - task: release:goreleaser:check
+
   release:preflight:
     desc: "校验 release 前的 root/build/workspace 依赖状态"
     cmds:
@@ -497,6 +509,11 @@ tasks:
     desc: "使用 GoReleaser 执行本地快照构建（不发布）"
     cmds:
       - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} release --snapshot --clean --skip=publish
+
+  release:goreleaser:prepare:
+    desc: "使用 GoReleaser 生成当前 tag 的全部归档和安装包，但不发布"
+    cmds:
+      - go run github.com/goreleaser/goreleaser/v2@{{.GORELEASER_VERSION}} release --clean --skip=publish
 
   release:local:
     desc: "本地完整发布当前 tag：GitHub Release、安装包、runtime/compiler 镜像"
@@ -530,7 +547,10 @@ tasks:
       TAG: '{{if hasPrefix .VERSION "v"}}{{.VERSION}}{{else}}v{{.VERSION}}{{end}}'
     cmds:
       - task: release:preflight
-      - task: release:goreleaser:check
+      - task: release:workflow:check
+      - cmd: '{{.GOYEK}} release-policy'
+        env:
+          SPACK_RELEASE_TAG: '{{.TAG}}'
       - task: release:tag
         vars:
           VERSION: '{{.VERSION}}'

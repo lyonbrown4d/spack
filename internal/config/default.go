@@ -57,7 +57,7 @@ func defaultAsyncConfig() Async {
 
 func defaultLoggerConfig() Logger {
 	return Logger{
-		Level: "debug",
+		Level: "info",
 		Console: Console{
 			Enabled: true,
 		},
@@ -76,7 +76,7 @@ func defaultRobotsConfig() Robots {
 
 func defaultDebugConfig() Debug {
 	return Debug{
-		Enable:      true,
+		Enable:      false,
 		PprofPrefix: "",
 	}
 }

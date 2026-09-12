@@ -12,7 +12,10 @@ import (
 	"github.com/samber/oops"
 )
 
-func readBundleIndex(reader *tar.Reader) (Index, map[string]IndexFile, error) {
+func readBundleIndex(
+	reader *tar.Reader,
+	limits bundleLimits,
+) (Index, map[string]IndexFile, error) {
 	header, err := reader.Next()
 	if err != nil {
 		return Index{}, nil, oops.Wrapf(err, "read bundle index entry")
@@ -24,31 +27,38 @@ func readBundleIndex(reader *tar.Reader) (Index, map[string]IndexFile, error) {
 	if entryPath != IndexPath {
 		return Index{}, nil, oops.Errorf("first bundle entry must be %q, got %q", IndexPath, entryPath)
 	}
-	body, err := readTarEntryBody(reader, header, entryPath)
+	body, err := readTarEntryBody(reader, header, entryPath, limits.indexBytes)
 	if err != nil {
 		return Index{}, nil, err
 	}
-	index, err := unmarshalIndex(body)
+	index, err := unmarshalIndex(body, limits)
 	if err != nil {
 		return Index{}, nil, err
 	}
-	if err := validateIndex(index); err != nil {
+	if err := validateIndex(index, limits); err != nil {
 		return Index{}, nil, err
 	}
 	return index, indexFileMap(index), nil
 }
 
-func validateIndex(index Index) error {
+func validateIndex(index Index, limits bundleLimits) error {
+	if err := validateBundleFileCount(len(index.Files), limits); err != nil {
+		return err
+	}
 	seen := make(map[string]struct{}, len(index.Files))
+	budget := bundleBudget{limits: limits}
 	for i := range index.Files {
-		if err := validateIndexFile(index.Files[i], seen); err != nil {
+		if err := validateIndexFile(index.Files[i], seen, limits); err != nil {
+			return err
+		}
+		if err := budget.add(index.Files[i].Size); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateIndexFile(file IndexFile, seen map[string]struct{}) error {
+func validateIndexFile(file IndexFile, seen map[string]struct{}, limits bundleLimits) error {
 	cleaned, err := cleanBundlePath(file.Path)
 	if err != nil {
 		return err
@@ -56,7 +66,7 @@ func validateIndexFile(file IndexFile, seen map[string]struct{}) error {
 	if cleaned != file.Path {
 		return oops.Errorf("bundle index path %q is not normalized", file.Path)
 	}
-	if file.Size < 0 || file.Size > maxExtractedFileBytes {
+	if file.Size < 0 || file.Size > limits.fileBytes {
 		return oops.Errorf("bundle file %q exceeds max extracted bytes", file.Path)
 	}
 	if err := validateIndexFileHash(file); err != nil {
@@ -103,12 +113,12 @@ func isRegularTarEntry(header *tar.Header) bool {
 	return header.Typeflag == tar.TypeReg
 }
 
-func readTarEntryBody(reader *tar.Reader, header *tar.Header, filePath string) ([]byte, error) {
+func readTarEntryBody(reader *tar.Reader, header *tar.Header, filePath string, maxBytes int64) ([]byte, error) {
 	if !isRegularTarEntry(header) {
 		return nil, oops.Errorf("bundle file %q is not a regular file", filePath)
 	}
-	if header.Size < 0 || header.Size > maxExtractedFileBytes {
-		return nil, oops.Errorf("bundle file %q exceeds max extracted bytes", filePath)
+	if err := validateBundleEntrySize(filePath, header.Size, maxBytes); err != nil {
+		return nil, err
 	}
 	limited := io.LimitReader(reader, header.Size+1)
 	body, err := io.ReadAll(limited)

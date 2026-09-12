@@ -156,39 +156,3 @@ checksum:
 
 snapshot:
   version_template: "{{ .Version }}-snapshot"
-
-dockers_v2:
-  - id: debian
-    ids:
-      - spack-runtime-linux
-    dockerfile: docker/debian.Dockerfile
-    images:
-      - ghcr.io/lyonbrown4d/spack
-      - lyonbrown4d/spack
-    tags:
-      - "{{ .Tag }}"
-      - latest
-      - debian
-      - debian-{{ .Tag }}
-  - id: alpine
-    ids:
-      - spack-runtime-linux
-    dockerfile: docker/alpine.Dockerfile
-    images:
-      - ghcr.io/lyonbrown4d/spack
-      - lyonbrown4d/spack
-    tags:
-      - alpine
-      - alpine-{{ .Tag }}
-  - id: compiler-debian
-    ids:
-      - spack-compiler-linux
-    dockerfile: docker/compiler-debian.Dockerfile
-    images:
-      - ghcr.io/lyonbrown4d/spack-compiler
-      - lyonbrown4d/spack-compiler
-    tags:
-      - "{{ .Tag }}"
-      - latest
-      - debian
-      - debian-{{ .Tag }}

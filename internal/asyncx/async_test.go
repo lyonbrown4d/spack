@@ -2,12 +2,14 @@ package asyncx_test
 
 import (
 	"context"
+	"errors"
 	cxlist "github.com/arcgolabs/collectionx/list"
 	cxset "github.com/arcgolabs/collectionx/set"
 	"github.com/lyonbrown4d/spack/internal/asyncx"
 	"github.com/lyonbrown4d/spack/internal/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/samber/oops"
 	"slices"
 	"strings"
 	"testing"
@@ -124,5 +126,42 @@ spack_async_capacity_current 3
 		"spack_async_capacity_current",
 	); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRunListParallelStopsCallbacksAfterFirstFailure(t *testing.T) {
+	wantErr := errors.New("parallel task failed")
+	secondStarted := make(chan struct{})
+	visited := cxset.NewConcurrentSet[int]()
+
+	err := asyncx.RunListForTest(
+		t.Context(),
+		nil,
+		&asyncx.Settings{Size: 2},
+		"test_parallel_fail_fast",
+		cxlist.NewList(1, 2, 3, 4),
+		func(ctx context.Context, value int) error {
+			visited.Add(value)
+			switch value {
+			case 1:
+				<-secondStarted
+				return oops.Wrapf(wantErr, "first parallel task")
+			case 2:
+				close(secondStarted)
+				<-ctx.Done()
+				return ctx.Err()
+			default:
+				return nil
+			}
+		},
+	)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected sentinel failure to be preserved, got %v", err)
+	}
+
+	got := visited.Values()
+	slices.Sort(got)
+	if !slices.Equal(got, []int{1, 2}) {
+		t.Fatalf("expected callbacks scheduled before failure only, got %v", got)
 	}
 }

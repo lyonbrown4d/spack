@@ -50,7 +50,11 @@ type WriteSummary struct {
 
 // Write creates a SPACK bundle at options.Output.
 func Write(ctx context.Context, options WriteOptions) (WriteSummary, error) {
-	output, _, files, err := normalizeWriteInputs(options)
+	return writeWithLimits(ctx, options, productionBundleLimits)
+}
+
+func writeWithLimits(ctx context.Context, options WriteOptions, limits bundleLimits) (WriteSummary, error) {
+	output, _, files, err := normalizeWriteInputs(options, limits)
 	if err != nil {
 		return WriteSummary{}, err
 	}
@@ -64,10 +68,16 @@ func Write(ctx context.Context, options WriteOptions) (WriteSummary, error) {
 	if err != nil {
 		return WriteSummary{}, oops.Wrapf(err, "create bundle temp file")
 	}
-	return writeBundleToTemp(ctx, output, temp, index, payloads, totalBytes)
+	return writeBundleToTemp(ctx, output, temp, index, payloads, totalBytes, limits)
 }
 
-func normalizeWriteInputs(options WriteOptions) (string, string, []File, error) {
+func normalizeWriteInputs(
+	options WriteOptions,
+	limits bundleLimits,
+) (string, string, []File, error) {
+	if err := validateBundleFileCount(len(options.Files), limits); err != nil {
+		return "", "", nil, err
+	}
 	output, err := normalizedOutputPath(options.Output)
 	if err != nil {
 		return "", "", nil, err
@@ -80,6 +90,9 @@ func normalizeWriteInputs(options WriteOptions) (string, string, []File, error) 
 	if err != nil {
 		return "", "", nil, err
 	}
+	if err := validateBundleFiles(files, limits); err != nil {
+		return "", "", nil, err
+	}
 	return output, root, files, nil
 }
 
@@ -90,6 +103,7 @@ func writeBundleToTemp(
 	index Index,
 	payloads []bundleFilePayload,
 	totalBytes int64,
+	limits bundleLimits,
 ) (WriteSummary, error) {
 	tempPath := temp.Name()
 	committed := false
@@ -106,7 +120,7 @@ func writeBundleToTemp(
 		return WriteSummary{}, closeBundleFile(temp, oops.Wrapf(err, "create bundle zstd writer"))
 	}
 	tarWriter := tar.NewWriter(zstdWriter)
-	if indexErr := writeBundleIndex(tarWriter, index); indexErr != nil {
+	if indexErr := writeBundleIndex(tarWriter, index, limits); indexErr != nil {
 		return WriteSummary{}, closeBundleWriters(tarWriter, zstdWriter, temp, indexErr)
 	}
 	if err := writePreparedBundleFiles(ctx, tarWriter, payloads); err != nil {
@@ -165,8 +179,8 @@ func buildIndex(payloads []bundleFilePayload, now func() time.Time) Index {
 	}
 }
 
-func writeBundleIndex(tarWriter *tar.Writer, index Index) error {
-	body, err := marshalIndex(index)
+func writeBundleIndex(tarWriter *tar.Writer, index Index, limits bundleLimits) error {
+	body, err := marshalIndex(index, limits)
 	if err != nil {
 		return err
 	}

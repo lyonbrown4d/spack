@@ -16,39 +16,6 @@ import (
 	"log/slog"
 )
 
-var Module = dix.NewModule("server",
-	dix.WithModuleProviders(
-		dix.Provider0(NewRuntimeMetrics),
-		dix.Provider3(newResourceHintService),
-		dix.Provider6(newPreparedService),
-		dix.Provider5(newAssetRouteRuntime),
-		dix.Provider2(newHealthCheckDefinitions),
-		dix.Provider4(newDiagnosticsRoutesRuntime),
-		dix.Provider4(newMiddlewareRegistrationDeps),
-		dix.Provider4(newRobotsRouteRegistrationDeps),
-		dix.Provider6(newAssetRouteRegistrationDeps),
-		dix.Contribute1(newMiddlewareRegistration),
-		dix.Contribute1(newDiagnosticsRoutesRegistration),
-		dix.Contribute2(newHealthRoutesRegistration),
-		dix.Contribute1(newRobotsRouteRegistration),
-		dix.Contribute1(newAssetRouteRegistration),
-		dix.Provider2(newEventPublisher),
-		dix.Provider4(newServerFromDeps),
-	),
-	dix.WithModuleSetups(
-		dix.Setup(registerHealthCheckSetup),
-	),
-	dix.WithModuleHooks(
-		dix.OnStart(func(ctx context.Context, svc *PreparedService) error {
-			return svc.start(ctx)
-		}),
-		dix.OnStop(func(ctx context.Context, svc *PreparedService) error {
-			return svc.stop(ctx)
-		}),
-		dix.OnStop(stopDiagnosticsRoutesRuntime),
-	),
-)
-
 var CoreModule = dix.NewModule("server_core",
 	dix.WithModuleProviders(
 		dix.Provider0(NewRuntimeMetrics),

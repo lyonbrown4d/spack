@@ -3,11 +3,12 @@ package server
 
 import (
 	"errors"
-	"github.com/samber/oops"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/samber/oops"
 )
 
 func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
@@ -17,20 +18,37 @@ func newErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 }
 
 func errorHandler(ctx fiber.Ctx, logger *slog.Logger, err error) error {
-	code := fiber.StatusInternalServerError
-
-	if fiberErr, ok := errors.AsType[*fiber.Error](err); ok {
-		code = fiberErr.Code
-	}
+	code := safeHTTPErrorStatus(err)
 
 	switch code {
 	case fiber.StatusNotFound:
 		return sendErrorResponse(ctx, fiber.StatusNotFound, "Not found")
+	case fiber.StatusBadRequest,
+		fiber.StatusMethodNotAllowed,
+		fiber.StatusRequestedRangeNotSatisfiable,
+		fiber.StatusServiceUnavailable:
+		requestID := responseRequestID(ctx)
+		logRequestError(ctx, logger, err, requestID, code)
+		return sendErrorResponse(ctx, code, http.StatusText(code))
 	default:
 		requestID := responseRequestID(ctx)
 		logRequestError(ctx, logger, err, requestID, code)
 		return sendErrorResponse(ctx, fiber.StatusInternalServerError, internalErrorResponseBody(requestID))
 	}
+}
+
+func safeHTTPErrorStatus(err error) int {
+	if fiberErr, ok := errors.AsType[*fiber.Error](err); ok {
+		switch fiberErr.Code {
+		case fiber.StatusNotFound,
+			fiber.StatusBadRequest,
+			fiber.StatusMethodNotAllowed,
+			fiber.StatusRequestedRangeNotSatisfiable,
+			fiber.StatusServiceUnavailable:
+			return fiberErr.Code
+		}
+	}
+	return fiber.StatusInternalServerError
 }
 
 func responseRequestID(ctx fiber.Ctx) string {

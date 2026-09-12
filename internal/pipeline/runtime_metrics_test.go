@@ -136,11 +136,16 @@ func TestPipelineStageMetricsRecordRunAndGeneration(t *testing.T) {
 		Encoding:     "br",
 	}
 
-	got := pipeline.ExecuteStageTaskForTest(svc, stageResultStage{name: "compression", variant: variant}, asset, pipeline.Task{AssetPath: "app.js", Encoding: "br"})
+	got, err := pipeline.ExecuteStageTaskForTest(svc, stageResultStage{name: "compression", variant: variant}, asset, pipeline.Task{AssetPath: "app.js", Encoding: "br"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got == nil {
 		t.Fatal("expected variant result")
 	}
-	pipeline.UpsertStageVariantForTest(svc, "compression", asset, variant)
+	if err := pipeline.UpsertStageVariantForTest(svc, "compression", asset, variant); err != nil {
+		t.Fatal(err)
+	}
 
 	assertPipelineCounterMetric(t, obs.counters, "pipeline_stage_runs_total", 1, "stage", "compression")
 	assertPipelineCounterMetric(t, obs.counters, "pipeline_stage_runs_total", 1, "result", "ok")
@@ -164,7 +169,10 @@ func TestPipelineStageMetricsRecordSkippedRuns(t *testing.T) {
 	}
 
 	svc := pipeline.NewServiceWithObservabilityForTest(&config.Compression{}, slog.New(slog.DiscardHandler), cat, obs, 1)
-	got := pipeline.ExecuteStageTaskForTest(svc, stageResultStage{name: "image", err: pipeline.ErrVariantSkipped}, asset, pipeline.Task{AssetPath: "hero.png", Width: 640})
+	got, err := pipeline.ExecuteStageTaskForTest(svc, stageResultStage{name: "image", err: pipeline.ErrVariantSkipped}, asset, pipeline.Task{AssetPath: "hero.png", Width: 640})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got != nil {
 		t.Fatalf("expected nil variant for skipped stage, got %#v", got)
 	}

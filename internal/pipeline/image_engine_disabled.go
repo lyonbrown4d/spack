@@ -4,11 +4,13 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	cxlist "github.com/arcgolabs/collectionx/list"
 	"github.com/arcgolabs/observabilityx"
 	"github.com/lyonbrown4d/spack/internal/config"
+	"github.com/samber/oops"
 )
 
 func newImageEngine(cfg *config.Image, logger *slog.Logger, obs observabilityx.Observability) imageEngine {
@@ -28,6 +30,15 @@ func newImageEngine(cfg *config.Image, logger *slog.Logger, obs observabilityx.O
 
 func stopImageEngine(context.Context, imageEngine) error {
 	return nil
+}
+
+func validateImageEngineForWarmup(cfg *config.Image) error {
+	if cfg == nil || !cfg.Enable {
+		return nil
+	}
+	return oops.In("pipeline").Owner("image engine").
+		With("required_build_tag", "spack_libvips").
+		Wrap(errors.New("image generation is enabled but no image engine is linked"))
 }
 
 type disabledImageEngine struct {
