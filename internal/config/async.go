@@ -3,7 +3,7 @@ package config
 import "runtime"
 
 type Async struct {
-	Workers int `koanf:"workers" validate:"gte=0"`
+	Workers int `configx:"usage=Shared async concurrency limit." koanf:"workers" validate:"gte=0"`
 }
 
 func (a Async) NormalizedWorkers() int {

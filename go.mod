@@ -11,7 +11,7 @@ require (
 	github.com/arcgolabs/collectionx/prefix v1.0.0
 	github.com/arcgolabs/collectionx/set v1.0.0
 	github.com/arcgolabs/collectionx/stream v1.0.0
-	github.com/arcgolabs/configx v0.6.2
+	github.com/arcgolabs/configx v0.6.4
 	github.com/arcgolabs/configx/format/hcl v0.6.2
 	github.com/arcgolabs/configx/format/json v0.6.2
 	github.com/arcgolabs/configx/format/toml v0.6.2

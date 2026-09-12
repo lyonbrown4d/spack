@@ -17,23 +17,23 @@ const (
 )
 
 type Compression struct {
-	Enable                bool   `koanf:"enable"`
-	Mode                  string `koanf:"mode"                     validate:"required,oneof=off lazy warmup"`
-	CacheDir              string `koanf:"cache_dir"                validate:"required"`
-	MinSize               int64  `koanf:"min_size"                 validate:"gte=0"`
-	Workers               int    `koanf:"workers"                  validate:"gte=0"`
-	QueueSize             int    `koanf:"queue_size"               validate:"gte=0"`
-	Encodings             string `koanf:"encodings"`
-	CleanupEvery          string `koanf:"cleanup_every"            validate:"omitempty,spack_duration"`
-	MaxAge                string `koanf:"max_age"                  validate:"omitempty,spack_flexible_duration"`
-	ImageMaxAge           string `koanf:"image_max_age"            validate:"omitempty,spack_flexible_duration"`
-	EncodingMaxAge        string `koanf:"encoding_max_age"         validate:"omitempty,spack_flexible_duration"`
-	MaxCacheBytes         int64  `koanf:"max_cache_bytes"          validate:"gte=0"`
-	EncodingMaxCacheBytes int64  `koanf:"encoding_max_cache_bytes" validate:"gte=0"`
-	ImageMaxCacheBytes    int64  `koanf:"image_max_cache_bytes"    validate:"gte=0"`
-	BrotliQuality         int    `koanf:"brotli_quality"           validate:"gte=0,lte=11"`
-	ZstdLevel             int    `koanf:"zstd_level"               validate:"gte=0,lte=22"`
-	GzipLevel             int    `koanf:"gzip_level"               validate:"gte=-2,lte=9"`
+	Enable                bool   `configx:"usage=Enable compression pipeline."                                         koanf:"enable"`
+	Mode                  string `configx:"usage=Compression mode: off lazy or warmup."                                koanf:"mode"                     validate:"required,oneof=off lazy warmup"`
+	CacheDir              string `configx:"usage=Compression artifact cache directory."                                koanf:"cache_dir"                validate:"required"`
+	MinSize               int64  `configx:"usage=Minimum asset size in bytes eligible for compression."                koanf:"min_size"                 validate:"gte=0"`
+	Workers               int    `configx:"usage=Compression worker count."                                            koanf:"workers"                  validate:"gte=0"`
+	QueueSize             int    `configx:"usage=Compression queue capacity."                                          koanf:"queue_size"               validate:"gte=0"`
+	Encodings             string `configx:"usage=Comma-separated supported compression encodings in preference order." koanf:"encodings"`
+	CleanupEvery          string `configx:"usage=Compression cache cleanup interval."                                  koanf:"cleanup_every"            validate:"omitempty,spack_duration"`
+	MaxAge                string `configx:"usage=Default cache max-age for compressed responses."                      koanf:"max_age"                  validate:"omitempty,spack_flexible_duration"`
+	ImageMaxAge           string `configx:"usage=Cache max-age for generated image variants."                          koanf:"image_max_age"            validate:"omitempty,spack_flexible_duration"`
+	EncodingMaxAge        string `configx:"usage=Cache max-age for precompressed variants."                            koanf:"encoding_max_age"         validate:"omitempty,spack_flexible_duration"`
+	MaxCacheBytes         int64  `configx:"usage=Maximum bytes allowed in compression cache."                          koanf:"max_cache_bytes"          validate:"gte=0"`
+	EncodingMaxCacheBytes int64  `configx:"usage=Maximum bytes allowed for precompressed artifacts."                   koanf:"encoding_max_cache_bytes" validate:"gte=0"`
+	ImageMaxCacheBytes    int64  `configx:"usage=Maximum bytes allowed for generated image artifacts."                 koanf:"image_max_cache_bytes"    validate:"gte=0"`
+	BrotliQuality         int    `configx:"usage=Brotli compression quality."                                          koanf:"brotli_quality"           validate:"gte=0,lte=11"`
+	ZstdLevel             int    `configx:"usage=Zstd compression level."                                              koanf:"zstd_level"               validate:"gte=0,lte=22"`
+	GzipLevel             int    `configx:"usage=Gzip compression level."                                              koanf:"gzip_level"               validate:"gte=-2,lte=9"`
 }
 
 func (c Compression) NormalizedMode() string {

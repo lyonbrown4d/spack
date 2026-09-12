@@ -1,8 +1,8 @@
 package config
 
 type Config struct {
-	APIVersion  string      `koanf:"apiVersion"  validate:"required,oneof=spack.io/v1alpha1"`
-	Kind        string      `koanf:"kind"        validate:"required,oneof=RuntimeConfig"`
+	APIVersion  string      `configx:"nocli"     koanf:"apiVersion"  validate:"required,oneof=spack.io/v1alpha1"`
+	Kind        string      `configx:"nocli"     koanf:"kind"        validate:"required,oneof=RuntimeConfig"`
 	HTTP        HTTP        `koanf:"http"        validate:"required"`
 	Assets      Assets      `koanf:"assets"      validate:"required"`
 	Async       Async       `koanf:"async"       validate:"required"`
@@ -16,6 +16,6 @@ type Config struct {
 }
 
 type Metrics struct {
-	Enable bool   `koanf:"enable"`
-	Prefix string `koanf:"prefix" validate:"required,startswith=/"`
+	Enable bool   `configx:"usage=Enable Prometheus metrics endpoint and runtime collectors." koanf:"enable"`
+	Prefix string `configx:"usage=Metrics endpoint path."                                     koanf:"prefix" validate:"required,startswith=/"`
 }

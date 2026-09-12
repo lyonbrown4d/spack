@@ -9,7 +9,10 @@ import (
 )
 
 func TestCompilerRootCommandDoesNotExposeHealthcheck(t *testing.T) {
-	root := newRootCommand()
+	root, err := newRootCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, _, err := root.Find([]string{"healthcheck"}); err == nil {
 		t.Fatal("expected compiler command tree to exclude healthcheck")
 	}
@@ -52,7 +55,10 @@ func TestCompilerUtilityCommandsRunThroughUtilityLifecycle(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := newRootCommand()
+			command, err := newRootCommand()
+			if err != nil {
+				t.Fatal(err)
+			}
 			command.SetOut(io.Discard)
 			command.SetErr(io.Discard)
 			command.SetArgs(test.args)

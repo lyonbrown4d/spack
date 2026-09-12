@@ -7,21 +7,21 @@ import (
 )
 
 type HTTP struct {
-	Port                int         `koanf:"port"                  validate:"gte=1,lte=65535"`
-	LowMemory           bool        `koanf:"low_memory"`
-	ExposeServerHeader  bool        `koanf:"expose_server_header"`
-	ExposeServerVersion bool        `koanf:"expose_server_version"`
-	MemoryCache         MemoryCache `koanf:"memory_cache"          validate:"required"`
-	RequestLogDetail    bool        `koanf:"request_log_detail"`
+	Port                int         `configx:"usage=HTTP listen port."                                           koanf:"port"                  validate:"gte=1,lte=65535"`
+	LowMemory           bool        `configx:"usage=Reduce Fiber memory usage."                                  koanf:"low_memory"`
+	ExposeServerHeader  bool        `configx:"usage=Expose the HTTP Server header with the application version." koanf:"expose_server_header"`
+	ExposeServerVersion bool        `configx:"usage=Expose version suffix in the HTTP Server header."            koanf:"expose_server_version"`
+	MemoryCache         MemoryCache `koanf:"memory_cache"                                                        validate:"required"`
+	RequestLogDetail    bool        `configx:"nocli"                                                             koanf:"request_log_detail"`
 }
 
 type MemoryCache struct {
-	Enable      bool   `koanf:"enable"`
-	Warmup      bool   `koanf:"warmup"`
-	MaxEntries  int    `koanf:"max_entries"   validate:"gte=0"`
-	MaxBytes    int64  `koanf:"max_bytes"     validate:"gte=0"`
-	MaxFileSize int64  `koanf:"max_file_size" validate:"gte=0"`
-	TTL         string `koanf:"ttl"           validate:"omitempty,spack_duration"`
+	Enable      bool   `configx:"usage=Enable in-memory asset cache."                                                 koanf:"enable"`
+	Warmup      bool   `configx:"usage=Preload in-memory asset cache at startup."                                     koanf:"warmup"`
+	MaxEntries  int    `configx:"usage=Expected number of in-memory asset cache entries used for admission counters." koanf:"max_entries"   validate:"gte=0"`
+	MaxBytes    int64  `configx:"usage=Maximum total byte cost for the in-memory asset cache."                        koanf:"max_bytes"     validate:"gte=0"`
+	MaxFileSize int64  `configx:"usage=Maximum asset size in bytes eligible for in-memory cache."                     koanf:"max_file_size" validate:"gte=0"`
+	TTL         string `configx:"usage=TTL for in-memory asset cache entries."                                        koanf:"ttl"           validate:"omitempty,spack_duration"`
 }
 
 func (h HTTP) GetPort() string {

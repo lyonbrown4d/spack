@@ -33,8 +33,7 @@ type Assets struct {
 	//   "/static" → serve assets under /static/*
 	//
 	// This path is matched before any filesystem lookup occurs.
-	Path string `koanf:"path" validate:"required,startswith=/"`
-
+	Path string `configx:"usage=HTTP mount path for assets." koanf:"path" validate:"required,startswith=/"`
 	// Root is the filesystem directory or .spack bundle used as the source of static assets.
 	//
 	// All files under this directory or bundle will be scanned at startup
@@ -43,8 +42,7 @@ type Assets struct {
 	// This path should point to an existing directory or readable
 	// .spack bundle, and is typically resolved to an absolute path
 	// during initialization.
-	Root string `koanf:"root" validate:"required"`
-
+	Root string `configx:"usage=Filesystem root directory or .spack bundle containing static assets." koanf:"root" validate:"required"`
 	// Entry is the default entry file name used for directory requests.
 	//
 	// When a request resolves to a directory path, the server will
@@ -54,8 +52,7 @@ type Assets struct {
 	//   - "index.html"
 	//
 	// Entry must be a relative file name and must not start with '/'.
-	Entry string `koanf:"entry" validate:"required,spack_relative_path"`
-
+	Entry string `configx:"usage=Default entry file for directory requests." koanf:"entry" validate:"required,spack_relative_path"`
 	// Include limits startup/source-catalog scanning to matching relative asset paths.
 	//
 	// Patterns use doublestar syntax with '/' separators and support '**'.
@@ -65,15 +62,13 @@ type Assets struct {
 	//   - "**/*.js"
 	//   - "assets/**"
 	//   - "index.html"
-	Include []string `koanf:"include" validate:"omitempty,dive,required"`
-
+	Include []string `configx:"usage=Doublestar glob patterns included in source catalog scanning. Empty means include all files." koanf:"include" validate:"omitempty,dive,required"`
 	// Exclude removes matching relative asset paths from startup/source-catalog scanning.
 	//
 	// Exclude patterns are evaluated after include patterns and use the same
 	// doublestar syntax. The local source still enforces root containment and
 	// symlink rejection before these patterns are evaluated.
-	Exclude []string `koanf:"exclude" validate:"omitempty,dive,required"`
-
+	Exclude []string `configx:"usage=Doublestar glob patterns excluded from source catalog scanning after includes are applied." koanf:"exclude" validate:"omitempty,dive,required"`
 	// Fallback defines the fallback serving behavior when a request
 	// cannot be resolved normally.
 	//
@@ -93,8 +88,7 @@ type Fallback struct {
 	// Supported values:
 	//   - "not_found"  : triggered when asset lookup fails
 	//   - "forbidden"  : triggered when asset access is denied
-	On FallbackOn `koanf:"on" validate:"omitempty,oneof=not_found forbidden"`
-
+	On FallbackOn `configx:"usage=Fallback trigger mode." koanf:"on" validate:"omitempty,oneof=not_found forbidden"`
 	// Target is the virtual asset path to be served as fallback.
 	//
 	// This path is resolved against the asset registry and must
@@ -102,5 +96,5 @@ type Fallback struct {
 	// such as "/index.html".
 	//
 	// The target is not re-scanned or dynamically resolved at runtime.
-	Target string `koanf:"target" validate:"required_with=On,omitempty,spack_relative_path"`
+	Target string `configx:"usage=Fallback asset path." koanf:"target" validate:"required_with=On,omitempty,spack_relative_path"`
 }

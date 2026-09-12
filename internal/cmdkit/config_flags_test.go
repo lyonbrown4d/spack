@@ -3,37 +3,90 @@ package cmdkit_test
 import (
 	"testing"
 
+	"github.com/arcgolabs/configx"
 	"github.com/lyonbrown4d/spack/internal/cmdkit"
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/configschema"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 func TestNewConfigFlagSetRegistersSchemaFlags(t *testing.T) {
 	defaults := config.DefaultConfig()
-	flags := cmdkit.NewConfigFlagSet()
+	schema, err := configx.SchemaOf(defaults)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags, err := cmdkit.NewConfigFlagSet()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	for _, schemaFlag := range configschema.Flags() {
-		flag := flags.Lookup(schemaFlag.Name)
-		if flag == nil {
-			t.Fatalf("expected config flag %q to be registered", schemaFlag.Name)
+	for _, field := range schema.Fields() {
+		assertSchemaFieldFlag(t, flags, field)
+	}
+}
+
+func assertSchemaFieldFlag(t *testing.T, flags *pflag.FlagSet, field configx.SchemaField) {
+	t.Helper()
+	flag := flags.Lookup(field.FlagName)
+	if !field.CLIEnabled {
+		if flag != nil {
+			t.Fatalf("expected config field %q to remain CLI-disabled", field.Path)
 		}
-		if got := flag.Value.Type(); got != string(schemaFlag.Kind) {
-			t.Fatalf("expected config flag %q type %q, got %q", schemaFlag.Name, schemaFlag.Kind, got)
-		}
-		if want := schemaFlag.DefaultString(defaults); flag.DefValue != want {
-			t.Fatalf("expected config flag %q default %q, got %q", schemaFlag.Name, want, flag.DefValue)
-		}
-		if flag.Usage != schemaFlag.Usage {
-			t.Fatalf("expected config flag %q usage %q, got %q", schemaFlag.Name, schemaFlag.Usage, flag.Usage)
-		}
+		return
+	}
+	if flag == nil {
+		t.Fatalf("expected config flag %q to be registered", field.FlagName)
+	}
+	if field.Usage == "" {
+		t.Fatalf("expected config flag %q to have usage metadata", field.FlagName)
+	}
+	if got := flag.Value.Type(); got != string(field.Kind) {
+		t.Fatalf("expected config flag %q type %q, got %q", field.FlagName, field.Kind, got)
+	}
+	wantDefault := field.Default
+	if field.Kind == configx.SchemaKindStringSlice {
+		wantDefault = "[" + wantDefault + "]"
+	}
+	if flag.DefValue != wantDefault {
+		t.Fatalf("expected config flag %q default %q, got %q", field.FlagName, wantDefault, flag.DefValue)
+	}
+	if flag.Usage != field.Usage {
+		t.Fatalf("expected config flag %q usage %q, got %q", field.FlagName, field.Usage, flag.Usage)
+	}
+}
+
+func TestCloneVisitedConfigFlagsPreservesStringSlices(t *testing.T) {
+	source, err := cmdkit.NewConfigFlagSet()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if setErr := source.Set("assets.include", "**/*.js,assets/**"); setErr != nil {
+		t.Fatal(setErr)
+	}
+
+	cloned, err := cmdkit.CloneVisitedConfigFlags(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, err := cloned.GetStringSlice("assets.include")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(values) != 2 || values[0] != "**/*.js" || values[1] != "assets/**" {
+		t.Fatalf("unexpected cloned assets.include values: %v", values)
 	}
 }
 
 func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 	command := &cobra.Command{Use: "spack-test"}
-	command.Flags().AddFlagSet(cmdkit.NewConfigFlagSet())
-	if err := command.ParseFlags([]string{
+	flags, err := cmdkit.NewConfigFlagSet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	command.Flags().AddFlagSet(flags)
+	if parseErr := command.ParseFlags([]string{
 		"--assets.root=/tmp/spack-assets",
 		"--http.port=18080",
 		"--http.expose_server_header=true",
@@ -44,8 +97,8 @@ func TestConfigLoadOptionsUsesParsedCommandFlags(t *testing.T) {
 		"--image.max_source_pixels=4096",
 		"--image.max_output_variants=3",
 		"--image.min_saving_ratio=0.2",
-	}); err != nil {
-		t.Fatal(err)
+	}); parseErr != nil {
+		t.Fatal(parseErr)
 	}
 
 	loaded, err := config.LoadWithOptions(cmdkit.ConfigLoadOptions(command))

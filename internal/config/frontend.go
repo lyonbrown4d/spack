@@ -7,9 +7,9 @@ import (
 )
 
 type Frontend struct {
-	ResourceHints      ResourceHints      `koanf:"resource_hints"       validate:"required"`
-	ImmutableCache     ImmutableCache     `koanf:"immutable_cache"      validate:"required"`
-	StaleAssetRecovery StaleAssetRecovery `koanf:"stale_asset_recovery" validate:"required"`
+	ResourceHints      ResourceHints      `koanf:"resource_hints"  validate:"required"`
+	ImmutableCache     ImmutableCache     `koanf:"immutable_cache" validate:"required"`
+	StaleAssetRecovery StaleAssetRecovery `configx:"nocli"         koanf:"stale_asset_recovery" validate:"required"`
 }
 
 type StaleAssetRecovery struct {
@@ -17,15 +17,15 @@ type StaleAssetRecovery struct {
 }
 
 type ResourceHints struct {
-	Enable         bool `koanf:"enable"`
-	EarlyHints     bool `koanf:"early_hints"`
-	MaxLinks       int  `koanf:"max_links"        validate:"gte=0"`
-	MaxHeaderBytes int  `koanf:"max_header_bytes" validate:"gte=0"`
+	Enable         bool `configx:"usage=Emit Link resource hints for HTML responses."     koanf:"enable"`
+	EarlyHints     bool `configx:"usage=Send HTTP 103 Early Hints before HTML responses." koanf:"early_hints"`
+	MaxLinks       int  `configx:"usage=Maximum resource hint links per HTML response."   koanf:"max_links"        validate:"gte=0"`
+	MaxHeaderBytes int  `configx:"usage=Maximum Link header bytes for resource hints."    koanf:"max_header_bytes" validate:"gte=0"`
 }
 
 type ImmutableCache struct {
-	Enable bool   `koanf:"enable"`
-	MaxAge string `koanf:"max_age" validate:"omitempty,spack_flexible_duration"`
+	Enable bool   `configx:"usage=Enable immutable cache headers for fingerprinted static assets." koanf:"enable"`
+	MaxAge string `configx:"usage=Cache max-age for fingerprinted static assets."                  koanf:"max_age" validate:"omitempty,spack_flexible_duration"`
 }
 
 func (h ResourceHints) Enabled() bool {

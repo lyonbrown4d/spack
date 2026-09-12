@@ -8,19 +8,19 @@ import (
 )
 
 type Image struct {
-	Enable               bool    `koanf:"enable"`
-	Widths               string  `koanf:"widths"                 validate:"omitempty,spack_widths"`
-	Formats              string  `koanf:"formats"`
-	JPEGQuality          int     `koanf:"jpeg_quality"           validate:"gte=1,lte=100"`
-	MaxSourceBytes       int64   `koanf:"max_source_bytes"       validate:"gte=0"`
-	MaxSourcePixels      int64   `koanf:"max_source_pixels"      validate:"gte=0"`
-	MaxWidth             int     `koanf:"max_width"              validate:"gte=0"`
-	MaxHeight            int     `koanf:"max_height"             validate:"gte=0"`
-	MaxOutputVariants    int     `koanf:"max_output_variants"    validate:"gte=0"`
-	MaxConcurrentSources int     `koanf:"max_concurrent_sources" validate:"gte=0"`
-	MaxMemoryBytes       int64   `koanf:"max_memory_bytes"       validate:"gte=0"`
-	MinSavingRatio       float64 `koanf:"min_saving_ratio"       validate:"gte=0,lte=1"`
-	MinSavingBytes       int64   `koanf:"min_saving_bytes"       validate:"gte=0"`
+	Enable               bool    `configx:"usage=Enable image variant pipeline."                                                     koanf:"enable"`
+	Widths               string  `configx:"usage=Comma-separated responsive image widths."                                           koanf:"widths"                 validate:"omitempty,spack_widths"`
+	Formats              string  `configx:"usage=Comma-separated additional image output formats for warmup and default generation." koanf:"formats"`
+	JPEGQuality          int     `configx:"usage=JPEG encoding quality for generated variants."                                      koanf:"jpeg_quality"           validate:"gte=1,lte=100"`
+	MaxSourceBytes       int64   `configx:"usage=Maximum source image bytes accepted by the image pipeline."                         koanf:"max_source_bytes"       validate:"gte=0"`
+	MaxSourcePixels      int64   `configx:"usage=Maximum decoded source image pixels accepted by the image pipeline."                koanf:"max_source_pixels"      validate:"gte=0"`
+	MaxWidth             int     `configx:"usage=Maximum decoded source image width accepted by the image pipeline."                 koanf:"max_width"              validate:"gte=0"`
+	MaxHeight            int     `configx:"usage=Maximum decoded source image height accepted by the image pipeline."                koanf:"max_height"             validate:"gte=0"`
+	MaxOutputVariants    int     `configx:"usage=Maximum generated image variants per source asset batch."                           koanf:"max_output_variants"    validate:"gte=0"`
+	MaxConcurrentSources int     `configx:"usage=Maximum number of source images decoded concurrently."                              koanf:"max_concurrent_sources" validate:"gte=0"`
+	MaxMemoryBytes       int64   `configx:"usage=Global estimated decoded image memory budget in bytes."                             koanf:"max_memory_bytes"       validate:"gte=0"`
+	MinSavingRatio       float64 `configx:"usage=Minimum source-byte saving ratio required before storing generated image variants." koanf:"min_saving_ratio"       validate:"gte=0,lte=1"`
+	MinSavingBytes       int64   `configx:"usage=Minimum saved bytes required before storing generated image variants."              koanf:"min_saving_bytes"       validate:"gte=0"`
 }
 
 func (i Image) ParsedWidths() *cxlist.List[int] {

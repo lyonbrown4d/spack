@@ -7,13 +7,17 @@ import (
 )
 
 func execute() error {
-	if err := cmdkit.Execute(newRootCommand()); err != nil {
+	command, err := newRootCommand()
+	if err != nil {
+		return oops.Wrapf(err, "build spack-compiler command")
+	}
+	if err := cmdkit.Execute(command); err != nil {
 		return oops.Wrapf(err, "execute spack-compiler")
 	}
 	return nil
 }
 
-func newRootCommand() *cobra.Command {
+func newRootCommand() (*cobra.Command, error) {
 	command := &cobra.Command{
 		Use:   "spack-compiler",
 		Short: "Compile frontend assets into SPACK bundles.",
@@ -24,7 +28,9 @@ func newRootCommand() *cobra.Command {
 			return cmd.Help()
 		},
 	}
-	cmdkit.BindConfigFlags(command)
+	if err := cmdkit.BindConfigFlags(command); err != nil {
+		return nil, oops.Wrapf(err, "bind compiler config flags")
+	}
 	command.AddCommand(
 		newConfigCommand(),
 		newInspectCommand(),
@@ -32,5 +38,5 @@ func newRootCommand() *cobra.Command {
 		newVerifyCommand(),
 		newDecompileCommand(),
 	)
-	return command
+	return command, nil
 }

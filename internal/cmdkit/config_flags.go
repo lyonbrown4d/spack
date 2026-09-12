@@ -4,18 +4,23 @@ import (
 	"encoding/csv"
 	"strings"
 
+	"github.com/arcgolabs/configx"
 	"github.com/lyonbrown4d/spack/internal/config"
-	"github.com/lyonbrown4d/spack/internal/configschema"
 	"github.com/samber/lo"
 	"github.com/samber/oops"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-func BindConfigFlags(cmd *cobra.Command) {
+func BindConfigFlags(cmd *cobra.Command) error {
 	flags := cmd.PersistentFlags()
 	flags.StringSliceP("config", "c", nil, "Config file path(s). Later files override earlier ones.")
-	flags.AddFlagSet(NewConfigFlagSet())
+	configFlags, err := NewConfigFlagSet()
+	if err != nil {
+		return err
+	}
+	flags.AddFlagSet(configFlags)
+	return nil
 }
 
 func ConfigLoadOptions(cmd *cobra.Command) config.LoadOptions {
@@ -29,14 +34,23 @@ func ConfigLoadOptions(cmd *cobra.Command) config.LoadOptions {
 	}
 }
 
-func NewConfigFlagSet() *pflag.FlagSet {
+func NewConfigFlagSet() (*pflag.FlagSet, error) {
+	schema, err := configx.SchemaOf(config.DefaultConfig())
+	if err != nil {
+		return nil, oops.Wrapf(err, "derive config flag schema")
+	}
 	flags := pflag.NewFlagSet("config", pflag.ContinueOnError)
-	configschema.RegisterFlags(flags, config.DefaultConfig())
-	return flags
+	if err := schema.BindFlags(flags); err != nil {
+		return nil, oops.Wrapf(err, "bind config flags")
+	}
+	return flags, nil
 }
 
 func CloneVisitedConfigFlags(sourceFlags *pflag.FlagSet) (*pflag.FlagSet, error) {
-	flags := NewConfigFlagSet()
+	flags, err := NewConfigFlagSet()
+	if err != nil {
+		return nil, err
+	}
 	if sourceFlags == nil {
 		return flags, nil
 	}

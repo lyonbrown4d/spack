@@ -18,8 +18,8 @@ github.com/arcgolabs/collectionx/set v1.0.0 h1:a+NF3JYuDQ9UNS0I/HhdLTRDH6A6OaarH
 github.com/arcgolabs/collectionx/set v1.0.0/go.mod h1:r7SXUqjjyg13reoILlOzMxPwQWHKLty5FRYSE+xJsmw=
 github.com/arcgolabs/collectionx/stream v1.0.0 h1:OMQHrY/bBjZ27ZAJfuL/NVK9f/H3I/Z5j22TQMSsPdo=
 github.com/arcgolabs/collectionx/stream v1.0.0/go.mod h1:NF2JzJEngZUQFy3bNAc/Z3BCTS5+6wvvHhfoj/t86Aw=
-github.com/arcgolabs/configx v0.6.2 h1:pFSMPHhB+7mw0UoMeu+gjvuvKjLtIFlqcwwwLaJyG0w=
-github.com/arcgolabs/configx v0.6.2/go.mod h1:OypEFw/6T2aOyhsi4P9rzSwbqgn23XimtDJp4wZDu6M=
+github.com/arcgolabs/configx v0.6.4 h1:TO5/GR17I13XszZtnVRgJVe4JarfrMvvC9HNK7nNLSo=
+github.com/arcgolabs/configx v0.6.4/go.mod h1:OypEFw/6T2aOyhsi4P9rzSwbqgn23XimtDJp4wZDu6M=
 github.com/arcgolabs/configx/format/hcl v0.6.2 h1:m6mzj6hqN5/PlUuTS5IXieOW7lR0Q6xPfQl2o00UEj8=
 github.com/arcgolabs/configx/format/hcl v0.6.2/go.mod h1:stsrse0pOaw0uT7EwHRzVnaBLWF78Y8mxulw4fVr4I0=
 github.com/arcgolabs/configx/format/json v0.6.2 h1:5/xn3jH7AYeccHF7TTvJMny0UbbvDY/cZ0dN1sDLn/s=

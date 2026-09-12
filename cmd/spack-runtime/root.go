@@ -7,23 +7,29 @@ import (
 )
 
 func execute() error {
-	if err := cmdkit.Execute(newRootCommand()); err != nil {
+	command, err := newRootCommand()
+	if err != nil {
+		return oops.Wrapf(err, "build spack-runtime command")
+	}
+	if err := cmdkit.Execute(command); err != nil {
 		return oops.Wrapf(err, "execute spack-runtime")
 	}
 	return nil
 }
 
-func newRootCommand() *cobra.Command {
+func newRootCommand() (*cobra.Command, error) {
 	command := &cobra.Command{
 		Use:   "spack-runtime",
 		Short: "Serve optimized frontend assets from a local directory or SPACK bundle.",
 	}
-	cmdkit.BindConfigFlags(command)
+	if err := cmdkit.BindConfigFlags(command); err != nil {
+		return nil, oops.Wrapf(err, "bind runtime config flags")
+	}
 	bindRuntimeRoot(command)
 	command.AddCommand(
 		newConfigCommand(),
 		newInspectCommand(),
 		newHealthcheckCommand(),
 	)
-	return command
+	return command, nil
 }
