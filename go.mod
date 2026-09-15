@@ -41,7 +41,7 @@ require (
 	github.com/samber/do/v2 v2.1.0
 	github.com/samber/lo v1.53.0
 	github.com/samber/mo v1.17.0
-	github.com/samber/oops v1.23.1
+	github.com/samber/oops v1.23.2
 	github.com/samber/slog-fiber v1.22.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -62,7 +62,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gofiber/schema v1.8.6 // indirect
-	github.com/gofiber/utils/v2 v2.5.1 // indirect
+	github.com/gofiber/utils/v2 v2.5.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

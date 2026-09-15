@@ -29,6 +29,8 @@ func (o LoadOptions) configxOptions(
 ) []configx.Option {
 	options := cxlist.NewList[configx.Option](
 		configx.WithEnvPrefix(constant.EnvPrefix),
+		configx.WithSources(newCachePolicyEnvSource()),
+		configx.WithPriority(configx.SourceDotenv, configx.SourceFile, configx.SourceEnv, configx.SourceCustom, configx.SourceArgs),
 		configx.WithIgnoreDotenvError(true),
 		configx.WithDotenv(),
 		configx.WithValidator(validate),

@@ -70,7 +70,7 @@ func TestResponsePolicyKeepsEntryAssetsRevalidated(t *testing.T) {
 	cacheControl := policy.CacheControl(&resolver.Result{
 		Asset: &catalog.Asset{Path: "index.html"},
 	})
-	if cacheControl != cachepolicy.RevalidateCacheControl {
+	if cacheControl != cachepolicy.HTMLRevalidateCacheControl {
 		t.Fatalf("expected revalidate cache-control, got %q", cacheControl)
 	}
 }
@@ -110,5 +110,80 @@ func TestResponsePolicyExpiresAtRejectsInvalidMaxAge(t *testing.T) {
 	}
 	if _, ok := policy.ExpiresAt("public, max-age=oops", time.Time{}, false); ok {
 		t.Fatal("expected invalid max-age to return false")
+	}
+}
+
+func TestResponsePolicyRevalidatesHTMLAndFallbackAcrossEncodings(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	policy := cachepolicy.NewResponsePolicyFromConfig(&cfg)
+	for _, encoding := range []string{"", "br", "gzip", "zstd"} {
+		t.Run(encoding, func(t *testing.T) {
+			result := &resolver.Result{
+				Asset:     &catalog.Asset{Path: "index.html", MediaType: "text/html; charset=utf-8"},
+				MediaType: "text/html; charset=utf-8",
+			}
+			if encoding != "" {
+				result.Variant = &catalog.Variant{Encoding: encoding}
+			}
+			if got := policy.CacheControl(result); got != cachepolicy.HTMLRevalidateCacheControl {
+				t.Fatalf("HTML encoding %q: got %q", encoding, got)
+			}
+			result.FallbackUsed = true
+			if got := policy.CacheControl(result); got != cachepolicy.HTMLRevalidateCacheControl {
+				t.Fatalf("fallback encoding %q: got %q", encoding, got)
+			}
+		})
+	}
+}
+
+func TestResponsePolicyUsesImmutableMaxAgeAcrossJSCSSEncodings(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	cfg.Frontend.ImmutableCache.MaxAge = "12h"
+	policy := cachepolicy.NewResponsePolicyFromConfig(&cfg)
+	for _, assetPath := range []string{"assets/app-deadbeef.js", "assets/app-deadbeef.mjs", "assets/style-deadbeef.css"} {
+		assertFingerprintedEncodingControls(t, policy, assetPath, "public, max-age=43200, immutable")
+	}
+}
+
+func assertFingerprintedEncodingControls(t *testing.T, policy cachepolicy.ResponsePolicy, assetPath, want string) {
+	t.Helper()
+	for _, encoding := range []string{"", "br", "gzip", "zstd"} {
+		t.Run(assetPath+"/"+encoding, func(t *testing.T) {
+			result := &resolver.Result{Asset: &catalog.Asset{Path: assetPath}}
+			if encoding != "" {
+				result.Variant = &catalog.Variant{Encoding: encoding}
+			}
+			if got := policy.CacheControl(result); got != want {
+				t.Fatalf("got %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestResponsePolicyKeepsOtherFingerprintedMaxAge(t *testing.T) {
+	cfg := config.DefaultConfigForTest()
+	policy := cachepolicy.NewResponsePolicyFromConfig(&cfg)
+	result := &resolver.Result{Asset: &catalog.Asset{Path: "assets/hero-deadbeef.png"}}
+	if got := policy.CacheControl(result); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("unexpected image cache-control %q", got)
+	}
+}
+
+func TestResponsePolicyFingerprintCacheDisabledOrZero(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		enabled bool
+		maxAge  string
+	}{
+		{name: "disabled", enabled: false, maxAge: "12h"},
+		{name: "zero", enabled: true, maxAge: "0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.DefaultConfigForTest()
+			cfg.Frontend.ImmutableCache.Enable = tc.enabled
+			cfg.Frontend.ImmutableCache.MaxAge = tc.maxAge
+			policy := cachepolicy.NewResponsePolicyFromConfig(&cfg)
+			assertFingerprintedEncodingControls(t, policy, "assets/app-deadbeef.js", cachepolicy.RevalidateCacheControl)
+		})
 	}
 }

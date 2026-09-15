@@ -9,7 +9,7 @@ import (
 type Frontend struct {
 	ResourceHints      ResourceHints      `koanf:"resource_hints"  validate:"required"`
 	ImmutableCache     ImmutableCache     `koanf:"immutable_cache" validate:"required"`
-	StaleAssetRecovery StaleAssetRecovery `configx:"nocli"         koanf:"stale_asset_recovery" validate:"required"`
+	StaleAssetRecovery StaleAssetRecovery `configx:"nocli"         koanf:"stale_asset_recovery"`
 }
 
 type StaleAssetRecovery struct {

@@ -232,3 +232,27 @@ func assertPriorityPrecedenceConfig(t *testing.T, cfg *config.Config) {
 		t.Fatalf("expected flag to override logger.level, got %q", cfg.Logger.Level)
 	}
 }
+
+func TestLoadWithOptions_DockerEnvironmentOverridesCachePolicyFile(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(t.TempDir(), "spack.yaml")
+	body := "assets:\n  root: " + root + "\nfrontend:\n  immutable_cache:\n    max_age: 168h\ncompression:\n  max_age: 168h\n  encoding_max_age: 168h\n"
+	if err := os.WriteFile(configPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SPACK_ASSETS_ROOT", root)
+	t.Setenv("SPACK_FRONTEND_IMMUTABLE_CACHE_ENABLE", "true")
+	t.Setenv("SPACK_FRONTEND_IMMUTABLE_CACHE_MAX_AGE", "12h")
+	t.Setenv("SPACK_COMPRESSION_MAX_AGE", "12h")
+	t.Setenv("SPACK_COMPRESSION_ENCODING_MAX_AGE", "12h")
+	cfg, err := config.LoadWithOptions(config.LoadOptions{Files: []string{configPath}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Frontend.ImmutableCache.Enable || cfg.Frontend.ImmutableCache.MaxAge != "12h" {
+		t.Fatalf("frontend cache environment not applied: %+v", cfg.Frontend.ImmutableCache)
+	}
+	if cfg.Compression.MaxAge != "12h" || cfg.Compression.EncodingMaxAge != "12h" {
+		t.Fatalf("compression cache environment not applied: %+v", cfg.Compression)
+	}
+}

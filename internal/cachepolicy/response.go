@@ -16,6 +16,7 @@ import (
 
 // RevalidateCacheControl is the default response policy for original assets.
 const RevalidateCacheControl = "public, max-age=0, must-revalidate"
+const HTMLRevalidateCacheControl = "no-cache, max-age=0, must-revalidate"
 
 // ResponsePolicy decides the cache headers emitted for resolved assets.
 type ResponsePolicy interface {
@@ -67,8 +68,14 @@ func (p StaticResponsePolicy) CacheControl(result *resolver.Result) string {
 	if result == nil {
 		return RevalidateCacheControl
 	}
-	if result.Variant == nil {
+	if result.FallbackUsed || isHTMLResponse(result) {
+		return HTMLRevalidateCacheControl
+	}
+	if result.Asset != nil && IsFingerprintAssetPath(result.Asset.Path) {
 		return p.assetCacheControl(result)
+	}
+	if result.Variant == nil {
+		return RevalidateCacheControl
 	}
 
 	maxAge := p.variantMaxAge(result.Variant)
@@ -79,13 +86,32 @@ func (p StaticResponsePolicy) CacheControl(result *resolver.Result) string {
 }
 
 func (p StaticResponsePolicy) assetCacheControl(result *resolver.Result) string {
-	if !p.immutable.enabled || p.immutable.maxAge <= 0 || result.Asset == nil {
+	if !p.immutable.enabled || result.Asset == nil || !IsFingerprintAssetPath(result.Asset.Path) {
 		return RevalidateCacheControl
 	}
-	if !IsFingerprintAssetPath(result.Asset.Path) {
+	maxAge := p.immutable.maxAge
+	if maxAge <= 0 {
 		return RevalidateCacheControl
 	}
-	return fmt.Sprintf("public, max-age=%d, immutable", int(p.immutable.maxAge.Seconds()))
+	return fmt.Sprintf("public, max-age=%d, immutable", int(maxAge.Seconds()))
+}
+
+func isHTMLResponse(result *resolver.Result) bool {
+	mediaType := result.MediaType
+	if result.Asset != nil {
+		if strings.EqualFold(path.Ext(result.Asset.Path), ".html") {
+			return true
+		}
+		if result.Asset.MediaType != "" {
+			mediaType = result.Asset.MediaType
+		}
+	}
+	mediaType = strings.TrimSpace(mediaType)
+	const htmlMediaType = "text/html"
+	if len(mediaType) < len(htmlMediaType) || !strings.EqualFold(mediaType[:len(htmlMediaType)], htmlMediaType) {
+		return false
+	}
+	return len(mediaType) == len(htmlMediaType) || mediaType[len(htmlMediaType)] == ';' || mediaType[len(htmlMediaType)] == ' '
 }
 
 func (p StaticResponsePolicy) ExpiresAt(cacheControl string, lastModified time.Time, hasLastModified bool) (time.Time, bool) {

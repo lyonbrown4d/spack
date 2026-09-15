@@ -143,7 +143,7 @@ func defaultFrontendConfig() Frontend {
 			MaxAge: "8760h",
 		},
 		StaleAssetRecovery: StaleAssetRecovery{
-			Enable: true,
+			Enable: false,
 		},
 	}
 }
