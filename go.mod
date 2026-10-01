@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/KimMachineGun/automemlimit v1.0.0
-	github.com/andybalholm/brotli v1.2.4
+	github.com/andybalholm/brotli v1.2.6
 	github.com/arcgolabs/collectionx/bytex v1.0.0
 	github.com/arcgolabs/collectionx/interval v1.0.0
 	github.com/arcgolabs/collectionx/list v1.0.0
@@ -24,17 +24,17 @@ require (
 	github.com/arcgolabs/mapper v0.2.2
 	github.com/arcgolabs/observabilityx v0.4.2
 	github.com/arl/statsviz v0.8.2
-	github.com/bmatcuk/doublestar/v4 v4.10.0
+	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/charlievieth/fastwalk v1.0.14
-	github.com/davidbyttow/govips/v2 v2.18.0
+	github.com/davidbyttow/govips/v2 v2.19.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/go-co-op/gocron/v2 v2.22.0
-	github.com/go-playground/validator/v10 v10.30.4
+	github.com/go-playground/validator/v10 v10.30.5
 	github.com/gofiber/fiber/v3 v3.5.0
 	github.com/google/uuid v1.6.0
-	github.com/klauspost/compress v1.20.0
+	github.com/klauspost/compress v1.20.1
 	github.com/panjf2000/ants/v2 v2.12.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.3
@@ -47,7 +47,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/net v0.59.0
-	golang.org/x/perf v0.0.0-20260908200009-22c9c6c9d4da
+	golang.org/x/perf v0.0.0-20260929162123-406019bb8b68
 	golang.org/x/sync v0.23.0
 )
 
