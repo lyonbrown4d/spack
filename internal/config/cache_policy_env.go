@@ -11,12 +11,13 @@ import (
 // themselves contain underscores. Keep the published SPACK_* names working.
 func newCachePolicyEnvSource() configx.ConfigSource {
 	return configx.NewSource("spack-cache-policy-env", func(_ context.Context) (map[string]any, error) {
-		values := make(map[string]any, 4)
+		values := make(map[string]any, 5)
 		for envName, configPath := range map[string]string{
-			"SPACK_FRONTEND_IMMUTABLE_CACHE_ENABLE":  "frontend.immutable_cache.enable",
-			"SPACK_FRONTEND_IMMUTABLE_CACHE_MAX_AGE": "frontend.immutable_cache.max_age",
-			"SPACK_COMPRESSION_MAX_AGE":              "compression.max_age",
-			"SPACK_COMPRESSION_ENCODING_MAX_AGE":     "compression.encoding_max_age",
+			"SPACK_FRONTEND_IMMUTABLE_CACHE_ENABLE":      "frontend.immutable_cache.enable",
+			"SPACK_FRONTEND_IMMUTABLE_CACHE_MAX_AGE":     "frontend.immutable_cache.max_age",
+			"SPACK_FRONTEND_STALE_ASSET_RECOVERY_ENABLE": "frontend.stale_asset_recovery.enable",
+			"SPACK_COMPRESSION_MAX_AGE":                  "compression.max_age",
+			"SPACK_COMPRESSION_ENCODING_MAX_AGE":         "compression.encoding_max_age",
 		} {
 			if value, ok := os.LookupEnv(envName); ok {
 				values[configPath] = value

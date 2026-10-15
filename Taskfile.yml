@@ -65,6 +65,10 @@ tasks:
     cmds:
       - bash scripts/container-smoke.sh
 
+  integration:cache-update:
+    desc: Verify stale frontend recovery across direct and AOT deployments in a real browser
+    cmds:
+      - npm --prefix test run integration:cache-update
   integration:aot:refine:smoke:
     desc: Build a Refine fixture, compile it to .spack, and smoke-test direct vs AOT runtime serving
     vars:
