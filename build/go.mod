@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/goyek/goyek/v3 v3.0.1
 	github.com/goyek/x v0.4.0
-	golang.org/x/mod v0.42.0
+	golang.org/x/mod v0.43.0
 )
 
 require (
@@ -20,7 +20,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 )
 
 tool actionlint.kjanat.dev/cmd/actionlint
